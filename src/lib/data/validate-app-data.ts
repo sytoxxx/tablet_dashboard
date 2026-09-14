@@ -222,6 +222,20 @@ function sanitizePerson(raw: unknown, fallback: PersonProfile): PersonProfile | 
             fallback.personalSettings.notes ?? "",
             200,
           ),
+          leaveReminderEnabled:
+            typeof raw.personalSettings.leaveReminderEnabled === "boolean"
+              ? raw.personalSettings.leaveReminderEnabled
+              : (fallback.personalSettings.leaveReminderEnabled ?? true),
+          leaveReminderVolume: (() => {
+            const rawVol = raw.personalSettings.leaveReminderVolume;
+            const fallbackVol =
+              fallback.personalSettings.leaveReminderVolume ?? 0.08;
+            const n =
+              typeof rawVol === "number" && Number.isFinite(rawVol)
+                ? rawVol
+                : fallbackVol;
+            return Math.min(0.25, Math.max(0.02, n));
+          })(),
         }
       : fallback.personalSettings,
     displayPrefs: {

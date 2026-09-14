@@ -165,6 +165,10 @@ export type WeatherSettings = {
 export type PersonalSettings = {
   preferredCoffee?: string;
   notes?: string;
+  /** Quiet leave reminder ~3 min before leaveHome. Default on. */
+  leaveReminderEnabled?: boolean;
+  /** Soft volume 0.02–0.25. Default ~0.08. */
+  leaveReminderVolume?: number;
 };
 
 export type DisplayPrefs = {

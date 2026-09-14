@@ -61,7 +61,7 @@ describe("morning timeline states", () => {
     );
   });
 
-  it("Levi: relaxed → prepare_soft → prepare_now → leave_now → en_route", () => {
+  it("Levi: relaxed → prepare_soft → leave_soon → leave_now → en_route", () => {
     const travel = leviTravel();
     expect(travel.leaveHome).toBe("07:35");
     expect(travel.preparationStart).toBe("07:30");
@@ -87,15 +87,16 @@ describe("morning timeline states", () => {
       }),
     ).toBe("prepare_soft");
 
+    // 3 minutes before leave → leave_soon (takes priority over prepare_now)
     expect(
       resolveMorningTimelineState({
-        nowMinutes: 7 * 60 + 33,
+        nowMinutes: 7 * 60 + 32,
         prepMinutes: 7 * 60 + 30,
         leaveMinutes: 7 * 60 + 35,
         arrivalMinutes: 7 * 60 + 45,
         arrivalEndMinutes: 7 * 60 + 50,
       }),
-    ).toBe("prepare_now");
+    ).toBe("leave_soon");
 
     expect(
       resolveMorningTimelineState({
@@ -116,6 +117,18 @@ describe("morning timeline states", () => {
         arrivalEndMinutes: 7 * 60 + 50,
       }),
     ).toBe("en_route");
+  });
+
+  it("prepare_now appears when leave-soon window has not started", () => {
+    expect(
+      resolveMorningTimelineState({
+        nowMinutes: 7 * 60 + 20,
+        prepMinutes: 7 * 60 + 0,
+        leaveMinutes: 7 * 60 + 35,
+        arrivalMinutes: 7 * 60 + 45,
+        arrivalEndMinutes: 7 * 60 + 50,
+      }),
+    ).toBe("prepare_now");
   });
 
   it("Levi timeline has no bus step", () => {

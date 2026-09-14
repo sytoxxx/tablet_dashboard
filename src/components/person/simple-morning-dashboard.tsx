@@ -37,6 +37,8 @@ export function SimpleMorningDashboard({
   busDataAgeLabel,
   weatherPlace,
   workTravel,
+  leaveReminderActive = false,
+  leaveReminderLabel = null,
 }: {
   view: DayIntelligenceView;
   overview: MorningOverview;
@@ -53,6 +55,8 @@ export function SimpleMorningDashboard({
   busDataAgeLabel?: string | null;
   weatherPlace?: string | null;
   workTravel?: WorkTravelLive | null;
+  leaveReminderActive?: boolean;
+  leaveReminderLabel?: string | null;
 }) {
   const headline = overview.greeting;
   const isBirgit = mode === "work";
@@ -114,7 +118,12 @@ export function SimpleMorningDashboard({
       >
         <div className="space-y-6 landscape-tablet:space-y-5">
           {showTimeline ? (
-            <MorningTimelineSection timeline={overview.timeline} simple />
+            <MorningTimelineSection
+              timeline={overview.timeline}
+              simple
+              reminderActive={leaveReminderActive}
+              reminderLabel={leaveReminderLabel}
+            />
           ) : null}
           {showEveningPrep ? (
             <EveningPrepSection prep={overview.eveningPrep} simple />

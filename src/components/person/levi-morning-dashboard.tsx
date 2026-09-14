@@ -37,6 +37,8 @@ export function LeviMorningDashboard({
   weatherPlace,
   schoolJarvisSummary = null,
   schoolJarvisHandoffUrl = null,
+  leaveReminderActive = false,
+  leaveReminderLabel = null,
 }: {
   view: DayIntelligenceView;
   overview: MorningOverview;
@@ -52,6 +54,8 @@ export function LeviMorningDashboard({
   weatherPlace?: string | null;
   schoolJarvisSummary?: SchoolJarvisDailySummary | null;
   schoolJarvisHandoffUrl?: string | null;
+  leaveReminderActive?: boolean;
+  leaveReminderLabel?: string | null;
 }) {
   const dayLabel = overview.focusIsTomorrow ? "Morgen" : "Heute";
   const headline = overview.greeting;
@@ -103,7 +107,11 @@ export function LeviMorningDashboard({
       <div className="grid gap-4 landscape-tablet:grid-cols-[1.4fr_1fr] landscape-tablet:gap-4 lg:grid-cols-[1.4fr_1fr]">
         <div className="space-y-4 landscape-tablet:space-y-3">
           {showTimeline ? (
-            <MorningTimelineSection timeline={overview.timeline} />
+            <MorningTimelineSection
+              timeline={overview.timeline}
+              reminderActive={leaveReminderActive}
+              reminderLabel={leaveReminderLabel}
+            />
           ) : null}
           {showEveningPrep ? (
             <EveningPrepSection prep={overview.eveningPrep} />

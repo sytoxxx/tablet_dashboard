@@ -8,9 +8,14 @@ import { cn } from "@/lib/utils";
 export function MorningTimelineSection({
   timeline,
   simple = false,
+  reminderActive = false,
+  reminderLabel = null,
 }: {
   timeline: MorningTimeline | null;
   simple?: boolean;
+  /** Leave-soon acoustic/visual cue is active. */
+  reminderActive?: boolean;
+  reminderLabel?: string | null;
 }) {
   if (!timeline || timeline.state === "idle") {
     if (timeline?.nextAction?.label === "Kein passender Bus") {
@@ -26,16 +31,32 @@ export function MorningTimelineSection({
     return null;
   }
 
+  const withWalkEmoji =
+    timeline.state === "leave_soon" || timeline.state === "leave_now";
+  const headline =
+    timeline.state === "prepare_soft"
+      ? `☕ ${timeline.stateLabel}`
+      : withWalkEmoji
+        ? `🚶 ${timeline.stateLabel}`
+        : timeline.stateLabel;
+
   return (
     <Section title="Heute">
       <p
         className={cn(
           "font-display tracking-tight text-[color:var(--ink)]",
-          simple ? "text-3xl sm:text-4xl" : "text-3xl sm:text-4xl landscape-tablet:text-[2.75rem]",
+          simple
+            ? "text-3xl sm:text-4xl"
+            : "text-3xl sm:text-4xl landscape-tablet:text-[2.75rem]",
         )}
       >
-        {timeline.stateLabel}
+        {headline}
       </p>
+      {reminderActive && timeline.state === "leave_soon" ? (
+        <p className="mt-2 text-sm text-[color:var(--quiet)]">
+          🔔 {reminderLabel?.trim() || "Erinnerung aktiviert"}
+        </p>
+      ) : null}
       {timeline.nextAction?.time ? (
         <p className="mt-1 text-base text-[color:var(--quiet)] tabular-nums">
           {timeline.nextAction.time}

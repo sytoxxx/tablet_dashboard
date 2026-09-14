@@ -41,6 +41,10 @@ export default function PersonenSettingsPage() {
                   p.schedule.type === planType
                     ? p.schedule
                     : { type: planType, week: {} };
+                const volumeRaw = Number(fd.get("leaveReminderVolume"));
+                const leaveReminderVolume = Number.isFinite(volumeRaw)
+                  ? Math.min(0.25, Math.max(0.02, volumeRaw))
+                  : (p.personalSettings?.leaveReminderVolume ?? 0.08);
                 return {
                   ...p,
                   name: String(fd.get("name") || p.name).replace(/[<>]/g, "").slice(0, 40),
@@ -49,6 +53,11 @@ export default function PersonenSettingsPage() {
                   hint: String(fd.get("hint") || p.hint).replace(/[<>]/g, "").slice(0, 60),
                   schedule,
                   displayPrefs,
+                  personalSettings: {
+                    ...p.personalSettings,
+                    leaveReminderEnabled: fd.get("leaveReminderEnabled") === "on",
+                    leaveReminderVolume,
+                  },
                 };
               });
             }}
@@ -142,6 +151,35 @@ export default function PersonenSettingsPage() {
                   </label>
                 ))}
               </div>
+            </fieldset>
+
+            <fieldset className="space-y-3">
+              <legend className="text-sm text-[color:var(--quiet)]">
+                Losgeh-Erinnerung
+              </legend>
+              <label className="flex min-h-12 items-center gap-3 rounded-2xl bg-[color:var(--surface)] px-4">
+                <input
+                  type="checkbox"
+                  name="leaveReminderEnabled"
+                  defaultChecked={person.personalSettings?.leaveReminderEnabled !== false}
+                  className="size-5"
+                />
+                Erinnerung ~3 Min. vor Losgehen
+              </label>
+              <label className="block space-y-1">
+                <span className="text-sm text-[color:var(--quiet)]">
+                  Tonstärke (sehr leise)
+                </span>
+                <input
+                  type="range"
+                  name="leaveReminderVolume"
+                  min={0.02}
+                  max={0.25}
+                  step={0.01}
+                  defaultValue={person.personalSettings?.leaveReminderVolume ?? 0.08}
+                  className="w-full accent-[color:var(--brand)]"
+                />
+              </label>
             </fieldset>
 
             <Button type="submit" size="lg" className="h-12 rounded-2xl">

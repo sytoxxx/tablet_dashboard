@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { cn } from "@/lib/utils";
+import { unlockLeaveReminderAudio } from "@/lib/morning/leave-reminder-audio";
 
 type ProfileTileProps = {
   href: string;
@@ -21,6 +22,9 @@ export function ProfileTile({
   return (
     <Link
       href={href}
+      onClick={() => {
+        void unlockLeaveReminderAudio();
+      }}
       className={cn(
         "group relative flex min-h-44 flex-col justify-between rounded-[1.75rem] px-7 py-7 sm:min-h-48",
         "bg-[color:var(--surface)] text-[color:var(--ink)]",

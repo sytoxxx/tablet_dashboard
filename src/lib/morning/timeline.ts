@@ -11,11 +11,15 @@ export type MorningTimelineState =
   | "relaxed"
   | "prepare_soft"
   | "prepare_now"
+  | "leave_soon"
   | "leave_now"
   | "en_route"
   | "late"
   | "arrived"
   | "idle";
+
+/** Minutes before leaveHome when the leave-soon cue begins (sound + copy). */
+export const LEAVE_SOON_LEAD_MINUTES = 3;
 
 export type MorningTimelineItemKind =
   | "prepare"
@@ -54,12 +58,18 @@ const STATE_LABELS: Record<MorningTimelineState, string> = {
   relaxed: "Noch entspannt",
   prepare_soft: "Langsam fertig werden",
   prepare_now: "Jetzt fertig machen",
+  leave_soon: "In wenigen Minuten losgehen",
   leave_now: "Jetzt losgehen",
   en_route: "Du solltest bereits unterwegs sein",
   late: "Zeitdruck — bitte beeilen",
   arrived: "Zielzeit erreicht",
   idle: "Kein Morgenplan",
 };
+
+export function leaveSoonLabel(minutesUntilLeave: number): string {
+  if (minutesUntilLeave <= 1) return "In 1 Minute losgehen";
+  return `In ${minutesUntilLeave} Minuten losgehen`;
+}
 
 export type BuildMorningTimelineInput = {
   personId: PersonId;
@@ -121,6 +131,9 @@ export function resolveMorningTimelineState(input: {
     if (arrivalMinutes == null || nowMinutes < arrivalMinutes) return "en_route";
     return "late";
   }
+
+  // Leave-soon window: [leave − LEAVE_SOON_LEAD_MINUTES, leave) — takes priority over prepare_now
+  if (nowMinutes >= leave - LEAVE_SOON_LEAD_MINUTES) return "leave_soon";
 
   const finishHard = resolveFinishHardMinutes(prep, leave);
 
@@ -283,7 +296,7 @@ export function buildMorningTimeline(
   // Mark active next incomplete item matching state
   let activeId: string | null = null;
   if (state === "prepare_soft" || state === "prepare_now") activeId = "prepare";
-  else if (state === "leave_now") activeId = "leave";
+  else if (state === "leave_soon" || state === "leave_now") activeId = "leave";
   else if (state === "en_route" || state === "late") {
     activeId = travel.mode === "bus" ? "bus" : "leave";
   } else if (state === "relaxed") {
@@ -295,7 +308,13 @@ export function buildMorningTimeline(
     active: item.id === activeId,
   }));
 
-  const stateLabel = STATE_LABELS[state];
+  const minutesUntilLeave =
+    leaveMinutes == null ? null : leaveMinutes - nowMinutes;
+
+  const stateLabel =
+    state === "leave_soon" && minutesUntilLeave != null && minutesUntilLeave > 0
+      ? leaveSoonLabel(minutesUntilLeave)
+      : STATE_LABELS[state];
   const activeItem = timeline.find((i) => i.active) ?? null;
 
   return {
@@ -311,7 +330,6 @@ export function buildMorningTimeline(
             time: activeItem?.time ?? travel.leaveHome,
           },
     timeline,
-    minutesUntilLeave:
-      leaveMinutes == null ? null : leaveMinutes - nowMinutes,
+    minutesUntilLeave,
   };
 }

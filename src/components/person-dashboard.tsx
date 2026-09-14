@@ -13,6 +13,7 @@ import { useBusLive } from "@/hooks/use-bus-live";
 import { useWeatherLive } from "@/hooks/use-weather-live";
 import { useSchoolJarvisLive } from "@/hooks/use-school-jarvis-live";
 import { MorningSkeleton } from "@/components/shared/skeleton";
+import { useLeaveReminder } from "@/hooks/use-leave-reminder";
 import { DEFAULT_TRANSIT_PREFS } from "@/lib/data/defaults";
 import { useAppData } from "@/components/providers/data-provider";
 
@@ -107,6 +108,17 @@ export function PersonDashboard({
     [liveView, overview, wallNow],
   );
 
+  const leaveReminder = useLeaveReminder({
+    personId: person.id,
+    wallNow,
+    travel: overview.travelPlan,
+    timeline: overview.timeline,
+    prefs: {
+      enabled: person.personalSettings?.leaveReminderEnabled,
+      volume: person.personalSettings?.leaveReminderVolume,
+    },
+  });
+
   const liveMeta = {
     busMessage: bus.message,
     busEmptyTitle: bus.emptyTitle,
@@ -121,6 +133,9 @@ export function PersonDashboard({
     weatherPlace: weather.place,
     busLoading: bus.loading && !bus.fetchedAt,
     weatherLoading: weather.loading && !weather.fetchedAt,
+    leaveReminderActive:
+      leaveReminder.inCueWindow && leaveReminder.enabled,
+    leaveReminderLabel: "Erinnerung aktiviert",
   };
 
   if ((liveMeta.busLoading || liveMeta.weatherLoading) && !view.nextBus && !view.weather) {
@@ -144,6 +159,8 @@ export function PersonDashboard({
         weatherPlace={liveMeta.weatherPlace}
         schoolJarvisSummary={schoolJarvis.summary}
         schoolJarvisHandoffUrl={schoolJarvis.handoffUrl}
+        leaveReminderActive={liveMeta.leaveReminderActive}
+        leaveReminderLabel={liveMeta.leaveReminderLabel}
       />
     );
   }
@@ -165,6 +182,8 @@ export function PersonDashboard({
         busDataAgeLabel={liveMeta.busDataAgeLabel}
         weatherPlace={liveMeta.weatherPlace}
         workTravel={bus.workTravel}
+        leaveReminderActive={liveMeta.leaveReminderActive}
+        leaveReminderLabel={liveMeta.leaveReminderLabel}
       />
     );
   }
@@ -185,6 +204,8 @@ export function PersonDashboard({
       busDataAgeLabel={liveMeta.busDataAgeLabel}
       weatherPlace={liveMeta.weatherPlace}
       workTravel={bus.workTravel}
+      leaveReminderActive={liveMeta.leaveReminderActive}
+      leaveReminderLabel={liveMeta.leaveReminderLabel}
     />
   );
 }
