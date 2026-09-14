@@ -3,12 +3,6 @@ import { ProfileTile } from "@/components/profile-tile";
 import { profiles } from "@/data/profiles";
 import { Coffee } from "lucide-react";
 
-const profileHints: Record<string, string> = {
-  levi: "Schule & Bus",
-  schwiegermutter: "Frühschicht",
-  heidi: "Dein Tag",
-};
-
 export default function HomePage() {
   return (
     <main className="relative mx-auto flex min-h-dvh w-full max-w-5xl flex-col justify-center gap-12 px-5 py-10 sm:px-8 lg:px-10">
@@ -27,16 +21,13 @@ export default function HomePage() {
         <p className="text-xl text-[color:var(--quiet)] sm:text-2xl">Wer bist du?</p>
       </header>
 
-      <section
-        className="grid gap-4 sm:grid-cols-3 sm:gap-5"
-        aria-label="Profile"
-      >
+      <section className="grid gap-4 sm:grid-cols-3 sm:gap-5" aria-label="Profile">
         {profiles.map((person, index) => (
           <ProfileTile
             key={person.id}
             href={`/person/${person.id}`}
             name={person.displayName}
-            hint={profileHints[person.id] ?? "Tagesübersicht"}
+            hint={person.hint}
             accent={person.accent}
             delayMs={100 + index * 70}
           />
@@ -46,7 +37,7 @@ export default function HomePage() {
       <div className="animate-rise" style={{ animationDelay: "320ms" }}>
         <Link
           href="/kaffee"
-          className="inline-flex min-h-14 items-center gap-3 rounded-2xl bg-[color:var(--ink)] px-6 text-lg text-[color:var(--surface)] transition-opacity hover:opacity-90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[color:var(--brand)] focus-visible:ring-offset-4 focus-visible:ring-offset-[color:var(--bg)]"
+          className="inline-flex min-h-14 items-center gap-3 rounded-2xl bg-[color:var(--ink)] px-6 text-lg text-[color:var(--surface)] transition-[opacity,transform] duration-150 hover:opacity-90 active:scale-[0.97] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[color:var(--brand)] focus-visible:ring-offset-4 focus-visible:ring-offset-[color:var(--bg)]"
         >
           <Coffee className="size-5" aria-hidden />
           Zur Kaffeeecke

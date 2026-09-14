@@ -6,25 +6,27 @@ Minimaler Morgen-Tablet-Dashboard (deutsch) für ein wandmontiertes Android-Tabl
 
 - Next.js (App Router) + TypeScript
 - Tailwind CSS + shadcn/ui
-- Mock-Daten in `src/data/`
+- Mock-Daten in `src/data/` (Personen getrennt unter `src/data/persons/`)
 
 ## Lokal starten
 
 ```bash
 npm install
-npm run dev -- --port 43127
+npm run dev
 ```
 
-Dann öffnen: [http://127.0.0.1:43127](http://127.0.0.1:43127)
+Dev-Server: Port **43127** → [http://127.0.0.1:43127](http://127.0.0.1:43127)
 
 ## Routen
 
 | Route | Inhalt |
 | --- | --- |
-| `/` | Home — „Guten Morgen“ + Profilwahl |
-| `/person/[id]` | Tagesübersicht (`levi`, `schwiegermutter`, `heidi`) |
-| `/kaffee` | Kaffee-Stubs (Espresso, Cappuccino, Latte) |
+| `/` | Home — „Guten Morgen“ + Profilwahl (Levi, Birgit, Heidi) |
+| `/person/levi` | Schule: Stundenplan, nächstes Fach, Bus, Wetter, To-dos |
+| `/person/birgit` | Schicht: Beginn/Ende, Bus, Wetter, Kalender |
+| `/person/heidi` | Persönlicher Tag |
+| `/kaffee` | Espresso / Cappuccino / Latte + funktionierender Timer |
 
 ## Phase 1
 
-Nur Mock-Daten und UI-Schalen. Spätere Phasen: Datenlayer, Plan-Upload/OCR, Wetter/Bus/Kalender, Jarvis, Kiosk, Smart Home.
+Mock-Daten und UI. Später: Datenlayer, Plan-Upload/OCR, Wetter/Bus/Kalender live, Jarvis, Kiosk, Smart Home.

@@ -1,9 +1,19 @@
-export type PersonId = "levi" | "schwiegermutter" | "heidi";
+export type PersonId = "levi" | "birgit" | "heidi";
+
+export type PersonKind = "school" | "work" | "personal";
 
 export type TimetableEntry = {
   time: string;
   subject: string;
   room: string;
+};
+
+export type WorkShift = {
+  label: string;
+  start: string;
+  end: string;
+  location: string;
+  notes?: string;
 };
 
 export type BusInfo = {
@@ -30,13 +40,17 @@ export type TaskItem = {
   done: boolean;
 };
 
+/** Shared morning context — shaped for a later data-provider swap. */
 export type PersonDay = {
   id: PersonId;
+  kind: PersonKind;
   displayName: string;
   shortName: string;
+  hint: string;
   greeting: string;
   accent: string;
   timetable: TimetableEntry[];
+  workShift: WorkShift | null;
   mitnehmen: string[];
   nextBus: BusInfo | null;
   weather: WeatherInfo | null;
@@ -51,6 +65,6 @@ export type CoffeeDrink = {
   name: string;
   prepNotes: string;
   amounts: string;
+  steps: string[];
   timerSeconds: number;
-  personalSettings: string;
 };

@@ -1,4 +1,4 @@
-import { CoffeeArea } from "@/components/coffee-area";
+import { CoffeeArea } from "@/components/coffee/coffee-area";
 import { coffeeDrinks } from "@/data/coffee";
 
 export const metadata = {
