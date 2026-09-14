@@ -47,5 +47,6 @@ Dev: `npm run dev` (gleicher Port).
 12: School Jarvis Integration Contract — `SchoolJarvisDailySummary`, Stub-API, Validierung (keine echte Verbindung)
 13: Echte School-Jarvis-Integration — Server-to-server, Cache, Levi-Karte, Handoff (keine Rohdaten-Spiegelung)
 14: School Jarvis Contract-Endpoint — `GET /api/integrations/coffee/daily-summary` (Bearer), siehe `school-jarvis/`
+14-E2E: Live-Integrationstest CM ↔ SJ — `docs/phase-14-e2e-integration.md`
 
 Details: `school-jarvis/docs/phase-14-coffee-morning-contract.md`
