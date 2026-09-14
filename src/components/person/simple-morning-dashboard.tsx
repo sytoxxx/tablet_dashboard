@@ -8,6 +8,8 @@ import { LiveClock } from "@/components/shared/live-clock";
 import { DayFlowHero } from "@/components/person/day-flow-hero";
 import { WorkShiftSection } from "@/components/person/work-shift";
 import { WorkTravelSection } from "@/components/person/work-travel-section";
+import { MorningTimelineSection } from "@/components/person/morning-timeline-section";
+import { EveningPrepSection } from "@/components/person/evening-prep-section";
 import { BusSection } from "@/components/person/bus-section";
 import { WeatherSection } from "@/components/person/weather-section";
 import { CalendarSection } from "@/components/person/calendar-section";
@@ -17,7 +19,7 @@ import { cn } from "@/lib/utils";
 
 /**
  * Extremely simple morning layout for Birgit (and Heidi).
- * Work travel: Arbeit + Bus result only — no provider jargon.
+ * Timeline + work travel — no provider jargon.
  */
 export function SimpleMorningDashboard({
   view,
@@ -54,7 +56,7 @@ export function SimpleMorningDashboard({
 }) {
   const headline = overview.greeting;
   const isBirgit = mode === "work";
-  const showMitnehmen = false; // Mitnehmen nur Levi — Birgit/Heidi bleiben ruhig
+  const showMitnehmen = false;
   const showCalendar =
     !isBirgit &&
     view.displayPrefs.showCalendar &&
@@ -64,6 +66,8 @@ export function SimpleMorningDashboard({
     view.displayPrefs.showWeather && overview.visibility.weather;
   const showHint =
     overview.visibility.hint && Boolean(overview.importantHint);
+  const showTimeline = overview.visibility.timeline;
+  const showEveningPrep = overview.visibility.eveningPrep;
 
   const useWorkTravel =
     mode === "work" &&
@@ -73,7 +77,12 @@ export function SimpleMorningDashboard({
       workTravel.status === "cancelled");
 
   return (
-    <div className="morning-shell mx-auto flex w-full max-w-6xl flex-col gap-5 px-5 py-5 sm:gap-6 sm:px-8 sm:py-6 lg:px-10 landscape-tablet:gap-4 landscape-tablet:py-4">
+    <div
+      className={cn(
+        "morning-shell mx-auto flex w-full max-w-6xl flex-col gap-5 px-5 py-5 sm:gap-6 sm:px-8 sm:py-6 lg:px-10 landscape-tablet:gap-4 landscape-tablet:py-4",
+        overview.focusIsTomorrow && "daypart-evening",
+      )}
+    >
       <MorningNav quiet={mode === "work"} />
 
       <header className="animate-rise flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
@@ -104,15 +113,22 @@ export function SimpleMorningDashboard({
         style={{ animationDelay: "60ms" }}
       >
         <div className="space-y-6 landscape-tablet:space-y-5">
+          {showTimeline ? (
+            <MorningTimelineSection timeline={overview.timeline} simple />
+          ) : null}
+          {showEveningPrep ? (
+            <EveningPrepSection prep={overview.eveningPrep} simple />
+          ) : null}
+
           {mode === "work" ? (
-            useWorkTravel ? (
+            useWorkTravel && !showTimeline ? (
               <WorkTravelSection
                 plan={workTravel}
                 workLabel={view.workShift?.label}
               />
-            ) : (
+            ) : !showTimeline && !showEveningPrep ? (
               <WorkShiftSection shift={view.workShift} simple />
-            )
+            ) : null
           ) : (
             <>
               <DayFlowHero flow={view.dayFlow} />
@@ -162,7 +178,7 @@ export function SimpleMorningDashboard({
         </div>
 
         <aside className="space-y-5 landscape-tablet:space-y-4">
-          {showBus && !useWorkTravel ? (
+          {showBus && !useWorkTravel && !showTimeline ? (
             <BusSection
               bus={view.nextBus}
               stopName={view.busStopName}
@@ -186,7 +202,6 @@ export function SimpleMorningDashboard({
               dataAgeLabel={busDataAgeLabel}
               arrivalStatus={overview.bus.status}
               arrivalMessage={
-                // Birgit: keep copy extremely simple — no Fahrplan/Echtzeit jargon
                 isBirgit &&
                 (overview.bus.status === "on_time" ||
                   overview.bus.status === "too_late" ||

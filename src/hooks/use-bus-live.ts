@@ -13,16 +13,26 @@ const BUS_POLL_MS = 60_000;
 
 export type WorkTravelLive = Pick<
   WorkTravelPlan,
+  | "mode"
+  | "destinationLabel"
   | "workStart"
   | "workEnd"
+  | "arrivalTarget"
+  | "arrivalTargetEnd"
   | "leaveHome"
   | "busDeparture"
   | "arrivalAtWork"
+  | "arrivalAtDestination"
   | "preparationStart"
   | "status"
   | "isTestData"
   | "matched"
   | "message"
+  | "travelMinutes"
+  | "walkToStopMinutes"
+  | "stopToWorkMinutes"
+  | "preparationMinutes"
+  | "safetyBufferMinutes"
 >;
 
 export type BusLiveState = {

@@ -50,6 +50,17 @@ export type JarvisFacts = {
     timingSource: string;
     arrivesInTime: boolean | null;
   };
+  travel: {
+    mode: "walking" | "bus" | null;
+    leaveHome: string | null;
+    preparationStart: string | null;
+    arrivalTarget: string | null;
+    arrivalTargetEnd: string | null;
+    destinationLabel: string | null;
+    travelMinutes: number | null;
+    busDeparture: string | null;
+    status: string | null;
+  } | null;
   weather: {
     temperatureC: number | null;
     summary: string | null;

@@ -6,9 +6,11 @@ Intelligent morning bus planning driven by each person’s **work schedule**, no
 
 | Person | Behavior |
 |--------|----------|
-| **Birgit** | Work shifts → latest on-time bus → leave-home + preparation |
-| **Heidi** | Own work shifts + own walk/prep/buffer prefs |
-| **Levi** | Unchanged — school walk to HTL Kapfenberg, **no** work-travel bus planner |
+| **Birgit** | Work shifts → latest on-time bus → leave-home + preparation + timeline |
+| **Heidi** | Own work shifts + own walk/prep/buffer prefs + timeline |
+| **Levi** | Walking to HTL Kapfenberg — shared planner with `mode: "walking"`, **never** a school bus |
+
+See also Phase 15 morning timeline: `docs/phase-15-morning-timeline.md`.
 
 ## Selection rule
 

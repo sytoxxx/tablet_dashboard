@@ -101,7 +101,7 @@ export const seedPersons: PersonProfile[] = [
     id: "levi",
     name: "Levi",
     avatar: "L",
-    hint: "Schule & Bus",
+    hint: "Schule zu Fuß",
     greeting: "Guten Morgen, Levi",
     accent: "#2F6F6A",
     schedule: { type: "school", week: { ...leviWeek() } },
@@ -110,24 +110,12 @@ export const seedPersons: PersonProfile[] = [
       { id: "la2", title: "Abendessen zu Hause", time: "18:00" },
       { id: "la3", title: "Bandprobe", time: "16:00", weekday: "thu" },
     ],
-    // Start/Ziel-Haltestellen bewusst ohne echte Stop-IDs — nur im Admin setzen.
-    busStop: {
-      name: "Start (Kapfenberg — im Admin setzen)",
-      provider: "local",
-      departures: [
-        // TESTDATEN Region Kapfenberg/Bruck — keine Live-Abfahrten
-        { id: "lb1", line: "1", destination: "Kapfenberg Europaplatz [TEST]", time: "07:12" },
-        { id: "lb2", line: "1", destination: "Kapfenberg Europaplatz [TEST]", time: "07:42" },
-        { id: "lb3", line: "1", destination: "Kapfenberg Europaplatz [TEST]", time: "08:12" },
-        { id: "lb4", line: "2", destination: "Schirmitzbühel Ort [TEST]", time: "12:05" },
-        { id: "lb5", line: "1", destination: "Kapfenberg Europaplatz [TEST]", time: "15:40" },
-        { id: "lb6", line: "1", destination: "Kapfenberg Europaplatz [TEST]", time: "16:10" },
-      ],
-    },
+    // School commute is walking — no bus stop required for morning leave-time.
+    busStop: null,
     tasks: [
       { id: "l1", label: "Hausaufgaben Informatik", done: false, important: true },
       { id: "l2", label: "Sportzeug waschen", done: true, important: false },
-      { id: "l3", label: "Buskarte checken", done: false, important: true },
+      { id: "l3", label: "Schultasche checken", done: false, important: true },
     ],
     defaultBringItems: ["Wasserflasche"],
     weather: {
@@ -136,13 +124,21 @@ export const seedPersons: PersonProfile[] = [
       clothingTip: "🧥 Jacke mitnehmen",
     },
     personalSettings: { preferredCoffee: "espresso", notes: "Schultasche am Abend packen." },
-    displayPrefs: { showBus: true, showWeather: true, showCalendar: true, showTasks: true },
+    // No bus on the school commute — leave-time comes from walking travel plan.
+    displayPrefs: { showBus: false, showWeather: true, showCalendar: true, showTasks: true },
     transitPrefs: {
-      enabled: true,
-      leadTimeMinutes: 25,
-      preferredModes: ["bus"],
-      destinationStop: { name: "Ziel (im Admin setzen)" },
-      destinationHint: "Europaplatz",
+      enabled: false,
+      travelMode: "walking",
+      leadTimeMinutes: 10,
+      desiredArrivalHHmm: "07:45",
+      desiredArrivalEndHHmm: "07:50",
+      destinationLabel: "HTL Kapfenberg",
+      destinationStop: { name: "HTL Kapfenberg" },
+      walkToStopMinutes: 10,
+      stopToWorkMinutes: 0,
+      preparationMinutes: 5,
+      safetyBufferMinutes: 0,
+      preferredModes: [],
     },
     weatherLocation: { ...KAPFENBERG_WEATHER_LOCATION },
   },
@@ -185,6 +181,7 @@ export const seedPersons: PersonProfile[] = [
     displayPrefs: { showBus: true, showWeather: true, showCalendar: true, showTasks: true },
     transitPrefs: {
       enabled: true,
+      travelMode: "bus",
       leadTimeMinutes: 30,
       preferredModes: ["bus"],
       destinationStop: { name: "Ziel Bruck/Mur (im Admin setzen)" },
@@ -233,6 +230,7 @@ export const seedPersons: PersonProfile[] = [
     displayPrefs: { showBus: true, showWeather: true, showCalendar: true, showTasks: true },
     transitPrefs: {
       enabled: true,
+      travelMode: "bus",
       leadTimeMinutes: 25,
       preferredModes: ["bus"],
       destinationStop: { name: "Ziel Apfelmoar (im Admin setzen)" },

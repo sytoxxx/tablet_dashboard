@@ -7,6 +7,7 @@ import type {
   RegionConfig,
   Schedule,
   TransitModePreference,
+  TravelModePreference,
   TransitPrefs,
   WeatherLocation,
 } from "@/lib/types";
@@ -65,6 +66,19 @@ function sanitizeTransitPrefs(raw: unknown, fallback?: TransitPrefs): TransitPre
     /^\d{2}:\d{2}$/.test(raw.desiredArrivalHHmm.trim())
       ? raw.desiredArrivalHHmm.trim()
       : base.desiredArrivalHHmm;
+  const desiredEnd =
+    typeof raw.desiredArrivalEndHHmm === "string" &&
+    /^\d{2}:\d{2}$/.test(raw.desiredArrivalEndHHmm.trim())
+      ? raw.desiredArrivalEndHHmm.trim()
+      : base.desiredArrivalEndHHmm;
+  const travelMode: TravelModePreference | undefined =
+    raw.travelMode === "walking" || raw.travelMode === "bus"
+      ? raw.travelMode
+      : base.travelMode;
+  const destinationLabel =
+    typeof raw.destinationLabel === "string"
+      ? sanitizeString(raw.destinationLabel, "", 80) || undefined
+      : base.destinationLabel;
   const preferredLines = Array.isArray(raw.preferredLines)
     ? raw.preferredLines
         .filter((l): l is string => typeof l === "string")
@@ -104,7 +118,10 @@ function sanitizeTransitPrefs(raw: unknown, fallback?: TransitPrefs): TransitPre
   return {
     leadTimeMinutes: lead,
     enabled: typeof raw.enabled === "boolean" ? raw.enabled : (base.enabled ?? true),
+    travelMode,
     desiredArrivalHHmm: desired,
+    desiredArrivalEndHHmm: desiredEnd,
+    destinationLabel,
     preferredLines: preferredLines?.length ? preferredLines : undefined,
     preferredModes: preferredModes?.length ? preferredModes : undefined,
     destinationStop,

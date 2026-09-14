@@ -35,6 +35,149 @@ function PersonBusEditor({ personId }: { personId: PersonId }) {
 
   if (!person) return null;
 
+  const isWalkingSchool =
+    personId === "levi" || person.transitPrefs?.travelMode === "walking";
+
+  if (isWalkingSchool) {
+    return (
+      <section className="space-y-4 border-t border-[color:var(--hairline)] pt-6">
+        <h2 className="font-display text-2xl tracking-tight">{person.name}</h2>
+        <p className="text-[color:var(--quiet)]">
+          Schulweg zu Fuß — keine Busplanung für den Morgen.
+        </p>
+        <form
+          className="space-y-4"
+          onSubmit={(e) => {
+            e.preventDefault();
+            const fd = new FormData(e.currentTarget);
+            const desiredArrivalHHmm = String(fd.get("desiredArrivalHHmm") || "")
+              .trim()
+              .slice(0, 5);
+            const desiredArrivalEndHHmm = String(
+              fd.get("desiredArrivalEndHHmm") || "",
+            )
+              .trim()
+              .slice(0, 5);
+            const destinationLabel = String(fd.get("destinationLabel") || "")
+              .replace(/[<>]/g, "")
+              .slice(0, 80);
+            const clampPref = (key: string, fallback: number) =>
+              Math.min(
+                180,
+                Math.max(0, Number(fd.get(key) ?? fallback) || fallback),
+              );
+            updatePerson(personId, (p) => ({
+              ...p,
+              displayPrefs: { ...p.displayPrefs, showBus: false },
+              transitPrefs: {
+                ...DEFAULT_TRANSIT_PREFS,
+                ...p.transitPrefs,
+                enabled: false,
+                travelMode: "walking",
+                desiredArrivalHHmm: /^\d{2}:\d{2}$/.test(desiredArrivalHHmm)
+                  ? desiredArrivalHHmm
+                  : p.transitPrefs?.desiredArrivalHHmm,
+                desiredArrivalEndHHmm: /^\d{2}:\d{2}$/.test(desiredArrivalEndHHmm)
+                  ? desiredArrivalEndHHmm
+                  : undefined,
+                destinationLabel: destinationLabel || "HTL Kapfenberg",
+                destinationStop: {
+                  name: destinationLabel || "HTL Kapfenberg",
+                },
+                walkToStopMinutes: clampPref(
+                  "walkToStopMinutes",
+                  p.transitPrefs?.walkToStopMinutes ?? 10,
+                ),
+                preparationMinutes: clampPref(
+                  "preparationMinutes",
+                  p.transitPrefs?.preparationMinutes ?? 5,
+                ),
+                safetyBufferMinutes: clampPref(
+                  "safetyBufferMinutes",
+                  p.transitPrefs?.safetyBufferMinutes ?? 0,
+                ),
+                stopToWorkMinutes: 0,
+                preferredModes: [],
+              },
+            }));
+            setSaved(true);
+            window.setTimeout(() => setSaved(false), 2000);
+          }}
+        >
+          <label className="block space-y-1">
+            <span className="text-sm text-[color:var(--quiet)]">Ziel (z. B. HTL Kapfenberg)</span>
+            <input
+              name="destinationLabel"
+              defaultValue={
+                person.transitPrefs?.destinationLabel ??
+                person.transitPrefs?.destinationStop?.name ??
+                "HTL Kapfenberg"
+              }
+              className="h-12 w-full rounded-2xl bg-[color:var(--surface)] px-4 text-lg outline-none ring-[color:var(--brand)] focus:ring-2"
+            />
+          </label>
+          <div className="grid gap-3 sm:grid-cols-2">
+            <label className="block space-y-1">
+              <span className="text-sm text-[color:var(--quiet)]">Ankunft von (HH:MM)</span>
+              <input
+                name="desiredArrivalHHmm"
+                defaultValue={person.transitPrefs?.desiredArrivalHHmm ?? "07:45"}
+                className="h-12 w-full rounded-2xl bg-[color:var(--surface)] px-4 text-lg outline-none ring-[color:var(--brand)] focus:ring-2"
+              />
+            </label>
+            <label className="block space-y-1">
+              <span className="text-sm text-[color:var(--quiet)]">Ankunft bis (HH:MM)</span>
+              <input
+                name="desiredArrivalEndHHmm"
+                defaultValue={person.transitPrefs?.desiredArrivalEndHHmm ?? "07:50"}
+                className="h-12 w-full rounded-2xl bg-[color:var(--surface)] px-4 text-lg outline-none ring-[color:var(--brand)] focus:ring-2"
+              />
+            </label>
+            <label className="block space-y-1">
+              <span className="text-sm text-[color:var(--quiet)]">Gehzeit (Min.)</span>
+              <input
+                name="walkToStopMinutes"
+                type="number"
+                min={0}
+                max={180}
+                defaultValue={person.transitPrefs?.walkToStopMinutes ?? 10}
+                className="h-12 w-full rounded-2xl bg-[color:var(--surface)] px-4 outline-none ring-[color:var(--brand)] focus:ring-2"
+              />
+            </label>
+            <label className="block space-y-1">
+              <span className="text-sm text-[color:var(--quiet)]">Vorbereitung (Min.)</span>
+              <input
+                name="preparationMinutes"
+                type="number"
+                min={0}
+                max={180}
+                defaultValue={person.transitPrefs?.preparationMinutes ?? 5}
+                className="h-12 w-full rounded-2xl bg-[color:var(--surface)] px-4 outline-none ring-[color:var(--brand)] focus:ring-2"
+              />
+            </label>
+            <label className="block space-y-1">
+              <span className="text-sm text-[color:var(--quiet)]">Sicherheitspuffer (Min.)</span>
+              <input
+                name="safetyBufferMinutes"
+                type="number"
+                min={0}
+                max={180}
+                defaultValue={person.transitPrefs?.safetyBufferMinutes ?? 0}
+                className="h-12 w-full rounded-2xl bg-[color:var(--surface)] px-4 outline-none ring-[color:var(--brand)] focus:ring-2"
+              />
+            </label>
+          </div>
+          <Button type="submit" size="lg" className="h-12 rounded-2xl">
+            Speichern
+          </Button>
+          {saved ? (
+            <p className="text-sm text-[color:var(--quiet)]">Gespeichert.</p>
+          ) : null}
+        </form>
+      </section>
+    );
+  }
+
   if (!person.busStop) {
     return (
       <section className="space-y-4 border-t border-[color:var(--hairline)] pt-6">
@@ -56,6 +199,7 @@ function PersonBusEditor({ personId }: { personId: PersonId }) {
                 ...DEFAULT_TRANSIT_PREFS,
                 ...p.transitPrefs,
                 enabled: true,
+                travelMode: "bus",
               },
             }))
           }

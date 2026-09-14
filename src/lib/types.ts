@@ -75,6 +75,9 @@ export type BusProviderPreference =
 
 export type TransitModePreference = "bus" | "tram" | "subway" | "train" | "other";
 
+/** How the person reaches school/work in the morning planner. */
+export type TravelModePreference = "walking" | "bus";
+
 /**
  * Home / start stop for a person.
  * Concrete StopPointRef / VAO id / RBL must be set in Admin — never invent.
@@ -116,12 +119,21 @@ export type TransitPrefs = {
   /** When false, morning dashboards hide bus entirely. Default true. */
   enabled?: boolean;
   /**
+   * Morning travel mode for leave-time planning.
+   * Levi school: walking. Birgit/Heidi work: bus.
+   */
+  travelMode?: TravelModePreference;
+  /**
    * Heuristic buffer (minutes) before work/school when no API arrival time exists.
    * Approximates ride duration — never invents per-connection travel times.
    */
   leadTimeMinutes: number;
   /** Optional HH:MM override; empty → use work/school start from schedule. */
   desiredArrivalHHmm?: string;
+  /** Optional window end HH:MM (e.g. Levi 07:45–07:50). */
+  desiredArrivalEndHHmm?: string;
+  /** Friendly destination label for UI (e.g. “HTL Kapfenberg”). */
+  destinationLabel?: string;
   preferredLines?: string[];
   preferredModes?: TransitModePreference[];
   /** Destination stop (name + optional provider id). */
@@ -131,13 +143,16 @@ export type TransitPrefs = {
    * Not a concrete stop id.
    */
   destinationHint?: string;
-  /** Walk minutes from home to the start stop (Birgit/Heidi work travel). */
+  /**
+   * Walk minutes: home → start stop (bus mode) or home → destination (walking mode).
+   * Configurable — never hardcode in UI.
+   */
   walkToStopMinutes?: number;
-  /** Walk minutes from destination stop to workplace. */
+  /** Walk minutes from destination stop to workplace (bus mode). */
   stopToWorkMinutes?: number;
   /** Minutes to get ready before leaving home (“langsam fertig werden”). */
   preparationMinutes?: number;
-  /** Extra safety buffer before work start (minutes). */
+  /** Extra safety buffer before arrival target (minutes). */
   safetyBufferMinutes?: number;
 };
 

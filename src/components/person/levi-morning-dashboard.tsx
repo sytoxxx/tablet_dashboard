@@ -7,6 +7,9 @@ import { MorningNav } from "@/components/shared/morning-nav";
 import { LiveClock } from "@/components/shared/live-clock";
 import { DayFlowHero } from "@/components/person/day-flow-hero";
 import { BusSection } from "@/components/person/bus-section";
+import { WorkTravelSection } from "@/components/person/work-travel-section";
+import { MorningTimelineSection } from "@/components/person/morning-timeline-section";
+import { EveningPrepSection } from "@/components/person/evening-prep-section";
 import { WeatherSection } from "@/components/person/weather-section";
 import { CalendarSection } from "@/components/person/calendar-section";
 import { TasksSection } from "@/components/person/tasks-section";
@@ -17,9 +20,7 @@ import { WEEKDAY_LABELS } from "@/lib/format";
 import type { SchoolJarvisDailySummary } from "@/lib/integrations/school-jarvis/types";
 
 /**
- * Levi priority stack (10" landscape):
- * Clock → Als Nächstes → Mitnehmen → Bus → Wetter → Termine → Wichtig → School Jarvis → Kaffee
- * Empty sections stay hidden (Phase 9).
+ * Levi: Timeline + school walk + School Jarvis. No bus for school commute.
  */
 export function LeviMorningDashboard({
   view,
@@ -61,9 +62,19 @@ export function LeviMorningDashboard({
   const showTasks =
     view.displayPrefs.showTasks && overview.visibility.importantTasks;
   const showCoffee = overview.visibility.coffee;
-  const showBus = view.displayPrefs.showBus && overview.visibility.bus;
+  const showTimeline = overview.visibility.timeline;
+  const showEveningPrep = overview.visibility.eveningPrep;
+  const showWalkTravel =
+    overview.visibility.travelPlan &&
+    overview.travelPlan?.mode === "walking" &&
+    overview.travelPlan.status === "on-time";
+  const showBus =
+    !showWalkTravel &&
+    view.displayPrefs.showBus &&
+    overview.visibility.bus;
   const showWeather =
     view.displayPrefs.showWeather && overview.visibility.weather;
+  const showNext = overview.visibility.nextActivity;
 
   const mitnehmenEmpty = useMemo(
     () => overview.itemsToTake.length === 0,
@@ -71,7 +82,7 @@ export function LeviMorningDashboard({
   );
 
   return (
-    <div className="morning-shell mx-auto flex w-full max-w-6xl flex-col gap-3 px-5 py-4 sm:gap-4 sm:px-8 sm:py-5 lg:px-10 landscape-tablet:gap-3 landscape-tablet:py-3">
+    <div className={`morning-shell mx-auto flex w-full max-w-6xl flex-col gap-3 px-5 py-4 sm:gap-4 sm:px-8 sm:py-5 lg:px-10 landscape-tablet:gap-3 landscape-tablet:py-3${overview.focusIsTomorrow ? " daypart-evening" : ""}`}>
       <MorningNav />
 
       <header className="flex flex-col gap-2 sm:flex-row sm:items-end sm:justify-between">
@@ -91,7 +102,13 @@ export function LeviMorningDashboard({
 
       <div className="grid gap-4 landscape-tablet:grid-cols-[1.4fr_1fr] landscape-tablet:gap-4 lg:grid-cols-[1.4fr_1fr]">
         <div className="space-y-4 landscape-tablet:space-y-3">
-          <DayFlowHero flow={view.dayFlow} dominant />
+          {showTimeline ? (
+            <MorningTimelineSection timeline={overview.timeline} />
+          ) : null}
+          {showEveningPrep ? (
+            <EveningPrepSection prep={overview.eveningPrep} />
+          ) : null}
+          {showNext ? <DayFlowHero flow={view.dayFlow} dominant={!showTimeline} /> : null}
 
           {showMitnehmen ? (
             <Section title="Mitnehmen">
@@ -120,6 +137,9 @@ export function LeviMorningDashboard({
         </div>
 
         <aside className="grid gap-3 sm:grid-cols-2 landscape-tablet:grid-cols-1">
+          {showWalkTravel && !showTimeline ? (
+            <WorkTravelSection plan={overview.travelPlan} />
+          ) : null}
           {showBus ? (
             <BusSection
               bus={view.nextBus}

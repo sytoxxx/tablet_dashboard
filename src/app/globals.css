@@ -139,6 +139,14 @@
     max-width: 100%;
     overflow-x: hidden;
   }
+
+  /* Evening ambiance foundation — calmer, deeper (not dark-mode product switch). */
+  .morning-shell.daypart-evening {
+    --bg: #d8dee8;
+    --bg-deep: #c5cdd9;
+    --surface: #eef1f6;
+    --quiet: #546274;
+  }
 }
 
 @keyframes rise {

@@ -8,6 +8,9 @@ import type {
   WorkShift,
 } from "@/lib/types";
 import type { DayFlowKind } from "@/lib/day/schedule-flow";
+import type { TravelPlan } from "@/lib/work/travel-planner";
+import type { MorningTimeline } from "@/lib/morning/timeline";
+import type { EveningPrep } from "@/lib/evening/prep";
 
 /** Status for the “Als Nächstes” hero. */
 export type NextActivityStatus =
@@ -92,6 +95,12 @@ export type MorningVisibility = {
   workShift: boolean;
   /** Soft important hint for Heidi (and Birgit optional). */
   hint: boolean;
+  /** Walking / bus leave-time plan (Levi school walk or work bus). */
+  travelPlan: boolean;
+  /** Dynamic morning timeline. */
+  timeline: boolean;
+  /** Evening prep block (evening hours / tomorrow focus). */
+  eveningPrep: boolean;
 };
 
 /**
@@ -114,6 +123,15 @@ export type MorningOverview = {
   importantTasks: TaskItem[];
   coffee: CoffeeMorning;
   workShift: WorkShift | null;
+  /**
+   * Shared leave-time plan (walking or bus).
+   * Levi: walking to HTL. Birgit/Heidi: bus to work when provided via live.
+   */
+  travelPlan: TravelPlan | null;
+  /** Dynamic morning timeline derived from travel + clock. */
+  timeline: MorningTimeline | null;
+  /** Evening prep for tomorrow — foundation (no invented wardrobe). */
+  eveningPrep: EveningPrep | null;
   /** Optional short hint line (person.hint or Heidi important task). */
   importantHint: string | null;
   /** Spoken/text briefing for later Jarvis — not voice UI yet. */
@@ -129,6 +147,9 @@ export type MorningSectionKey =
   | "work"
   | "itemsToTake"
   | "bus"
+  | "travel"
+  | "timeline"
+  | "eveningPrep"
   | "weather"
   | "appointments"
   | "importantTasks"

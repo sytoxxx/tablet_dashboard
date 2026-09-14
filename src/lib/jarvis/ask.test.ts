@@ -72,8 +72,8 @@ describe("askJarvis", () => {
   });
 
   it("bus planned / testdata", () => {
-    const r = askJarvis("levi", "Welcher Bus kommt als nächstes?", MON_MORNING, {
-      person: person("levi"),
+    const r = askJarvis("birgit", "Welcher Bus kommt als nächstes?", MON_MORNING, {
+      person: person("birgit"),
       data: seedAppData,
       live: {
         busEnabled: true,
@@ -97,8 +97,8 @@ describe("askJarvis", () => {
   });
 
   it("bus delayed realtime", () => {
-    const r = askJarvis("levi", "Welcher Bus kommt als nächstes?", MON_MORNING, {
-      person: person("levi"),
+    const r = askJarvis("birgit", "Welcher Bus kommt als nächstes?", MON_MORNING, {
+      person: person("birgit"),
       data: seedAppData,
       live: {
         busEnabled: true,
@@ -160,7 +160,7 @@ describe("askJarvis", () => {
       data: seedAppData,
     });
     expect(r.intent).toBe("important");
-    expect(r.answer.toLowerCase()).toMatch(/wichtig|hausaufgaben|buskarte/);
+    expect(r.answer.toLowerCase()).toMatch(/wichtig|hausaufgaben|schultasche/);
   });
 
   it("empty question", () => {
@@ -242,6 +242,19 @@ describe("askJarvis", () => {
     });
     expect(r.intent).toBe("leave_time");
     expect(r.answer).toMatch(/05:32/);
+  });
+
+  it("leave time for Levi uses walking plan — never a school bus", () => {
+    const r = askJarvis("levi", "Wann muss ich los?", MON_MORNING, {
+      person: person("levi"),
+      data: seedAppData,
+    });
+    expect(r.intent).toBe("leave_time");
+    expect(r.answer).toMatch(/07:35/);
+    expect(r.answer.toLowerCase()).toMatch(/losgeh/);
+    expect(r.answer.toLowerCase()).not.toMatch(/bus/);
+    expect(r.facts.travel?.mode).toBe("walking");
+    expect(r.facts.travel?.busDeparture).toBeNull();
   });
 
   it("AI polish wrapper marks source ai only when text present", () => {

@@ -32,6 +32,17 @@ import type {
   MorningSectionKey,
   MorningVisibility,
 } from "@/lib/morning/types";
+import type { TravelPlan } from "@/lib/work/travel-planner";
+import {
+  planTravelForPerson,
+  resolveTravelMode,
+} from "@/lib/work/travel-planner";
+import { buildMorningTimeline } from "@/lib/morning/timeline";
+import {
+  buildEveningPrep,
+  isEveningPrepContext,
+} from "@/lib/evening/prep";
+import { toIsoDate } from "@/lib/day/tomorrow";
 
 export type MorningOverviewLive = {
   /** Live/local bus overlay from useBusLive (optional). */
@@ -40,6 +51,8 @@ export type MorningOverviewLive = {
   busMatched?: boolean;
   busEnabled?: boolean;
   busIsTestData?: boolean;
+  /** Bus/work travel plan from API (Birgit/Heidi). */
+  travelPlan?: TravelPlan | null;
 };
 
 export type GetMorningOverviewOptions = {
@@ -57,9 +70,11 @@ export type GetMorningOverviewOptions = {
 
 const LEVI_ORDER: MorningSectionKey[] = [
   "clock",
+  "timeline",
   "nextActivity",
   "itemsToTake",
-  "bus",
+  "travel",
+  "eveningPrep",
   "weather",
   "appointments",
   "importantTasks",
@@ -67,17 +82,21 @@ const LEVI_ORDER: MorningSectionKey[] = [
 ];
 
 const BIRGIT_ORDER: MorningSectionKey[] = [
+  "timeline",
   "work",
-  "bus",
+  "travel",
+  "eveningPrep",
   "weather",
   "hint",
 ];
 
-/** Heidi: Arbeit/Plan · Bus · Wetter · Termine / wichtige Information */
+/** Heidi: Timeline · Arbeit · Travel · Wetter · Termine */
 const HEIDI_ORDER: MorningSectionKey[] = [
+  "timeline",
   "work",
   "nextActivity",
-  "bus",
+  "travel",
+  "eveningPrep",
   "weather",
   "appointments",
   "hint",
@@ -129,22 +148,33 @@ function buildVisibility(
     importantTasks: MorningOverview["importantTasks"];
     coffee: MorningOverview["coffee"];
     workShift: MorningOverview["workShift"];
+    travelPlan: MorningOverview["travelPlan"];
+    timeline: MorningOverview["timeline"];
+    eveningPrep: MorningOverview["eveningPrep"];
     importantHint: string | null;
   },
+  opts?: { eveningContext?: boolean },
 ): MorningVisibility {
   const isBirgit = personId === "birgit";
   const isHeidi = personId === "heidi";
+  const evening = Boolean(opts?.eveningContext);
 
   return {
-    nextActivity: !isBirgit,
-    itemsToTake: !isBirgit && overview.itemsToTake.length > 0,
-    bus: overview.bus.enabled,
+    nextActivity: !isBirgit && !evening,
+    itemsToTake: !isBirgit && overview.itemsToTake.length > 0 && !evening,
+    bus: overview.bus.enabled && !evening,
     weather: overview.weather.weather !== null,
     appointments: !isBirgit && overview.appointments.length > 0,
     importantTasks: personId === "levi" && overview.importantTasks.length > 0,
-    coffee: overview.coffee.enabled && personId === "levi",
-    workShift: isBirgit || isHeidi || overview.workShift !== null,
+    coffee: overview.coffee.enabled && personId === "levi" && !evening,
+    workShift: (isBirgit || isHeidi || overview.workShift !== null) && !evening,
     hint: Boolean(overview.importantHint) && (isBirgit || isHeidi),
+    travelPlan:
+      Boolean(overview.travelPlan?.applicable) &&
+      overview.travelPlan?.status === "on-time" &&
+      !evening,
+    timeline: Boolean(overview.timeline && overview.timeline.state !== "idle") && !evening,
+    eveningPrep: evening && Boolean(overview.eveningPrep),
   };
 }
 
@@ -205,12 +235,26 @@ export function getMorningOverview(
       ? options.live.bus
       : dayView.nextBus;
 
+  const travelMode = resolveTravelMode(personId, person.transitPrefs);
+  // Walking school commute never uses bus selection for leave-time.
+  const busForMorning =
+    travelMode === "walking" ? null : busEnabled ? busInfo : null;
+
   const bus = resolveBusMorning({
-    enabled: busEnabled && Boolean(person.displayPrefs?.showBus !== false),
-    bus: busEnabled ? busInfo : null,
+    enabled:
+      travelMode !== "walking" &&
+      busEnabled &&
+      Boolean(person.displayPrefs?.showBus !== false),
+    bus: busForMorning,
     matchedToActivity: options?.live?.busMatched,
     isTestData: options?.live?.busIsTestData,
   });
+
+  const travelPlan =
+    options?.live?.travelPlan ??
+    (travelMode === "walking"
+      ? planTravelForPerson(person, date)
+      : null);
 
   const weatherInfo =
     options?.live?.weather !== undefined
@@ -228,6 +272,31 @@ export function getMorningOverview(
     preferredCoffee: person.personalSettings?.preferredCoffee,
     personId,
   });
+
+  const resolvedTravel =
+    travelPlan?.applicable && travelPlan.status !== "not-applicable"
+      ? travelPlan
+      : null;
+
+  const timeline = buildMorningTimeline({
+    personId,
+    dateIso: toIsoDate(date),
+    now: date,
+    travel: resolvedTravel,
+    bagItems: personId === "levi" ? dayView.mitnehmen : undefined,
+    softHint: weather.tip,
+  });
+
+  const eveningContext =
+    isEveningPrepContext(date) || dayView.focusIsTomorrow;
+  const eveningPrep = eveningContext
+    ? buildEveningPrep({
+        person,
+        now: date,
+        weather: weather.weather,
+        travelPlan: resolvedTravel,
+      })
+    : null;
 
   const greeting = personalizedGreeting(person.name, date);
   const importantTasks =
@@ -253,10 +322,13 @@ export function getMorningOverview(
     importantTasks,
     coffee,
     workShift: dayView.workShift,
+    travelPlan: resolvedTravel,
+    timeline: timeline.state === "idle" && !timeline.nextAction ? null : timeline,
+    eveningPrep,
     importantHint,
   };
 
-  const visibility = buildVisibility(personId, base);
+  const visibility = buildVisibility(personId, base, { eveningContext });
 
   const overviewWithoutSummary = {
     ...base,

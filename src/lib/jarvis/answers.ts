@@ -5,6 +5,7 @@ import { EMPTY_BRING_MESSAGE } from "@/lib/day/bring";
 /** Project overview → facts bag for answers / AI phrasing (no invention). */
 export function factsFromOverview(overview: MorningOverview): JarvisFacts {
   const bus = overview.bus;
+  const travel = overview.travelPlan;
   return {
     personId: overview.personId,
     displayName: overview.displayName,
@@ -33,6 +34,19 @@ export function factsFromOverview(overview: MorningOverview): JarvisFacts {
       timingSource: bus.timingSource,
       arrivesInTime: bus.bus?.arrivesInTime ?? null,
     },
+    travel: travel
+      ? {
+          mode: travel.mode,
+          leaveHome: travel.leaveHome,
+          preparationStart: travel.preparationStart,
+          arrivalTarget: travel.arrivalTarget,
+          arrivalTargetEnd: travel.arrivalTargetEnd,
+          destinationLabel: travel.destinationLabel,
+          travelMinutes: travel.travelMinutes,
+          busDeparture: travel.busDeparture,
+          status: travel.status,
+        }
+      : null,
     weather: {
       temperatureC: overview.weather.weather?.temperatureC ?? null,
       summary: overview.weather.weather?.summary ?? null,
@@ -78,7 +92,7 @@ export function buildDeterministicAnswer(
       return answerBring(facts);
     case "leave_time":
     case "bus":
-      return answerBus(facts, intent === "leave_time");
+      return answerLeaveOrBus(facts, intent === "leave_time");
     case "weather":
       return answerWeather(facts);
     case "important":
@@ -141,11 +155,48 @@ function answerBring(facts: JarvisFacts): string {
   return `Du brauchst ${listItems(facts.itemsToTake)}.`;
 }
 
+function answerLeaveOrBus(facts: JarvisFacts, leaveFocus: boolean): string {
+  if (facts.travel?.mode === "walking" && facts.travel.leaveHome) {
+    const parts: string[] = [];
+    if (leaveFocus) {
+      parts.push(`Du solltest um ${facts.travel.leaveHome} losgehen.`);
+    } else {
+      parts.push(`Losgehen um ${facts.travel.leaveHome}.`);
+    }
+    if (facts.travel.destinationLabel && facts.travel.arrivalTarget) {
+      const window =
+        facts.travel.arrivalTargetEnd &&
+        facts.travel.arrivalTargetEnd !== facts.travel.arrivalTarget
+          ? `${facts.travel.arrivalTarget}–${facts.travel.arrivalTargetEnd}`
+          : facts.travel.arrivalTarget;
+      parts.push(
+        `Zu Fuß zur ${facts.travel.destinationLabel}, Ankunft ${window}.`,
+      );
+    } else if (facts.travel.travelMinutes) {
+      parts.push(`Zu Fuß ca. ${facts.travel.travelMinutes} Minuten.`);
+    }
+    if (facts.travel.preparationStart) {
+      parts.push(
+        `Ab ${facts.travel.preparationStart} langsam fertig werden.`,
+      );
+    }
+    return join(parts);
+  }
+
+  return answerBus(facts, leaveFocus);
+}
+
 function answerBus(facts: JarvisFacts, leaveFocus: boolean): string {
   if (!facts.bus.enabled || facts.bus.status === "disabled") {
+    if (facts.travel?.leaveHome) {
+      return `Du solltest um ${facts.travel.leaveHome} losgehen.`;
+    }
     return "Heute brauchst du keinen Bus.";
   }
   if (facts.bus.status === "none" || !facts.bus.departure) {
+    if (facts.travel?.leaveHome && facts.travel.mode === "bus") {
+      return `Du solltest um ${facts.travel.leaveHome} losgehen.`;
+    }
     return "Kein passender Bus gefunden.";
   }
 
@@ -175,7 +226,14 @@ function answerBus(facts: JarvisFacts, leaveFocus: boolean): string {
       parts.push(`Planmäßig wäre er um ${facts.bus.scheduledDeparture}.`);
     }
   } else if (leaveFocus) {
-    parts.push(`Du solltest zum Bus um ${departure} los.`);
+    if (facts.travel?.leaveHome) {
+      parts.push(`Du solltest um ${facts.travel.leaveHome} losgehen.`);
+      if (facts.travel.busDeparture) {
+        parts.push(`Dein Bus fährt um ${facts.travel.busDeparture}.`);
+      }
+    } else {
+      parts.push(`Du solltest zum Bus um ${departure} los.`);
+    }
   } else {
     parts.push(`Dein nächster passender Bus fährt um ${departure}.`);
   }

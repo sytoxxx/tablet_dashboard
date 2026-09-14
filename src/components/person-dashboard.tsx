@@ -33,7 +33,8 @@ export function PersonDashboard({
   const weather = useWeatherLive(person);
   const schoolJarvis = useSchoolJarvisLive(person.id);
   const busEnabled =
-    (person.transitPrefs?.enabled ?? DEFAULT_TRANSIT_PREFS.enabled) !== false;
+    (person.transitPrefs?.enabled ?? DEFAULT_TRANSIT_PREFS.enabled) !== false &&
+    person.displayPrefs?.showBus !== false;
 
   const liveView = useMemo<DayIntelligenceView>(() => {
     return {
@@ -56,6 +57,36 @@ export function PersonDashboard({
           busMatched: bus.matchedToWork,
           busEnabled,
           busIsTestData: bus.isTestData,
+          travelPlan: bus.workTravel
+            ? {
+                applicable: true,
+                mode: bus.workTravel.mode ?? "bus",
+                destinationLabel: bus.workTravel.destinationLabel ?? null,
+                arrivalTarget:
+                  bus.workTravel.arrivalTarget ?? bus.workTravel.workStart,
+                arrivalTargetEnd: bus.workTravel.arrivalTargetEnd ?? null,
+                workStart: bus.workTravel.workStart,
+                workEnd: bus.workTravel.workEnd,
+                leaveHome: bus.workTravel.leaveHome,
+                busDeparture: bus.workTravel.busDeparture,
+                arrivalAtDestination:
+                  bus.workTravel.arrivalAtWork ??
+                  bus.workTravel.arrivalAtDestination ??
+                  null,
+                arrivalAtWork: bus.workTravel.arrivalAtWork,
+                preparationStart: bus.workTravel.preparationStart,
+                status: bus.workTravel.status,
+                isTestData: bus.workTravel.isTestData,
+                matched: bus.workTravel.matched,
+                message: bus.workTravel.message,
+                bus: bus.next,
+                travelMinutes: bus.workTravel.travelMinutes ?? 0,
+                walkToStopMinutes: bus.workTravel.walkToStopMinutes ?? 0,
+                stopToWorkMinutes: bus.workTravel.stopToWorkMinutes ?? 0,
+                preparationMinutes: bus.workTravel.preparationMinutes ?? 0,
+                safetyBufferMinutes: bus.workTravel.safetyBufferMinutes ?? 5,
+              }
+            : null,
         },
       }),
     [
@@ -66,6 +97,8 @@ export function PersonDashboard({
       bus.matchedToWork,
       busEnabled,
       bus.isTestData,
+      bus.workTravel,
+      bus.next,
     ],
   );
 

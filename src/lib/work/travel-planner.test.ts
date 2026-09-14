@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import type { LiveDeparture } from "@/lib/bus/select";
 import {
   isWorkTravelPerson,
+  planTravel,
   planWorkTravel,
   preparationCopy,
 } from "@/lib/work/travel-planner";
@@ -302,19 +303,72 @@ describe("planWorkTravel", () => {
     expect(plan.bus?.source).toBe("cache");
   });
 
-  it("13. Levi verwendet weiterhin keinen Bus für den Schulweg (not-applicable)", () => {
+  it("13. Levi Schulweg: walking, nie Bus — Losgehen aus Ziel + Gehzeit", () => {
     expect(isWorkTravelPerson("levi")).toBe(false);
     const plan = planWorkTravel({
       personId: "levi",
-      workStart: "08:00",
-      transitPrefs: birgitPrefs,
+      workStart: "07:45",
+      transitPrefs: {
+        travelMode: "walking",
+        leadTimeMinutes: 10,
+        walkToStopMinutes: 10,
+        preparationMinutes: 5,
+        safetyBufferMinutes: 0,
+        desiredArrivalEndHHmm: "07:50",
+        destinationLabel: "HTL Kapfenberg",
+      },
       departures: exampleConnections,
       now: at(6, 0),
       stopName: "Start",
     });
-    expect(plan.applicable).toBe(false);
-    expect(plan.status).toBe("not-applicable");
+    expect(plan.mode).toBe("walking");
+    expect(plan.applicable).toBe(true);
     expect(plan.bus).toBeNull();
+    expect(plan.busDeparture).toBeNull();
+    expect(plan.leaveHome).toBe("07:35");
+    expect(plan.preparationStart).toBe("07:30");
+    expect(plan.arrivalTarget).toBe("07:45");
+    expect(plan.travelMinutes).toBe(10);
+  });
+
+  it("13b. Levi walking ignores bus departures entirely", () => {
+    const plan = planTravel({
+      personId: "levi",
+      mode: "walking",
+      arrivalTarget: "07:45",
+      arrivalTargetEnd: "07:50",
+      destinationLabel: "HTL Kapfenberg",
+      transitPrefs: {
+        leadTimeMinutes: 10,
+        walkToStopMinutes: 10,
+        preparationMinutes: 5,
+        safetyBufferMinutes: 0,
+      },
+      departures: exampleConnections,
+      now: at(6, 0),
+    });
+    expect(plan.busDeparture).toBeNull();
+    expect(plan.matched).toBe(true);
+    expect(preparationCopy(plan.preparationStart)).toBe(
+      "Ab 07:30 langsam fertig werden",
+    );
+  });
+
+  it("13c. Levi safety buffer shifts leave-home earlier", () => {
+    const plan = planTravel({
+      personId: "levi",
+      mode: "walking",
+      arrivalTarget: "07:45",
+      transitPrefs: {
+        leadTimeMinutes: 10,
+        walkToStopMinutes: 10,
+        preparationMinutes: 5,
+        safetyBufferMinutes: 5,
+      },
+      now: at(6, 0),
+    });
+    expect(plan.leaveHome).toBe("07:30");
+    expect(plan.preparationStart).toBe("07:25");
   });
 
   it("14. Birgit und Heidi können unterschiedliche Einstellungen haben", () => {

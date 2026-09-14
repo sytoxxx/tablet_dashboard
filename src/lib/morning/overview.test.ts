@@ -297,8 +297,13 @@ describe("getMorningOverview", () => {
     expect(o.coffee.enabled).toBe(true);
     expect(o.coffee.message).toMatch(/bereit/i);
     expect(o.priorityOrder[0]).toBe("clock");
+    expect(o.priorityOrder).toContain("travel");
+    expect(o.bus.enabled).toBe(false);
+    expect(o.travelPlan?.mode).toBe("walking");
+    expect(o.travelPlan?.leaveHome).toBe("07:35");
+    expect(o.travelPlan?.busDeparture).toBeNull();
     expect(o.summary).toMatch(/08:15/);
-    expect(o.summary).toMatch(/Bus|Grad/i);
+    expect(o.summary).toMatch(/Grad/i);
   });
 
   it("work day for Birgit stays simple", () => {
@@ -311,7 +316,7 @@ describe("getMorningOverview", () => {
     expect(o.visibility.coffee).toBe(false);
     expect(o.visibility.importantTasks).toBe(false);
     expect(o.priorityOrder).toContain("work");
-    expect(o.priorityOrder).toContain("bus");
+    expect(o.priorityOrder).toContain("travel");
   });
 
   it("Heidi work day still keeps coffee off and hints", () => {
@@ -337,8 +342,8 @@ describe("getMorningOverview", () => {
   });
 
   it("live bus delayed overlays overview", () => {
-    const o = getMorningOverview("levi", MON_MORNING, {
-      person: person("levi"),
+    const o = getMorningOverview("birgit", MON_MORNING, {
+      person: person("birgit"),
       data: seedAppData,
       live: {
         busEnabled: true,
@@ -410,8 +415,8 @@ describe("getMorningOverview", () => {
   });
 
   it("live bus too late overlays overview", () => {
-    const o = getMorningOverview("levi", MON_MORNING, {
-      person: person("levi"),
+    const o = getMorningOverview("birgit", MON_MORNING, {
+      person: person("birgit"),
       data: seedAppData,
       live: {
         busEnabled: true,
