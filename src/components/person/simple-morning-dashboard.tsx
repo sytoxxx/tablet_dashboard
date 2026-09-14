@@ -54,7 +54,9 @@ export function SimpleMorningDashboard({
   const showMitnehmen =
     !isBirgit && overview.itemsToTake.length > 0;
   const showCalendar =
-    view.displayPrefs.showCalendar && overview.appointments.length > 0;
+    !isBirgit &&
+    view.displayPrefs.showCalendar &&
+    overview.visibility.appointments;
   const showBus = view.displayPrefs.showBus && overview.visibility.bus;
   const showWeather =
     view.displayPrefs.showWeather && overview.visibility.weather;

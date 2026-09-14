@@ -132,7 +132,7 @@ export const seedPersons: PersonProfile[] = [
     weather: {
       summary: "Leicht bewölkt",
       temperatureC: 14,
-      clothingTip: "🧥 Jacke empfohlen",
+      clothingTip: "🧥 Jacke mitnehmen",
     },
     personalSettings: { preferredCoffee: "espresso", notes: "Schultasche am Abend packen." },
     displayPrefs: { showBus: true, showWeather: true, showCalendar: true, showTasks: true },
@@ -178,7 +178,7 @@ export const seedPersons: PersonProfile[] = [
     weather: {
       summary: "Kühl und klar",
       temperatureC: 9,
-      clothingTip: "🧥 Jacke empfohlen",
+      clothingTip: "🧥 Jacke mitnehmen",
     },
     personalSettings: { preferredCoffee: "cappuccino", notes: "Schlüsselbund mit Chip." },
     displayPrefs: { showBus: true, showWeather: true, showCalendar: true, showTasks: true },
