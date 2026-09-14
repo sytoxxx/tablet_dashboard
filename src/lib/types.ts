@@ -6,6 +6,8 @@ export type TaskItem = {
   id: string;
   label: string;
   done: boolean;
+  /** Only important open tasks surface on the morning dashboard. */
+  important?: boolean;
 };
 
 export type SchoolLesson = {

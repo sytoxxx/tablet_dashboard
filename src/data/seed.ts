@@ -120,9 +120,9 @@ export const seedPersons: PersonProfile[] = [
       ],
     },
     tasks: [
-      { id: "l1", label: "Hausaufgaben Informatik", done: false },
-      { id: "l2", label: "Sportzeug waschen", done: true },
-      { id: "l3", label: "Buskarte checken", done: false },
+      { id: "l1", label: "Hausaufgaben Informatik", done: false, important: true },
+      { id: "l2", label: "Sportzeug waschen", done: true, important: false },
+      { id: "l3", label: "Buskarte checken", done: false, important: true },
     ],
     defaultBringItems: ["Wasserflasche"],
     weather: {
@@ -156,8 +156,8 @@ export const seedPersons: PersonProfile[] = [
       ],
     },
     tasks: [
-      { id: "b1", label: "Dienstplan bestätigen", done: false },
-      { id: "b2", label: "Einkaufsliste ergänzen", done: true },
+      { id: "b1", label: "Dienstplan bestätigen", done: false, important: true },
+      { id: "b2", label: "Einkaufsliste ergänzen", done: true, important: false },
     ],
     defaultBringItems: [],
     weather: {
@@ -181,8 +181,8 @@ export const seedPersons: PersonProfile[] = [
     ],
     busStop: null,
     tasks: [
-      { id: "h1", label: "Blumen gießen", done: false },
-      { id: "h2", label: "Rezept für Abendessen", done: false },
+      { id: "h1", label: "Blumen gießen", done: false, important: true },
+      { id: "h2", label: "Rezept für Abendessen", done: false, important: false },
     ],
     defaultBringItems: ["Schlüssel", "Telefon"],
     weather: {

@@ -34,6 +34,9 @@ Ohne `OPENAI_API_KEY` liefert `/api/plan/analyze` eine realistische **Mock-Analy
 
 ## Phasen
 
-1. MVP UI + Timer
-2. Datenlayer, Wochentag, LocalStorage, Admin, Upload-Stub
-3. Plan-OCR mit Confirm-before-save (später)
+1. MVP UI + Timer  
+2. Datenlayer, Wochentag, LocalStorage, Admin  
+3. Plan-OCR / KI mit Confirm-before-save  
+4. Intelligentes Tages-Dashboard (Day-Flow, Abend→Morgen, Wetter-Provider, Mini-Kalender)
+
+Dev-Zeit-Simulator: `http://127.0.0.1:43127/person/levi?devTime=1`

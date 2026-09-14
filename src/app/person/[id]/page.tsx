@@ -1,11 +1,11 @@
 "use client";
 
 import { notFound } from "next/navigation";
-import { use } from "react";
+import { use, useMemo } from "react";
 import { PersonDashboard } from "@/components/person-dashboard";
 import { isPersonId, useAppData } from "@/components/providers/data-provider";
-import { buildTodayView } from "@/lib/today";
-import { useNow } from "@/hooks/use-now";
+import { useDevTime } from "@/components/providers/dev-time-provider";
+import { buildDayIntelligence } from "@/lib/day/intelligence";
 
 type PersonPageProps = {
   params: Promise<{ id: string }>;
@@ -14,17 +14,17 @@ type PersonPageProps = {
 export default function PersonPage({ params }: PersonPageProps) {
   const { id } = use(params);
   const { getPerson } = useAppData();
-  const now = useNow(30_000);
+  const { now } = useDevTime();
 
   if (!isPersonId(id)) notFound();
   const person = getPerson(id);
   if (!person) notFound();
 
-  const view = buildTodayView(person, now);
+  const view = useMemo(() => buildDayIntelligence(person, now), [person, now]);
 
   return (
     <main>
-      <PersonDashboard view={view} />
+      <PersonDashboard view={view} wallNow={now} />
     </main>
   );
 }

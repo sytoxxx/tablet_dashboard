@@ -1,12 +1,15 @@
 "use client";
 
-import type { TodayView } from "@/lib/types";
-import { LeviDashboard } from "@/components/person/levi-dashboard";
-import { BirgitDashboard } from "@/components/person/birgit-dashboard";
-import { HeidiDashboard } from "@/components/person/heidi-dashboard";
+import type { DayIntelligenceView } from "@/lib/day/intelligence";
+import { IntelligentDayDashboard } from "@/components/person/intelligent-day-dashboard";
 
-export function PersonDashboard({ view }: { view: TodayView }) {
-  if (view.scheduleType === "school") return <LeviDashboard view={view} />;
-  if (view.scheduleType === "work") return <BirgitDashboard view={view} />;
-  return <HeidiDashboard view={view} />;
+/** Shared day intelligence for Levi / Birgit / Heidi. */
+export function PersonDashboard({
+  view,
+  wallNow,
+}: {
+  view: DayIntelligenceView;
+  wallNow: Date;
+}) {
+  return <IntelligentDayDashboard view={view} wallNow={wallNow} />;
 }

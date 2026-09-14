@@ -1,6 +1,10 @@
 import type { Metadata, Viewport } from "next";
 import { Fraunces, Manrope } from "next/font/google";
 import { DataProvider } from "@/components/providers/data-provider";
+import {
+  DevTimePanel,
+  DevTimeProvider,
+} from "@/components/providers/dev-time-provider";
 import "./globals.css";
 
 const manrope = Manrope({
@@ -32,7 +36,12 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
       className={`${manrope.variable} ${fraunces.variable} h-full antialiased`}
     >
       <body className="min-h-full flex flex-col font-sans">
-        <DataProvider>{children}</DataProvider>
+        <DataProvider>
+          <DevTimeProvider>
+            {children}
+            <DevTimePanel />
+          </DevTimeProvider>
+        </DataProvider>
       </body>
     </html>
   );
