@@ -38,4 +38,5 @@ Dev: `npm run dev` (gleicher Port).
 
 1–4: Home, Datenmodell, Plan-KI, Tageslogik  
 5: Admin-CRUD, Wocheneditor, Konflikte, Backup/Import, Offline, Display-Prefs  
-6: Premium Tablet UX — personenspezifische Morning-Layouts, relative Zeiten, Kiosk-Polish
+6: Premium Tablet UX — personenspezifische Morning-Layouts, relative Zeiten, Kiosk-Polish  
+7: Bus (Wiener Linien optional / lokal) + Open-Meteo Wetter + Arbeits-Vorlauf

@@ -1,5 +1,9 @@
-import type { AppData, PersonId, PersonProfile, Schedule } from "@/lib/types";
-import { DEFAULT_DISPLAY_PREFS } from "@/lib/data/defaults";
+import type { AppData, PersonId, PersonProfile, Schedule, WeatherLocation } from "@/lib/types";
+import {
+  DEFAULT_DISPLAY_PREFS,
+  DEFAULT_TRANSIT_PREFS,
+  DEFAULT_WEATHER_LOCATION,
+} from "@/lib/data/defaults";
 import { seedAppData } from "@/data/seed";
 
 const PERSON_IDS: PersonId[] = ["levi", "birgit", "heidi"];
@@ -74,6 +78,40 @@ function sanitizePerson(raw: unknown, fallback: PersonProfile): PersonProfile | 
       ...DEFAULT_DISPLAY_PREFS,
       ...(isObject(raw.displayPrefs) ? (raw.displayPrefs as Partial<typeof DEFAULT_DISPLAY_PREFS>) : {}),
     },
+    transitPrefs: {
+      ...DEFAULT_TRANSIT_PREFS,
+      ...(isObject(raw.transitPrefs)
+        ? {
+            leadTimeMinutes:
+              typeof (raw.transitPrefs as { leadTimeMinutes?: number }).leadTimeMinutes ===
+              "number"
+                ? Math.min(
+                    180,
+                    Math.max(
+                      5,
+                      (raw.transitPrefs as { leadTimeMinutes: number }).leadTimeMinutes,
+                    ),
+                  )
+                : DEFAULT_TRANSIT_PREFS.leadTimeMinutes,
+          }
+        : {}),
+    },
+    weatherLocation: sanitizeWeatherLocation(raw.weatherLocation, fallback.weatherLocation),
+  };
+}
+
+function sanitizeWeatherLocation(
+  raw: unknown,
+  fallback?: WeatherLocation,
+): WeatherLocation | undefined {
+  const base = fallback ?? DEFAULT_WEATHER_LOCATION;
+  if (!isObject(raw)) return base;
+  const latitude = typeof raw.latitude === "number" ? raw.latitude : base.latitude;
+  const longitude = typeof raw.longitude === "number" ? raw.longitude : base.longitude;
+  return {
+    place: sanitizeString(raw.place, base.place, 60),
+    latitude,
+    longitude,
   };
 }
 
@@ -141,6 +179,11 @@ export function migrateAppData(raw: AppData | (Omit<AppData, "version"> & { vers
       ...DEFAULT_DISPLAY_PREFS,
       ...(p as PersonProfile).displayPrefs,
     },
+    transitPrefs: {
+      ...DEFAULT_TRANSIT_PREFS,
+      ...(p as PersonProfile).transitPrefs,
+    },
+    weatherLocation: (p as PersonProfile).weatherLocation ?? DEFAULT_WEATHER_LOCATION,
   }));
   return {
     version: 3,

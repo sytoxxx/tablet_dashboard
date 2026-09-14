@@ -110,6 +110,7 @@ export const seedPersons: PersonProfile[] = [
     ],
     busStop: {
       name: "Schulstraße",
+      provider: "local",
       departures: [
         { id: "lb1", line: "620", destination: "Bahnhof", time: "07:12" },
         { id: "lb2", line: "620", destination: "Bahnhof", time: "07:42" },
@@ -128,10 +129,12 @@ export const seedPersons: PersonProfile[] = [
     weather: {
       summary: "Leicht bewölkt",
       temperatureC: 14,
-      clothingTip: "Leichte Jacke reicht — kein Regenschirm nötig.",
+      clothingTip: "🧥 Jacke empfohlen",
     },
     personalSettings: { preferredCoffee: "espresso", notes: "Schultasche am Abend packen." },
     displayPrefs: { showBus: true, showWeather: true, showCalendar: true, showTasks: true },
+    transitPrefs: { leadTimeMinutes: 25 },
+    weatherLocation: { place: "Wien", latitude: 48.2082, longitude: 16.3738 },
   },
   {
     id: "birgit",
@@ -147,6 +150,7 @@ export const seedPersons: PersonProfile[] = [
     ],
     busStop: {
       name: "Klinik Nord",
+      provider: "local",
       departures: [
         { id: "bb1", line: "41", destination: "Klinik", time: "05:25" },
         { id: "bb2", line: "41", destination: "Klinik", time: "05:55" },
@@ -164,10 +168,12 @@ export const seedPersons: PersonProfile[] = [
     weather: {
       summary: "Kühl und klar",
       temperatureC: 9,
-      clothingTip: "Warme Jacke und Schal — morgens noch frisch.",
+      clothingTip: "🧥 Jacke empfohlen",
     },
     personalSettings: { preferredCoffee: "cappuccino", notes: "Schlüsselbund mit Chip." },
     displayPrefs: { showBus: true, showWeather: true, showCalendar: true, showTasks: true },
+    transitPrefs: { leadTimeMinutes: 30 },
+    weatherLocation: { place: "Wien", latitude: 48.22, longitude: 16.35 },
   },
   {
     id: "heidi",
@@ -190,10 +196,12 @@ export const seedPersons: PersonProfile[] = [
     weather: {
       summary: "Sonnig",
       temperatureC: 17,
-      clothingTip: "Leichte Kleidung — Sonnencreme nicht vergessen.",
+      clothingTip: "👕 Leichte Kleidung",
     },
     personalSettings: { preferredCoffee: "latte", notes: "Ruhiger Vormittag bevorzugen." },
     displayPrefs: { showBus: false, showWeather: true, showCalendar: true, showTasks: true },
+    transitPrefs: { leadTimeMinutes: 30 },
+    weatherLocation: { place: "Wien", latitude: 48.2, longitude: 16.37 },
   },
 ];
 

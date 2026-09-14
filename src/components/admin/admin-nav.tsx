@@ -5,6 +5,7 @@ import { usePathname } from "next/navigation";
 import {
   Bus,
   CalendarDays,
+  CloudSun,
   Coffee,
   Database,
   ListTodo,
@@ -26,6 +27,7 @@ const ADMIN_LINKS: Array<{
   { href: "/einstellungen/plaene", label: "Pläne", icon: CalendarRange },
   { href: "/einstellungen/aufgaben", label: "Aufgaben", icon: ListTodo },
   { href: "/einstellungen/bus", label: "Bus", icon: Bus },
+  { href: "/einstellungen/wetter", label: "Wetter", icon: CloudSun },
   { href: "/einstellungen/kalender", label: "Kalender", icon: CalendarDays },
   { href: "/einstellungen/kaffee", label: "Kaffee", icon: Coffee },
   { href: "/einstellungen/import-export", label: "Import/Export", icon: Database },

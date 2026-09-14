@@ -15,7 +15,7 @@ export function WorkShiftSection({
     return (
       <Section title={title}>
         <EmptyState
-          title="Frei"
+          title="Heute frei"
           description="Heute steht keine Schicht an — ruhiger Tag."
         />
       </Section>

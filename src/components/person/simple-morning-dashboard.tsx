@@ -23,10 +23,20 @@ export function SimpleMorningDashboard({
   view,
   wallNow,
   mode,
+  simple = false,
+  busMessage,
+  busUpcoming,
+  busMatched,
+  weatherPlace,
 }: {
   view: DayIntelligenceView;
   wallNow: Date;
   mode: "work" | "personal";
+  simple?: boolean;
+  busMessage?: string | null;
+  busUpcoming?: Array<{ time: string; line: string; destination: string }>;
+  busMatched?: boolean;
+  weatherPlace?: string | null;
 }) {
   const headline = useMemo(
     () => personalizedGreeting(view.displayName, wallNow),
@@ -56,7 +66,6 @@ export function SimpleMorningDashboard({
         <LiveClock className="hidden sm:block landscape-tablet:block" />
       </header>
 
-      {/* One-screen priority grid on landscape tablets */}
       <div
         className={cn(
           "animate-rise grid gap-6",
@@ -66,38 +75,43 @@ export function SimpleMorningDashboard({
         style={{ animationDelay: "60ms" }}
       >
         <div className="space-y-6 landscape-tablet:space-y-5">
-          <DayFlowHero flow={view.dayFlow} />
-
           {mode === "work" ? (
-            <WorkShiftSection shift={view.workShift} simple />
+            view.workShift ? (
+              <WorkShiftSection shift={view.workShift} simple />
+            ) : (
+              <WorkShiftSection shift={null} simple />
+            )
           ) : (
-            <Section title="Heute">
-              {view.timetable.length === 0 ? (
-                <EmptyState
-                  title="Nichts Festes"
-                  description="Du kannst den Tag frei gestalten."
-                />
-              ) : (
-                <ul className="space-y-3">
-                  {view.timetable.slice(0, 4).map((entry) => (
-                    <li
-                      key={`${entry.time}-${entry.subject}`}
-                      className="flex gap-4 text-lg"
-                    >
-                      <span className="w-16 shrink-0 tabular-nums text-[color:var(--quiet)]">
-                        {entry.time}
-                      </span>
-                      <span>
-                        {entry.subject}
-                        {entry.room ? (
-                          <span className="text-[color:var(--quiet)]"> · {entry.room}</span>
-                        ) : null}
-                      </span>
-                    </li>
-                  ))}
-                </ul>
-              )}
-            </Section>
+            <>
+              <DayFlowHero flow={view.dayFlow} />
+              <Section title="Heute">
+                {view.timetable.length === 0 ? (
+                  <EmptyState
+                    title="Nichts Festes"
+                    description="Du kannst den Tag frei gestalten."
+                  />
+                ) : (
+                  <ul className="space-y-3">
+                    {view.timetable.slice(0, 4).map((entry) => (
+                      <li
+                        key={`${entry.time}-${entry.subject}`}
+                        className="flex gap-4 text-lg"
+                      >
+                        <span className="w-16 shrink-0 tabular-nums text-[color:var(--quiet)]">
+                          {entry.time}
+                        </span>
+                        <span>
+                          {entry.subject}
+                          {entry.room ? (
+                            <span className="text-[color:var(--quiet)]"> · {entry.room}</span>
+                          ) : null}
+                        </span>
+                      </li>
+                    ))}
+                  </ul>
+                )}
+              </Section>
+            </>
           )}
 
           {view.mitnehmen.length > 0 ? (
@@ -117,10 +131,18 @@ export function SimpleMorningDashboard({
               bus={view.nextBus}
               stopName={view.busStopName}
               hasBusConfig={Boolean(view.busStopName)}
+              message={busMessage}
+              upcoming={busUpcoming}
+              simple={simple || mode === "work"}
+              matchedToWork={busMatched}
             />
           ) : null}
           {view.displayPrefs.showWeather ? (
-            <WeatherSection weather={view.weather} />
+            <WeatherSection
+              weather={view.weather}
+              simple={simple || mode === "work"}
+              place={weatherPlace}
+            />
           ) : null}
           {view.displayPrefs.showCalendar && view.calendar.length > 0 ? (
             <CalendarSection events={view.calendar} />

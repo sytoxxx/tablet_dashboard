@@ -68,6 +68,23 @@ export type BusDeparture = {
 export type BusStop = {
   name: string;
   departures: BusDeparture[];
+  /**
+   * Optional Wiener Linien RBL (Haltepunkt-ID) for live departures.
+   * Empty → use local `departures` schedule only.
+   */
+  externalId?: string;
+  provider?: "local" | "wienerlinien";
+};
+
+export type WeatherLocation = {
+  place: string;
+  latitude: number;
+  longitude: number;
+};
+
+export type TransitPrefs = {
+  /** Minutes before work/school start when a bus should arrive. */
+  leadTimeMinutes: number;
 };
 
 export type WeatherSettings = {
@@ -104,6 +121,10 @@ export type PersonProfile = {
   weather: WeatherSettings;
   personalSettings: PersonalSettings;
   displayPrefs: DisplayPrefs;
+  /** Optional place for live weather (Open-Meteo). */
+  weatherLocation?: WeatherLocation;
+  /** Bus lead time relative to work/school start. */
+  transitPrefs?: TransitPrefs;
 };
 
 export type CoffeeDrinkId = "espresso" | "cappuccino" | "latte";
@@ -148,6 +169,11 @@ export type BusInfo = {
   departure: string;
   stopName: string;
   minutesUntil: number;
+  /** true when chosen for work/school start, not just wall-clock next. */
+  matchedToWork?: boolean;
+  /** ISO timestamp of last successful fetch (client may set). */
+  fetchedAt?: string;
+  source?: "live" | "local" | "cache";
 };
 
 export type CalendarEvent = {
@@ -155,7 +181,15 @@ export type CalendarEvent = {
   title: string;
 };
 
-export type WeatherInfo = WeatherSettings;
+export type WeatherSnapshot = WeatherSettings & {
+  rainMm?: number;
+  tempMaxC?: number;
+  tempMinC?: number;
+  fetchedAt?: string;
+  source?: "live" | "local" | "cache";
+};
+
+export type WeatherInfo = WeatherSnapshot;
 
 export type TodayView = {
   id: PersonId;

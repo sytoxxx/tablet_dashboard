@@ -24,7 +24,7 @@ export default function PersonPage({ params }: PersonPageProps) {
 
   return (
     <main>
-      <PersonDashboard view={view} wallNow={now} />
+      <PersonDashboard view={view} wallNow={now} person={person} />
     </main>
   );
 }

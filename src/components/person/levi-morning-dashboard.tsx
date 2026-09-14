@@ -16,14 +16,19 @@ import { WEEKDAY_LABELS } from "@/lib/format";
 
 /**
  * Levi priority stack: Uhrzeit → Als Nächstes → Mitnehmen → Bus → Wetter → Kalender → Tasks.
- * Strongest info visually dominant; landscape aims for one morning screen.
  */
 export function LeviMorningDashboard({
   view,
   wallNow,
+  busMessage,
+  busUpcoming,
+  weatherPlace,
 }: {
   view: DayIntelligenceView;
   wallNow: Date;
+  busMessage?: string | null;
+  busUpcoming?: Array<{ time: string; line: string; destination: string }>;
+  weatherPlace?: string | null;
 }) {
   const headline = useMemo(
     () => personalizedGreeting(view.displayName, wallNow),
@@ -34,7 +39,6 @@ export function LeviMorningDashboard({
     <div className="morning-shell mx-auto flex w-full max-w-6xl flex-col gap-4 px-5 py-5 sm:gap-5 sm:px-8 sm:py-6 lg:px-10 landscape-tablet:gap-3 landscape-tablet:py-3">
       <MorningNav />
 
-      {/* 1) Clock dominant */}
       <header className="animate-rise flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
         <div className="min-w-0 space-y-1">
           <p className="text-sm tracking-[0.14em] text-[color:var(--quiet)] uppercase">
@@ -56,10 +60,8 @@ export function LeviMorningDashboard({
         style={{ animationDelay: "50ms" }}
       >
         <div className="space-y-5 landscape-tablet:space-y-4">
-          {/* 2) Als Nächstes — strongest content */}
           <DayFlowHero flow={view.dayFlow} dominant />
 
-          {/* 3) Mitnehmen */}
           <Section title="Mitnehmen">
             {view.mitnehmen.length === 0 ? (
               <EmptyState
@@ -79,16 +81,17 @@ export function LeviMorningDashboard({
         </div>
 
         <aside className="grid gap-4 sm:grid-cols-2 landscape-tablet:grid-cols-1 landscape-tablet:gap-3 lg:grid-cols-1">
-          {/* 4–7 */}
           {view.displayPrefs.showBus ? (
             <BusSection
               bus={view.nextBus}
               stopName={view.busStopName}
               hasBusConfig={Boolean(view.busStopName)}
+              message={busMessage}
+              upcoming={busUpcoming}
             />
           ) : null}
           {view.displayPrefs.showWeather ? (
-            <WeatherSection weather={view.weather} />
+            <WeatherSection weather={view.weather} place={weatherPlace} />
           ) : null}
           {view.displayPrefs.showCalendar ? (
             <CalendarSection events={view.calendar} compact />
