@@ -20,10 +20,10 @@ function leviWeek() {
   };
   const wed = {
     lessons: [
-      { id: "lw1", time: "08:15", subject: "Mathematik", room: "B204", bringItems: ["Taschenrechner"] },
-      { id: "lw2", time: "09:05", subject: "Biologie", room: "C110" },
-      { id: "lw3", time: "10:10", subject: "Englisch", room: "A112" },
-      { id: "lw4", time: "11:00", subject: "Musik", room: "M1" },
+      { id: "lw1", time: "08:15", subject: "Werkstättenunterricht", room: "WS1", bringItems: ["Schutzbrille"] },
+      { id: "lw2", time: "09:05", subject: "Werkstatt Praxis", room: "WS1" },
+      { id: "lw3", time: "10:10", subject: "Werkstatt Praxis", room: "WS2" },
+      { id: "lw4", time: "11:55", subject: "Fertigungstechnik", room: "WS2" },
     ],
   };
   const thu = {
@@ -109,6 +109,7 @@ export const seedPersons: PersonProfile[] = [
       { id: "la1", title: "Nachhilfe Mathe", time: "15:30", weekday: "mon" },
       { id: "la2", title: "Abendessen zu Hause", time: "18:00" },
       { id: "la3", title: "Bandprobe", time: "16:00", weekday: "thu" },
+      { id: "la4", title: "Referat Elektrotechnik", time: "10:10", weekday: "tue" },
     ],
     // School commute is walking — no bus stop required for morning leave-time.
     busStop: null,

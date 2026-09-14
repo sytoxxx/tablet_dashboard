@@ -51,5 +51,6 @@ Dev: `npm run dev` (gleicher Port).
 Work-Travel: Birgit/Heidi arbeitszeitbasierte Busplanung — `docs/work-travel-planning.md`
 15: Personal Morning Timeline + Evening Prep Foundation — `docs/phase-15-morning-timeline.md`
 16: Personal Leave Reminder — ein leiser Ton ~3 Min. vor Losgehen — `docs/phase-16-leave-reminder.md`
+17: Personal Evening Prep + Outfit Rule Engine — `docs/phase-17-evening-prep.md`
 
 Details: `school-jarvis/docs/phase-14-coffee-morning-contract.md`
