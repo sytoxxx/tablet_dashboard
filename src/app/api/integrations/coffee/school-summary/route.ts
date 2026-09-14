@@ -2,6 +2,10 @@ import { NextResponse } from "next/server";
 import type { PersonId } from "@/lib/types";
 import { fetchSchoolJarvisDailySummary } from "@/lib/integrations/school-jarvis/client";
 import { SCHOOL_JARVIS_UNAVAILABLE_MESSAGE } from "@/lib/integrations/school-jarvis/examples";
+import {
+  getSchoolJarvisServerConfig,
+  isPersonAllowedForSchoolJarvis,
+} from "@/server/school-jarvis/config";
 
 export const runtime = "nodejs";
 
@@ -10,10 +14,10 @@ function isPersonId(value: string): value is PersonId {
 }
 
 /**
- * GET /api/integrations/coffee/school-summary?personId=levi
+ * GET /api/integrations/coffee/school-summary?personId=levi&focusDate=YYYY-MM-DD
  *
- * Contract endpoint for later School Jarvis → Coffee Morning digest.
- * Phase 12: returns explicit unavailable (no cross-app call, no fake data).
+ * Browser → Coffee Morning server → School Jarvis (server-to-server).
+ * No tokens in the client response.
  */
 export async function GET(request: Request) {
   try {
@@ -28,8 +32,23 @@ export async function GET(request: Request) {
           unavailable: true,
           message: "Ungültige Person.",
           summary: null,
+          handoffUrl: null,
         },
         { status: 400 },
+      );
+    }
+
+    const config = getSchoolJarvisServerConfig();
+    if (!isPersonAllowedForSchoolJarvis(personId, config)) {
+      return NextResponse.json(
+        {
+          ok: false,
+          unavailable: true,
+          message: "School Jarvis ist für diese Person nicht freigeschaltet.",
+          summary: null,
+          handoffUrl: null,
+        },
+        { status: 403 },
       );
     }
 
@@ -38,9 +57,11 @@ export async function GET(request: Request) {
       focusDate: focusDate ?? undefined,
     });
 
-    return NextResponse.json(result, {
-      status: result.ok ? 200 : 503,
-    });
+    if (!result.ok) {
+      return NextResponse.json(result, { status: 503 });
+    }
+
+    return NextResponse.json(result, { status: 200 });
   } catch {
     return NextResponse.json(
       {
@@ -48,6 +69,7 @@ export async function GET(request: Request) {
         unavailable: true,
         message: SCHOOL_JARVIS_UNAVAILABLE_MESSAGE,
         summary: null,
+        handoffUrl: null,
       },
       { status: 503 },
     );

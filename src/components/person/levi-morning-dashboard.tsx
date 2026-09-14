@@ -11,12 +11,14 @@ import { WeatherSection } from "@/components/person/weather-section";
 import { CalendarSection } from "@/components/person/calendar-section";
 import { TasksSection } from "@/components/person/tasks-section";
 import { CoffeeMorningStrip } from "@/components/person/coffee-morning-strip";
+import { SchoolJarvisSection } from "@/components/person/school-jarvis-section";
 import { Section } from "@/components/section";
 import { WEEKDAY_LABELS } from "@/lib/format";
+import type { SchoolJarvisDailySummary } from "@/lib/integrations/school-jarvis/types";
 
 /**
  * Levi priority stack (10" landscape):
- * Clock → Als Nächstes → Mitnehmen → Bus → Wetter → Termine → Wichtig → Kaffee
+ * Clock → Als Nächstes → Mitnehmen → Bus → Wetter → Termine → Wichtig → School Jarvis → Kaffee
  * Empty sections stay hidden (Phase 9).
  */
 export function LeviMorningDashboard({
@@ -32,6 +34,8 @@ export function LeviMorningDashboard({
   busUnavailable,
   busDataAgeLabel,
   weatherPlace,
+  schoolJarvisSummary = null,
+  schoolJarvisHandoffUrl = null,
 }: {
   view: DayIntelligenceView;
   overview: MorningOverview;
@@ -45,6 +49,8 @@ export function LeviMorningDashboard({
   busUnavailable?: boolean;
   busDataAgeLabel?: string | null;
   weatherPlace?: string | null;
+  schoolJarvisSummary?: SchoolJarvisDailySummary | null;
+  schoolJarvisHandoffUrl?: string | null;
 }) {
   const dayLabel = overview.focusIsTomorrow ? "Morgen" : "Heute";
   const headline = overview.greeting;
@@ -145,6 +151,12 @@ export function LeviMorningDashboard({
           ) : null}
           {showTasks ? (
             <TasksSection tasks={overview.importantTasks} morningOnly />
+          ) : null}
+          {schoolJarvisSummary?.available ? (
+            <SchoolJarvisSection
+              summary={schoolJarvisSummary}
+              handoffUrl={schoolJarvisHandoffUrl}
+            />
           ) : null}
           {showCoffee ? <CoffeeMorningStrip coffee={overview.coffee} /> : null}
         </aside>

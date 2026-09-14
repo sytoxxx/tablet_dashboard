@@ -11,6 +11,7 @@ import { LeviMorningDashboard } from "@/components/person/levi-morning-dashboard
 import { SimpleMorningDashboard } from "@/components/person/simple-morning-dashboard";
 import { useBusLive } from "@/hooks/use-bus-live";
 import { useWeatherLive } from "@/hooks/use-weather-live";
+import { useSchoolJarvisLive } from "@/hooks/use-school-jarvis-live";
 import { MorningSkeleton } from "@/components/shared/skeleton";
 import { DEFAULT_TRANSIT_PREFS } from "@/lib/data/defaults";
 import { useAppData } from "@/components/providers/data-provider";
@@ -30,6 +31,7 @@ export function PersonDashboard({
     regionPreferredProvider: data.region?.preferredBusProvider ?? null,
   });
   const weather = useWeatherLive(person);
+  const schoolJarvis = useSchoolJarvisLive(person.id);
   const busEnabled =
     (person.transitPrefs?.enabled ?? DEFAULT_TRANSIT_PREFS.enabled) !== false;
 
@@ -107,6 +109,8 @@ export function PersonDashboard({
         busUnavailable={liveMeta.busUnavailable}
         busDataAgeLabel={liveMeta.busDataAgeLabel}
         weatherPlace={liveMeta.weatherPlace}
+        schoolJarvisSummary={schoolJarvis.summary}
+        schoolJarvisHandoffUrl={schoolJarvis.handoffUrl}
       />
     );
   }

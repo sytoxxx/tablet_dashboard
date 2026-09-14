@@ -147,12 +147,13 @@ describe("School Jarvis integration contract", () => {
     }
   });
 
-  it("stub client returns unavailable until real integration exists", async () => {
+  it("without configuration returns unavailable (no fake data)", async () => {
     const response = await fetchSchoolJarvisDailySummary({ personId: "levi" });
     expect(response.ok).toBe(false);
     if (response.ok) return;
     expect(response.unavailable).toBe(true);
     expect(response.summary).toBeNull();
+    expect(response.handoffUrl).toBeNull();
     expect(response.message).toBe(SCHOOL_JARVIS_UNAVAILABLE_MESSAGE);
     expect(shouldShowSchoolJarvisCard(response)).toBe(false);
   });

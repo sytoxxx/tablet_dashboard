@@ -20,3 +20,7 @@ export {
   exampleUnavailableCard,
   SCHOOL_JARVIS_UNAVAILABLE_MESSAGE,
 } from "@/lib/integrations/school-jarvis/examples";
+export {
+  isSchoolJarvisUiPerson,
+  SCHOOL_JARVIS_DEFAULT_ALLOWED_PERSONS,
+} from "@/lib/integrations/school-jarvis/persons";

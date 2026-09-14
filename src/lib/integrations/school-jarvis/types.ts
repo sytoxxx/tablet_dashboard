@@ -48,13 +48,16 @@ export type SchoolJarvisDailySummary = {
 
 /**
  * Transport envelope for GET /api/integrations/coffee/school-summary
- * (Coffee Morning side). No live School Jarvis call in Phase 12.
+ * (Coffee Morning browser ← Coffee Morning server).
+ * Secrets never appear in this payload.
  */
 export type SchoolJarvisSummaryResponse =
   | {
       ok: true;
-      source: "school-jarvis" | "stub";
+      source: "school-jarvis" | "cache";
       summary: SchoolJarvisDailySummary;
+      /** Resolved handoff URL for action.target — null if not configured. */
+      handoffUrl: string | null;
     }
   | {
       ok: false;
@@ -62,4 +65,5 @@ export type SchoolJarvisSummaryResponse =
       message: string;
       /** Never invent learning data when unavailable. */
       summary: null;
+      handoffUrl: null;
     };

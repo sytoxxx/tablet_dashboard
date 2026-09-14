@@ -45,5 +45,6 @@ Dev: `npm run dev` (gleicher Port).
 10: TRIAS-Integration vorbereitet — Parser/Fixtures, ENV-Fallback Testdaten, Admin Status (Zugang ausstehend)  
 11: Jarvis — `askJarvis()` auf Morning Overview, `/jarvis` UI, AI-Formulierung optional  
 12: School Jarvis Integration Contract — `SchoolJarvisDailySummary`, Stub-API, Validierung (keine echte Verbindung)
+13: Echte School-Jarvis-Integration — Server-to-server, Cache, Levi-Karte, Handoff (keine Rohdaten-Spiegelung)
 
-Details: `docs/phase-12-school-jarvis-integration.md`
+Details: `docs/phase-13-school-jarvis-live-integration.md`
