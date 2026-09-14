@@ -59,17 +59,33 @@ export async function GET(request: Request) {
 
 export async function POST(request: Request) {
   try {
-    const body = (await request.json()) as { person?: PersonProfile };
+    const body = (await request.json()) as {
+      person?: PersonProfile;
+      regionPreferredProvider?: string | null;
+    };
     if (!body.person || !isPersonId(body.person.id)) {
       return NextResponse.json({ error: "Person fehlt." }, { status: 400 });
     }
-    return respondForPerson(body.person);
+    return respondForPerson(body.person, body.regionPreferredProvider);
   } catch {
     return NextResponse.json({ error: "Ungültige Anfrage." }, { status: 400 });
   }
 }
 
-async function respondForPerson(person: PersonProfile) {
+function resolvePreferredProvider(
+  person: PersonProfile,
+  regionPreferred?: string | null,
+): string {
+  const personPref = person.busStop?.provider;
+  if (personPref && personPref !== "auto") return personPref;
+  if (regionPreferred && regionPreferred !== "auto") return regionPreferred;
+  return personPref ?? regionPreferred ?? "auto";
+}
+
+async function respondForPerson(
+  person: PersonProfile,
+  regionPreferredProvider?: string | null,
+) {
   try {
     const prefs = {
       ...DEFAULT_TRANSIT_PREFS,
@@ -98,7 +114,10 @@ async function respondForPerson(person: PersonProfile) {
     }
 
     const local = departuresFromLocalStop(person.busStop);
-    const preferredProvider = person.busStop.provider ?? "auto";
+    const preferredProvider = resolvePreferredProvider(
+      person,
+      regionPreferredProvider,
+    );
     const query = {
       stopName: person.busStop.name,
       externalId: person.busStop.externalId,

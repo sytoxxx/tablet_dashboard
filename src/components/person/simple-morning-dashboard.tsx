@@ -31,6 +31,7 @@ export function SimpleMorningDashboard({
   busEnabled = true,
   busOffline,
   busUnavailable,
+  busDataAgeLabel,
   weatherPlace,
 }: {
   view: DayIntelligenceView;
@@ -44,6 +45,7 @@ export function SimpleMorningDashboard({
   busEnabled?: boolean;
   busOffline?: boolean;
   busUnavailable?: boolean;
+  busDataAgeLabel?: string | null;
   weatherPlace?: string | null;
 }) {
   const headline = useMemo(
@@ -147,6 +149,7 @@ export function SimpleMorningDashboard({
               matchedToWork={busMatched}
               offline={busOffline}
               unavailable={busUnavailable}
+              dataAgeLabel={busDataAgeLabel}
             />
           ) : null}
           {view.displayPrefs.showWeather ? (

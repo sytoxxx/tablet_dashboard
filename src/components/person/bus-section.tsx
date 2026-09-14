@@ -9,19 +9,18 @@ type BusSectionProps = {
   stopName?: string | null;
   hasBusConfig?: boolean;
   busEnabled?: boolean;
-  /** Friendly empty / error copy (Birgit). */
   message?: string | null;
   emptyTitle?: string | null;
-  /** Extra upcoming times HH:MM */
   upcoming?: Array<{ time: string; line?: string }>;
-  /** Hide technical wording entirely. */
   simple?: boolean;
   matchedToWork?: boolean;
   fetchedAt?: string | null;
   offline?: boolean;
   unavailable?: boolean;
-  /** Admin/Levi only — never on Birgit simple view. */
+  /** Admin/Levi only — never on Birgit simple view as jargon. */
   isTestData?: boolean;
+  /** Friendly age label e.g. "vor 4 Min." */
+  dataAgeLabel?: string | null;
 };
 
 export function BusSection({
@@ -38,6 +37,7 @@ export function BusSection({
   offline,
   unavailable,
   isTestData,
+  dataAgeLabel,
 }: BusSectionProps) {
   const title = simple ? "Dein Bus" : "Bus";
 
@@ -89,7 +89,12 @@ export function BusSection({
           {!simple && isTestData ? (
             <p className="mt-2 text-xs text-[color:var(--quiet)]">Testdaten — keine Live-Abfahrt</p>
           ) : null}
-          {fetchedAt && bus.source === "cache" ? (
+          {(offline || bus.source === "cache") && dataAgeLabel ? (
+            <p className="mt-2 text-xs text-[color:var(--quiet)]">
+              Daten zuletzt aktualisiert {dataAgeLabel}
+            </p>
+          ) : null}
+          {fetchedAt && bus.source === "cache" && !dataAgeLabel ? (
             <p className="mt-2 text-xs text-[color:var(--quiet)]">Zuletzt gespeichert</p>
           ) : null}
         </div>
@@ -111,7 +116,9 @@ export function BusSection({
         title={emptyTitle || fallback.title}
         description={
           simple
-            ? fallback.description
+            ? offline && dataAgeLabel
+              ? `Daten zuletzt aktualisiert ${dataAgeLabel}`
+              : fallback.description
             : message || fallback.description
         }
       />

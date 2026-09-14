@@ -1,10 +1,12 @@
 "use client";
 
-import { useCallback, useEffect, useRef, useState } from "react";
-import type { BusInfo, PersonProfile } from "@/lib/types";
+import { useCallback, useRef, useState } from "react";
+import type { BusInfo, BusProviderPreference, PersonProfile } from "@/lib/types";
 import { getNextBus } from "@/lib/day/bus";
 import { useOnlineStatus } from "@/components/admin/offline-banner";
 import { DEFAULT_TRANSIT_PREFS } from "@/lib/data/defaults";
+import { useVisibleInterval } from "@/hooks/use-visible-interval";
+import { formatDataAge } from "@/lib/day/relative-day";
 
 const BUS_POLL_MS = 60_000;
 
@@ -24,14 +26,20 @@ export type BusLiveState = {
   enabled: boolean;
   offline: boolean;
   unavailable: boolean;
+  provider?: string | null;
+  dataAgeLabel?: string | null;
 };
 
 function isBusEnabled(person: PersonProfile): boolean {
   return (person.transitPrefs?.enabled ?? DEFAULT_TRANSIT_PREFS.enabled) !== false;
 }
 
-export function useBusLive(person: PersonProfile | undefined): BusLiveState {
+export function useBusLive(
+  person: PersonProfile | undefined,
+  options?: { regionPreferredProvider?: BusProviderPreference | null },
+): BusLiveState {
   const online = useOnlineStatus();
+  const regionPreferredProvider = options?.regionPreferredProvider ?? null;
   const enabled = person ? isBusEnabled(person) : true;
   const [state, setState] = useState<BusLiveState>(() => ({
     next: person && enabled ? getNextBus(person.busStop) : null,
@@ -47,6 +55,8 @@ export function useBusLive(person: PersonProfile | undefined): BusLiveState {
     enabled,
     offline: false,
     unavailable: false,
+    provider: null,
+    dataAgeLabel: null,
   }));
   const cacheRef = useRef<BusLiveState | null>(null);
 
@@ -69,23 +79,32 @@ export function useBusLive(person: PersonProfile | undefined): BusLiveState {
         offline: false,
         unavailable: false,
         isTestData: true,
+        provider: null,
+        dataAgeLabel: null,
       });
       return;
     }
 
     if (!online) {
+      const cached = cacheRef.current;
+      const age = formatDataAge(cached?.fetchedAt ?? null);
       setState((prev) => ({
-        ...(cacheRef.current ?? prev),
-        warning: "Offline — zuletzt gespeicherte Busdaten",
+        ...(cached ?? prev),
+        warning: age
+          ? `Offline — Daten zuletzt aktualisiert ${age}`
+          : "Offline — zuletzt gespeicherte Busdaten",
         source: "cache",
         loading: false,
         offline: true,
         unavailable: false,
         enabled: true,
-        emptyTitle: cacheRef.current?.next ? null : "Kein passender Bus",
-        message: cacheRef.current?.next
-          ? cacheRef.current.message
-          : "Bitte später erneut prüfen.",
+        emptyTitle: cached?.next ? null : "Keine Busdaten verfügbar",
+        message: cached?.next
+          ? age
+            ? `Daten zuletzt aktualisiert ${age}`
+            : cached.message
+          : "Keine Busdaten verfügbar",
+        dataAgeLabel: age,
       }));
       return;
     }
@@ -95,7 +114,10 @@ export function useBusLive(person: PersonProfile | undefined): BusLiveState {
       const res = await fetch("/api/bus/departures", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ person }),
+        body: JSON.stringify({
+          person,
+          regionPreferredProvider,
+        }),
       });
       const json = (await res.json()) as {
         next?: BusInfo | null;
@@ -110,40 +132,48 @@ export function useBusLive(person: PersonProfile | undefined): BusLiveState {
         error?: string;
         isTestData?: boolean;
         enabled?: boolean;
+        provider?: string;
       };
 
       if (!res.ok || json.ok === false) {
         const fallback = getNextBus(person.busStop);
-        const nextState: BusLiveState = {
-          next: fallback,
-          upcoming: [],
-          stopName: person.busStop?.name ?? null,
-          message: fallback ? null : "Bitte später erneut prüfen.",
-          emptyTitle: fallback ? null : "Kein passender Bus",
+        const cached = cacheRef.current;
+        const age = formatDataAge(cached?.fetchedAt);
+        setState({
+          next: fallback ?? cached?.next ?? null,
+          upcoming: cached?.upcoming ?? [],
+          stopName: person.busStop?.name ?? cached?.stopName ?? null,
+          message:
+            fallback || cached?.next
+              ? age
+                ? `Daten zuletzt aktualisiert ${age}`
+                : null
+              : "Keine Busdaten verfügbar",
+          emptyTitle: fallback || cached?.next ? null : "Keine Busdaten verfügbar",
           warning: "Busdaten gerade nicht verfügbar.",
           source: fallback ? "local" : "cache",
-          fetchedAt: cacheRef.current?.fetchedAt ?? null,
+          fetchedAt: cached?.fetchedAt ?? null,
           loading: false,
           isTestData: true,
           enabled: true,
           offline: false,
           unavailable: true,
-        };
-        setState(nextState);
+          provider: cached?.provider ?? null,
+          dataAgeLabel: age,
+        });
         return;
       }
 
+      const fetchedAt = json.fetchedAt ?? new Date().toISOString();
       const nextState: BusLiveState = {
         next: json.next ?? null,
         upcoming: json.upcoming ?? [],
         stopName: json.stopName ?? person.busStop?.name ?? null,
-        message:
-          json.message ??
-          (json.next ? null : "Bitte später erneut prüfen."),
+        message: json.message ?? (json.next ? null : "Bitte später erneut prüfen."),
         emptyTitle: json.emptyTitle ?? (json.next ? null : "Kein passender Bus"),
         warning: json.warning ?? null,
         source: json.source ?? "local",
-        fetchedAt: json.fetchedAt ?? new Date().toISOString(),
+        fetchedAt,
         loading: false,
         matchedToWork: json.next?.matchedToWork,
         arrivesInTime: json.next?.arrivesInTime ?? null,
@@ -151,37 +181,48 @@ export function useBusLive(person: PersonProfile | undefined): BusLiveState {
         enabled: json.enabled !== false,
         offline: false,
         unavailable: false,
+        provider: json.provider ?? null,
+        dataAgeLabel: null,
       };
       cacheRef.current = nextState;
+      try {
+        sessionStorage.setItem(
+          "coffee-morning-bus-meta",
+          JSON.stringify({
+            at: fetchedAt,
+            provider: json.provider ?? null,
+            isTestData: Boolean(json.isTestData),
+            warning: json.warning ?? null,
+          }),
+        );
+      } catch {
+        /* ignore */
+      }
       setState(nextState);
     } catch {
       const fallback = getNextBus(person.busStop);
+      const cached = cacheRef.current;
       setState({
-        next: fallback ?? cacheRef.current?.next ?? null,
-        upcoming: cacheRef.current?.upcoming ?? [],
-        stopName: person.busStop?.name ?? cacheRef.current?.stopName ?? null,
-        message: "Bitte später erneut prüfen.",
-        emptyTitle: "Kein passender Bus",
+        next: fallback ?? cached?.next ?? null,
+        upcoming: cached?.upcoming ?? [],
+        stopName: person.busStop?.name ?? cached?.stopName ?? null,
+        message: "Keine Busdaten verfügbar",
+        emptyTitle: "Keine Busdaten verfügbar",
         warning: "Busdaten gerade nicht verfügbar.",
         source: fallback ? "local" : "cache",
-        fetchedAt: cacheRef.current?.fetchedAt ?? null,
+        fetchedAt: cached?.fetchedAt ?? null,
         loading: false,
         isTestData: true,
         enabled: true,
         offline: false,
         unavailable: true,
+        provider: cached?.provider ?? null,
+        dataAgeLabel: formatDataAge(cached?.fetchedAt),
       });
     }
-  }, [person, online]);
+  }, [person, online, regionPreferredProvider]);
 
-  useEffect(() => {
-    const t = window.setTimeout(() => void refresh(), 0);
-    const id = window.setInterval(() => void refresh(), BUS_POLL_MS);
-    return () => {
-      window.clearTimeout(t);
-      window.clearInterval(id);
-    };
-  }, [refresh]);
+  useVisibleInterval(refresh, BUS_POLL_MS, Boolean(person));
 
   return state;
 }

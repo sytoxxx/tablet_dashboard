@@ -9,6 +9,7 @@ import { useBusLive } from "@/hooks/use-bus-live";
 import { useWeatherLive } from "@/hooks/use-weather-live";
 import { MorningSkeleton } from "@/components/shared/skeleton";
 import { DEFAULT_TRANSIT_PREFS } from "@/lib/data/defaults";
+import { useAppData } from "@/components/providers/data-provider";
 
 /** Routes each person to their Phase-6/7 morning layout with live bus/weather. */
 export function PersonDashboard({
@@ -20,7 +21,10 @@ export function PersonDashboard({
   wallNow: Date;
   person: PersonProfile;
 }) {
-  const bus = useBusLive(person);
+  const { data } = useAppData();
+  const bus = useBusLive(person, {
+    regionPreferredProvider: data.region?.preferredBusProvider ?? null,
+  });
   const weather = useWeatherLive(person);
   const busEnabled =
     (person.transitPrefs?.enabled ?? DEFAULT_TRANSIT_PREFS.enabled) !== false;
@@ -39,12 +43,12 @@ export function PersonDashboard({
     busEmptyTitle: bus.emptyTitle,
     busUpcoming: bus.upcoming,
     busMatched: bus.matchedToWork,
-    busArrivesInTime: bus.arrivesInTime,
     busFetchedAt: bus.fetchedAt,
     busIsTestData: bus.isTestData,
     busEnabled,
     busOffline: bus.offline,
     busUnavailable: bus.unavailable,
+    busDataAgeLabel: bus.dataAgeLabel,
     weatherPlace: weather.place,
     busLoading: bus.loading && !bus.fetchedAt,
     weatherLoading: weather.loading && !weather.fetchedAt,
@@ -67,6 +71,7 @@ export function PersonDashboard({
         busEnabled={liveMeta.busEnabled}
         busOffline={liveMeta.busOffline}
         busUnavailable={liveMeta.busUnavailable}
+        busDataAgeLabel={liveMeta.busDataAgeLabel}
         weatherPlace={liveMeta.weatherPlace}
       />
     );
@@ -85,6 +90,7 @@ export function PersonDashboard({
         busEnabled={liveMeta.busEnabled}
         busOffline={liveMeta.busOffline}
         busUnavailable={liveMeta.busUnavailable}
+        busDataAgeLabel={liveMeta.busDataAgeLabel}
         weatherPlace={liveMeta.weatherPlace}
       />
     );
@@ -102,6 +108,7 @@ export function PersonDashboard({
       busEnabled={liveMeta.busEnabled}
       busOffline={liveMeta.busOffline}
       busUnavailable={liveMeta.busUnavailable}
+      busDataAgeLabel={liveMeta.busDataAgeLabel}
       weatherPlace={liveMeta.weatherPlace}
     />
   );

@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { AdminShell } from "@/components/admin/admin-shell";
 import { StopSearchField } from "@/components/admin/stop-search-field";
+import { BusStatusPanel } from "@/components/admin/bus-status-panel";
 import { useAppData } from "@/components/providers/data-provider";
 import type { BusProviderPreference, PersonId, TransitModePreference } from "@/lib/types";
 import { Button } from "@/components/ui/button";
@@ -315,6 +316,8 @@ export default function BusSettingsPage() {
         Region: {data.region?.label ?? "nicht gesetzt"}. Keine Haltestellen-IDs erfinden — Suche
         nutzen oder manuell als Test-Konfiguration.
       </p>
+
+      <BusStatusPanel preferredProvider={data.region?.preferredBusProvider ?? "auto"} />
 
       {data.persons.map((person) => (
         <PersonBusEditor

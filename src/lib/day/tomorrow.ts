@@ -5,7 +5,7 @@ import type { WeekdayKey } from "@/lib/types";
 export type FocusMoment = {
   /** Calendar date the dashboard should emphasize (today or tomorrow). */
   focusDate: Date;
-  /** Wall-clock “now” used for bus/current-block math (usually same as real now). */
+  /** Wall-clock “now” used for bus/current-block math. */
   now: Date;
   isTomorrowFocus: boolean;
   focusWeekdayKey: WeekdayKey;
@@ -13,7 +13,7 @@ export type FocusMoment = {
 
 /**
  * After eveningTomorrowHour, morning glance shifts to tomorrow’s plan
- * while bus “next” still uses real now (tonight’s remaining buses matter).
+ * while bus “next” still uses real now.
  */
 export function resolveFocusMoment(now: Date = new Date()): FocusMoment {
   const hour = now.getHours();

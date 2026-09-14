@@ -1,8 +1,9 @@
 "use client";
 
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useRef, useState } from "react";
 import type { PersonProfile, WeatherSnapshot } from "@/lib/types";
 import { useOnlineStatus } from "@/components/admin/offline-banner";
+import { useVisibleInterval } from "@/hooks/use-visible-interval";
 
 const WEATHER_POLL_MS = 15 * 60_000;
 
@@ -90,11 +91,7 @@ export function useWeatherLive(person: PersonProfile | undefined): WeatherLiveSt
     }
   }, [person, online]);
 
-  useEffect(() => {
-    void refresh();
-    const id = window.setInterval(() => void refresh(), WEATHER_POLL_MS);
-    return () => window.clearInterval(id);
-  }, [refresh]);
+  useVisibleInterval(refresh, WEATHER_POLL_MS, Boolean(person));
 
   return state;
 }
