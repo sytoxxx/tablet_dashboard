@@ -115,4 +115,64 @@ describe("selectRelevantDeparture", () => {
     });
     expect(next).toBeNull();
   });
+
+  it("prefers realtime departure over timetable", () => {
+    const next = selectRelevantDeparture(
+      [
+        {
+          line: "1",
+          destination: "Bruck/Mur Bahnhof [TEST]",
+          time: "05:32",
+          scheduledTime: "05:32",
+          realtimeTime: "05:41",
+          delayMinutes: 9,
+          isRealtime: true,
+        },
+      ],
+      at(5, 20),
+      { stopName: "Start", source: "live" },
+    );
+    expect(next?.departure).toBe("05:41");
+    expect(next?.scheduledDeparture).toBe("05:32");
+    expect(next?.realtimeDeparture).toBe("05:41");
+    expect(next?.delayMinutes).toBe(9);
+    expect(next?.isRealtime).toBe(true);
+    expect(next?.isTestData).toBe(false);
+  });
+
+  it("skips cancelled departures; surfaces cancel when only cancelled remain", () => {
+    const skipped = selectRelevantDeparture(
+      [
+        {
+          line: "1",
+          destination: "Bruck",
+          time: "05:32",
+          cancelled: true,
+        },
+        {
+          line: "1",
+          destination: "Bruck",
+          time: "05:52",
+        },
+      ],
+      at(5, 20),
+      { stopName: "Start" },
+    );
+    expect(skipped?.departure).toBe("05:52");
+    expect(skipped?.cancelled).toBe(false);
+
+    const onlyCancelled = selectRelevantDeparture(
+      [
+        {
+          line: "1",
+          destination: "Bruck",
+          time: "05:32",
+          cancelled: true,
+        },
+      ],
+      at(5, 20),
+      { stopName: "Start", source: "live" },
+    );
+    expect(onlyCancelled?.cancelled).toBe(true);
+  });
 });

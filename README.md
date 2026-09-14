@@ -41,6 +41,6 @@ Dev: `npm run dev` (gleicher Port).
 6: Premium Tablet UX — personenspezifische Morning-Layouts, relative Zeiten, Kiosk-Polish  
 7: Bus (Verbund Steiermark / VAO / optional WL) + Open-Meteo Wetter (Kapfenberg) + Arbeits-Vorlauf  
 8: Real-world ready — Live/Test/Offline, visibility-aware Polling, Landscape  
-9: Intelligent Daily Morning — `getMorningOverview`, Mitnehmen-Regeln, Summary für Jarvis  
+9: Intelligent Daily / Smart Morning Engine — `getMorningOverview`, Mitnehmen-Regeln, Bus Echtzeit/Fahrplan, Summary für Jarvis  
 
-Details: `docs/phase-9-intelligent-daily.md`
+Details: `docs/phase-9-smart-morning-engine.md`

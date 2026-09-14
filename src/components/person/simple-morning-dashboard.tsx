@@ -51,8 +51,7 @@ export function SimpleMorningDashboard({
 }) {
   const headline = overview.greeting;
   const isBirgit = mode === "work";
-  const showMitnehmen =
-    !isBirgit && overview.itemsToTake.length > 0;
+  const showMitnehmen = false; // Mitnehmen nur Levi — Birgit/Heidi bleiben ruhig
   const showCalendar =
     !isBirgit &&
     view.displayPrefs.showCalendar &&
@@ -60,7 +59,8 @@ export function SimpleMorningDashboard({
   const showBus = view.displayPrefs.showBus && overview.visibility.bus;
   const showWeather =
     view.displayPrefs.showWeather && overview.visibility.weather;
-  const showHint = Boolean(view.hint) && (isBirgit || mode === "personal");
+  const showHint =
+    overview.visibility.hint && Boolean(overview.importantHint);
 
   return (
     <div className="morning-shell mx-auto flex w-full max-w-6xl flex-col gap-5 px-5 py-5 sm:gap-6 sm:px-8 sm:py-6 lg:px-10 landscape-tablet:gap-4 landscape-tablet:py-4">
@@ -137,8 +137,10 @@ export function SimpleMorningDashboard({
             </Section>
           ) : null}
 
-          {isBirgit && showHint ? (
-            <p className="text-base text-[color:var(--quiet)]">{view.hint}</p>
+          {showHint ? (
+            <p className="text-base text-[color:var(--quiet)]">
+              {overview.importantHint}
+            </p>
           ) : null}
         </div>
 
@@ -151,9 +153,13 @@ export function SimpleMorningDashboard({
               busEnabled={busEnabled}
               message={busMessage}
               emptyTitle={
-                overview.bus.status === "none"
-                  ? "Kein passender Bus"
-                  : busEmptyTitle
+                overview.bus.status === "cancelled"
+                  ? isBirgit
+                    ? "Kein passender Bus"
+                    : "Bus fällt aus"
+                  : overview.bus.status === "none"
+                    ? "Kein passender Bus"
+                    : busEmptyTitle
               }
               upcoming={busUpcoming}
               simple={simple || mode === "work"}
@@ -162,7 +168,20 @@ export function SimpleMorningDashboard({
               unavailable={busUnavailable}
               dataAgeLabel={busDataAgeLabel}
               arrivalStatus={overview.bus.status}
-              arrivalMessage={overview.bus.message || null}
+              arrivalMessage={
+                // Birgit: keep copy extremely simple — no Fahrplan/Echtzeit jargon
+                isBirgit &&
+                (overview.bus.status === "on_time" ||
+                  overview.bus.status === "too_late" ||
+                  overview.bus.status === "delayed" ||
+                  overview.bus.status === "cancelled")
+                  ? overview.bus.status === "delayed"
+                    ? "Bus hat Verspätung"
+                    : overview.bus.status === "cancelled"
+                      ? null
+                      : overview.bus.message || null
+                  : overview.bus.message || null
+              }
             />
           ) : null}
           {showWeather ? (

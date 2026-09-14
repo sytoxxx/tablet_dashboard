@@ -39,6 +39,7 @@ export type MorningOverviewLive = {
   weather?: WeatherInfo | null;
   busMatched?: boolean;
   busEnabled?: boolean;
+  busIsTestData?: boolean;
 };
 
 export type GetMorningOverviewOptions = {
@@ -72,10 +73,10 @@ const BIRGIT_ORDER: MorningSectionKey[] = [
   "hint",
 ];
 
+/** Heidi: Arbeit/Plan · Bus · Wetter · Termine / wichtige Information */
 const HEIDI_ORDER: MorningSectionKey[] = [
-  "nextActivity",
   "work",
-  "itemsToTake",
+  "nextActivity",
   "bus",
   "weather",
   "appointments",
@@ -102,10 +103,33 @@ function resolvePerson(
   return found;
 }
 
+function resolveImportantHint(
+  personId: PersonId,
+  person: PersonProfile,
+  importantTasks: MorningOverview["importantTasks"],
+): string | null {
+  if (personId === "birgit") {
+    return person.hint?.trim() || null;
+  }
+  if (personId === "heidi") {
+    const task = importantTasks[0]?.label?.trim();
+    if (task) return task;
+    return person.hint?.trim() || null;
+  }
+  return null;
+}
+
 function buildVisibility(
   personId: PersonId,
-  overview: Omit<MorningOverview, "visibility" | "priorityOrder" | "summary"> & {
-    summary?: string;
+  overview: {
+    itemsToTake: string[];
+    bus: MorningOverview["bus"];
+    weather: MorningOverview["weather"];
+    appointments: MorningOverview["appointments"];
+    importantTasks: MorningOverview["importantTasks"];
+    coffee: MorningOverview["coffee"];
+    workShift: MorningOverview["workShift"];
+    importantHint: string | null;
   },
 ): MorningVisibility {
   const isBirgit = personId === "birgit";
@@ -113,28 +137,25 @@ function buildVisibility(
 
   return {
     nextActivity: !isBirgit,
-    itemsToTake:
-      !isBirgit &&
-      (overview.itemsToTake.length > 0 || personId === "levi"),
+    itemsToTake: !isBirgit && overview.itemsToTake.length > 0,
     bus: overview.bus.enabled,
     weather: overview.weather.weather !== null,
-    appointments:
-      !isBirgit && overview.appointments.length > 0,
-    importantTasks:
-      personId === "levi" && overview.importantTasks.length > 0,
+    appointments: !isBirgit && overview.appointments.length > 0,
+    importantTasks: personId === "levi" && overview.importantTasks.length > 0,
     coffee: overview.coffee.enabled && personId === "levi",
     workShift: isBirgit || (isHeidi && overview.workShift !== null),
+    hint: Boolean(overview.importantHint) && (isBirgit || isHeidi),
   };
 }
 
 /**
- * Central morning overview — combines school/work, bus, weather,
+ * Central Smart Morning Engine — combines school/work, bus, weather,
  * calendar, tasks, bring list, and coffee into one structured result.
  *
  * UI should render this; business logic stays here.
  *
  * @example
- * getMorningOverview("levi", new Date("2026-03-16T07:00:00"))
+ * getMorningOverview("levi", new Date("2026-09-14T07:00:00"))
  */
 export function getMorningOverview(
   personId: PersonId,
@@ -188,6 +209,7 @@ export function getMorningOverview(
     enabled: busEnabled && Boolean(person.displayPrefs?.showBus !== false),
     bus: busEnabled ? busInfo : null,
     matchedToActivity: options?.live?.busMatched,
+    isTestData: options?.live?.busIsTestData,
   });
 
   const weatherInfo =
@@ -208,6 +230,13 @@ export function getMorningOverview(
   });
 
   const greeting = personalizedGreeting(person.name, date);
+  const importantTasks =
+    person.displayPrefs?.showTasks === false ? [] : dayView.importantTasks;
+  const importantHint = resolveImportantHint(
+    personId,
+    person,
+    importantTasks,
+  );
 
   const base = {
     personId,
@@ -221,32 +250,25 @@ export function getMorningOverview(
     bus,
     weather,
     appointments,
-    importantTasks:
-      person.displayPrefs?.showTasks === false ? [] : dayView.importantTasks,
+    importantTasks,
     coffee,
     workShift: dayView.workShift,
+    importantHint,
   };
 
   const visibility = buildVisibility(personId, base);
-  // Soft-hide empty Mitnehmen for Levi when nothing special
-  if (personId === "levi" && base.itemsToTake.length === 0) {
-    visibility.itemsToTake = false;
-  }
 
-  const summary = buildMorningSummary({
-    displayName: person.name,
-    greeting,
-    nextActivity,
-    itemsToTake: base.itemsToTake,
-    bus,
-    weather: weather.weather,
-  });
-
-  return {
+  const overviewWithoutSummary = {
     ...base,
-    summary,
     visibility,
     priorityOrder: priorityOrderFor(personId),
+  };
+
+  const summary = buildMorningSummary(overviewWithoutSummary);
+
+  return {
+    ...overviewWithoutSummary,
+    summary,
   };
 }
 

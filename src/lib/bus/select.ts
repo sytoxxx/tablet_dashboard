@@ -4,7 +4,10 @@ import { getMinutesSinceMidnight, parseTimeToMinutes } from "@/lib/format";
 export type LiveDeparture = {
   line: string;
   destination: string;
-  /** HH:MM local */
+  /**
+   * HH:MM used for sorting / selection.
+   * Prefer realtime when known; otherwise planned timetable.
+   */
   time: string;
   /** Absolute ms if known from live API */
   atMs?: number;
@@ -13,7 +16,21 @@ export type LiveDeparture = {
    * Never invent — leave undefined when unknown.
    */
   estimatedArrivalHHmm?: string;
+  /** Planned timetable HH:MM when distinct from realtime. */
+  scheduledTime?: string;
+  /** Realtime HH:MM when the provider supplies it. */
+  realtimeTime?: string;
+  /** Delay minutes when reported — never invent. */
+  delayMinutes?: number | null;
+  cancelled?: boolean;
+  isRealtime?: boolean;
 };
+
+/** Prefer realtime clock over timetable — never invent delay. */
+export function effectiveDepartureHHmm(d: LiveDeparture): string {
+  if (d.realtimeTime?.trim()) return d.realtimeTime.trim();
+  return d.time;
+}
 
 export type SelectDepartureOptions = {
   targetStartHHMM?: string | null;
@@ -109,11 +126,14 @@ function buildPool(
 /**
  * Intelligent bus choice for morning dashboards.
  *
+ * - Cancelled departures excluded
+ * - Realtime departure preferred over timetable when present
  * - Current time filters past departures
  * - Preferred line + destination hint when set
  * - Desired arrival / work start + lead time → latest departure that still fits
  * - estimatedArrivalHHmm used when API provides it — never invent travel time
  * - Heuristic without travel time: depart by (target − leadTime)
+ * - Never invent delay minutes
  */
 export function selectRelevantDeparture(
   departures: LiveDeparture[],
@@ -122,17 +142,51 @@ export function selectRelevantDeparture(
 ): BusInfo | null {
   if (departures.length === 0) return null;
   const current = getMinutesSinceMidnight(now);
-  const pool = buildPool(departures, options);
+  const pool = buildPool(
+    departures.filter((d) => !d.cancelled),
+    options,
+  );
 
   const withMinutes = pool
-    .map((d) => ({
-      ...d,
-      minutes: parseTimeToMinutes(d.time),
-    }))
+    .map((d) => {
+      const effective = effectiveDepartureHHmm(d);
+      return {
+        ...d,
+        time: effective,
+        scheduledTime: d.scheduledTime ?? d.time,
+        minutes: parseTimeToMinutes(effective),
+      };
+    })
     .filter((d) => d.minutes >= current)
     .sort((a, b) => a.minutes - b.minutes);
 
-  if (withMinutes.length === 0) return null;
+  if (withMinutes.length === 0) {
+    // All remaining candidates cancelled → surface a cancelled sentinel
+    const cancelledOnly = buildPool(
+      departures.filter((d) => d.cancelled),
+      options,
+    );
+    if (cancelledOnly.length > 0) {
+      const c = cancelledOnly[0];
+      return {
+        line: c.line,
+        destination: c.destination,
+        departure: effectiveDepartureHHmm(c),
+        stopName: options?.stopName ?? "",
+        minutesUntil: 0,
+        matchedToWork: false,
+        arrivesInTime: null,
+        cancelled: true,
+        scheduledDeparture: c.scheduledTime ?? c.time,
+        realtimeDeparture: c.realtimeTime,
+        delayMinutes: c.delayMinutes ?? null,
+        isRealtime: Boolean(c.isRealtime || c.realtimeTime),
+        isTestData: options?.source === "local",
+        source: options?.source ?? "local",
+      };
+    }
+    return null;
+  }
 
   const lead = options?.leadTimeMinutes ?? 30;
   const target = options?.targetStartHHMM
@@ -167,7 +221,7 @@ export function selectRelevantDeparture(
       if (suitable.length > 0) {
         chosen = suitable[suitable.length - 1];
         matchedToWork = true;
-        // Heuristic on-time (buffer before target), not proven arrival.
+        // Heuristic arrival-fit (buffer before target), not proven vehicle punctuality.
         arrivesInTime = true;
       } else {
         chosen = withMinutes[0];
@@ -177,6 +231,9 @@ export function selectRelevantDeparture(
     }
   }
 
+  const isRealtime = Boolean(chosen.isRealtime || chosen.realtimeTime);
+  const isTestData = options?.source === "local";
+
   return {
     line: chosen.line,
     destination: chosen.destination,
@@ -185,6 +242,13 @@ export function selectRelevantDeparture(
     minutesUntil: chosen.minutes - current,
     matchedToWork,
     arrivesInTime,
+    scheduledDeparture: chosen.scheduledTime,
+    realtimeDeparture: chosen.realtimeTime,
+    delayMinutes:
+      chosen.delayMinutes === undefined ? null : chosen.delayMinutes,
+    cancelled: false,
+    isRealtime,
+    isTestData,
     source: options?.source ?? "local",
   };
 }

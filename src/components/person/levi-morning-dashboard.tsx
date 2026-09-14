@@ -134,6 +134,7 @@ export function LeviMorningDashboard({
               dataAgeLabel={busDataAgeLabel}
               arrivalStatus={overview.bus.status}
               arrivalMessage={overview.bus.message || null}
+              scheduleNote={overview.bus.scheduleNote}
             />
           ) : null}
           {showWeather ? (

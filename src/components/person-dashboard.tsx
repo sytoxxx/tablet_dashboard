@@ -53,9 +53,18 @@ export function PersonDashboard({
           weather: liveView.weather,
           busMatched: bus.matchedToWork,
           busEnabled,
+          busIsTestData: bus.isTestData,
         },
       }),
-    [person, wallNow, data, liveView, bus.matchedToWork, busEnabled],
+    [
+      person,
+      wallNow,
+      data,
+      liveView,
+      bus.matchedToWork,
+      busEnabled,
+      bus.isTestData,
+    ],
   );
 
   const overviewView = useMemo(

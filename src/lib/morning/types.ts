@@ -29,7 +29,26 @@ export type NextActivity = {
   kind: "lesson" | "shift" | "block" | "appointment" | "none";
 };
 
-export type BusMorningStatus = "on_time" | "too_late" | "none" | "disabled" | "unknown";
+/**
+ * Primary bus dashboard status for the morning engine.
+ * Arrival-fit (on_time/too_late) is separate from vehicle delay/cancel.
+ */
+export type BusMorningStatus =
+  | "on_time"
+  | "too_late"
+  | "delayed"
+  | "cancelled"
+  | "none"
+  | "disabled"
+  | "unknown";
+
+/** Where the displayed departure time comes from. */
+export type BusTimingSource =
+  | "realtime"
+  | "schedule"
+  | "test"
+  | "cache"
+  | "none";
 
 export type BusMorning = {
   enabled: boolean;
@@ -38,6 +57,13 @@ export type BusMorning = {
   /** Short German line for the dashboard. */
   message: string;
   matchedToActivity: boolean;
+  timingSource: BusTimingSource;
+  delayMinutes: number | null;
+  cancelled: boolean;
+  isTestData: boolean;
+  displayDeparture: string | null;
+  /** Levi/Admin note: Echtzeit / Nach Fahrplan / Testdaten — never jargon on Birgit. */
+  scheduleNote: string | null;
 };
 
 export type WeatherMorning = {
@@ -64,6 +90,8 @@ export type MorningVisibility = {
   importantTasks: boolean;
   coffee: boolean;
   workShift: boolean;
+  /** Soft important hint for Heidi (and Birgit optional). */
+  hint: boolean;
 };
 
 /**
@@ -86,6 +114,8 @@ export type MorningOverview = {
   importantTasks: TaskItem[];
   coffee: CoffeeMorning;
   workShift: WorkShift | null;
+  /** Optional short hint line (person.hint or Heidi important task). */
+  importantHint: string | null;
   /** Spoken/text briefing for later Jarvis — not voice UI yet. */
   summary: string;
   visibility: MorningVisibility;

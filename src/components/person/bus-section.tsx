@@ -1,4 +1,5 @@
 import type { BusInfo } from "@/lib/types";
+import type { BusMorningStatus } from "@/lib/morning/types";
 import { formatMinutesUntil } from "@/lib/format";
 import { EmptyState } from "@/components/empty-state";
 import { Section } from "@/components/section";
@@ -22,11 +23,12 @@ type BusSectionProps = {
   /** Friendly age label e.g. "vor 4 Min." */
   dataAgeLabel?: string | null;
   /**
-   * From morning overview: on_time / too_late / none.
-   * Drives “Du kommst rechtzeitig an.” / “Bus reicht nicht”.
+   * From morning overview: on_time / too_late / delayed / cancelled / none.
    */
-  arrivalStatus?: "on_time" | "too_late" | "none" | "disabled" | "unknown" | null;
+  arrivalStatus?: BusMorningStatus | null;
   arrivalMessage?: string | null;
+  /** Levi only: Echtzeit / Nach Fahrplan / Testdaten */
+  scheduleNote?: string | null;
 };
 
 export function BusSection({
@@ -46,54 +48,78 @@ export function BusSection({
   dataAgeLabel,
   arrivalStatus = null,
   arrivalMessage = null,
+  scheduleNote = null,
 }: BusSectionProps) {
   const title = simple ? "Dein Bus" : "Bus";
 
+  if (bus?.cancelled || arrivalStatus === "cancelled") {
+    return (
+      <Section title={title}>
+        <EmptyState
+          title={simple ? "Kein passender Bus" : "Bus fällt aus"}
+          description={
+            simple
+              ? "Bitte später erneut prüfen."
+              : arrivalMessage || "Diese Verbindung fällt aus."
+          }
+        />
+      </Section>
+    );
+  }
+
   if (bus) {
-    const status =
+    const status: BusMorningStatus =
       arrivalStatus ??
       (bus.arrivesInTime === false
         ? "too_late"
-        : bus.arrivesInTime === true || matchedToWork
-          ? "on_time"
-          : "unknown");
+        : bus.delayMinutes && bus.delayMinutes > 0
+          ? "delayed"
+          : bus.arrivesInTime === true
+            ? "on_time"
+            : "unknown");
 
-    const onTimeCopy =
-      arrivalMessage && status === "on_time"
-        ? arrivalMessage
-        : "Du kommst rechtzeitig an.";
-    const lateCopy =
-      arrivalMessage && status === "too_late"
-        ? arrivalMessage
-        : simple
-          ? "Bus reicht nicht"
-          : "Möglicherweise zu spät für den Start.";
+    const statusCopy =
+      arrivalMessage ||
+      (status === "on_time"
+        ? "Du kommst rechtzeitig an."
+        : status === "too_late"
+          ? simple
+            ? "Bus reicht nicht"
+            : "Möglicherweise zu spät für den Start."
+          : status === "delayed" && bus.delayMinutes
+            ? `ca. ${bus.delayMinutes} Min. Verspätung`
+            : null);
 
     return (
       <Section title={title}>
         <div>
           <p className="font-display text-4xl tabular-nums tracking-tight landscape-tablet:text-5xl">
-            {bus.departure}
+            {bus.realtimeDeparture || bus.departure}
           </p>
           <p className="mt-2 text-lg text-[color:var(--ink)]">
             {formatMinutesUntil(bus.minutesUntil)}
           </p>
-          {status === "on_time" ? (
-            <p className="mt-2 text-base text-[color:var(--ink)]">{onTimeCopy}</p>
-          ) : null}
-          {status === "too_late" ? (
+          {statusCopy &&
+          (status === "on_time" ||
+            status === "too_late" ||
+            status === "delayed") ? (
             <p
               className={
-                simple
+                simple || status === "on_time" || status === "delayed"
                   ? "mt-2 text-base text-[color:var(--ink)]"
                   : "mt-2 text-sm text-[color:var(--quiet)]"
               }
             >
-              {lateCopy}
+              {statusCopy}
             </p>
           ) : null}
-          {!simple && status === "on_time" && matchedToWork && !arrivalMessage ? (
-            <p className="mt-2 text-sm text-[color:var(--quiet)]">Passend zur Ankunftszeit.</p>
+          {!simple &&
+          bus.scheduledDeparture &&
+          bus.realtimeDeparture &&
+          bus.scheduledDeparture !== bus.realtimeDeparture ? (
+            <p className="mt-1 text-sm text-[color:var(--quiet)]">
+              Fahrplan {bus.scheduledDeparture}
+            </p>
           ) : null}
           {!simple ? (
             <p className="mt-1 text-[color:var(--quiet)]">
@@ -115,8 +141,10 @@ export function BusSection({
                 .join(" · ")}
             </p>
           ) : null}
-          {!simple && isTestData ? (
-            <p className="mt-2 text-xs text-[color:var(--quiet)]">Testdaten — keine Live-Abfahrt</p>
+          {!simple && (scheduleNote || isTestData) ? (
+            <p className="mt-2 text-xs text-[color:var(--quiet)]">
+              {scheduleNote || "Testdaten — keine Live-Abfahrt"}
+            </p>
           ) : null}
           {(offline || bus.source === "cache") && dataAgeLabel ? (
             <p className="mt-2 text-xs text-[color:var(--quiet)]">

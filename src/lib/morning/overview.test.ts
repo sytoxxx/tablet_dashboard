@@ -154,10 +154,13 @@ describe("bus morning status", () => {
         minutesUntil: 12,
         arrivesInTime: true,
         matchedToWork: true,
+        source: "live",
+        isRealtime: true,
       },
     });
     expect(r.status).toBe("on_time");
     expect(r.message).toMatch(/rechtzeitig/i);
+    expect(r.timingSource).toBe("realtime");
   });
 
   it("too late", () => {
@@ -175,6 +178,62 @@ describe("bus morning status", () => {
     });
     expect(r.status).toBe("too_late");
     expect(r.message).toBe("Bus reicht nicht");
+  });
+
+  it("delayed without inventing punctuality", () => {
+    const r = resolveBusMorning({
+      enabled: true,
+      bus: {
+        line: "1",
+        destination: "X",
+        departure: "05:41",
+        stopName: "Start",
+        minutesUntil: 20,
+        delayMinutes: 9,
+        isRealtime: true,
+        source: "live",
+        arrivesInTime: null,
+        matchedToWork: true,
+      },
+    });
+    expect(r.status).toBe("delayed");
+    expect(r.message).toMatch(/Verspätung/);
+    // matched alone must NOT claim on_time
+    expect(r.status).not.toBe("on_time");
+  });
+
+  it("cancelled", () => {
+    const r = resolveBusMorning({
+      enabled: true,
+      bus: {
+        line: "1",
+        destination: "X",
+        departure: "05:32",
+        stopName: "Start",
+        minutesUntil: 0,
+        cancelled: true,
+      },
+    });
+    expect(r.status).toBe("cancelled");
+    expect(r.message).toBe("Bus fällt aus");
+  });
+
+  it("marks local source as Testdaten", () => {
+    const r = resolveBusMorning({
+      enabled: true,
+      bus: {
+        line: "1",
+        destination: "X",
+        departure: "05:32",
+        stopName: "Start",
+        minutesUntil: 12,
+        arrivesInTime: true,
+        source: "local",
+      },
+    });
+    expect(r.isTestData).toBe(true);
+    expect(r.timingSource).toBe("test");
+    expect(r.scheduleNote).toBe("Testdaten");
   });
 
   it("no bus", () => {
@@ -262,7 +321,69 @@ describe("getMorningOverview", () => {
     });
     expect(o.visibility.nextActivity).toBe(true);
     expect(o.priorityOrder).toContain("appointments");
+    expect(o.priorityOrder).toContain("hint");
     expect(o.coffee.enabled).toBe(false);
+    expect(o.importantHint).toBeTruthy();
+  });
+
+  it("buildMorningSummary accepts full overview", () => {
+    const o = getMorningOverview("levi", MON_MORNING, {
+      person: person("levi"),
+      data: seedAppData,
+    });
+    expect(o.summary).toMatch(/Guten Morgen, Levi/);
+    expect(o.summary).toMatch(/Mathematik/);
+  });
+
+  it("live bus delayed overlays overview", () => {
+    const o = getMorningOverview("levi", MON_MORNING, {
+      person: person("levi"),
+      data: seedAppData,
+      live: {
+        busEnabled: true,
+        busMatched: true,
+        busIsTestData: false,
+        bus: {
+          line: "1",
+          destination: "X",
+          departure: "07:41",
+          scheduledDeparture: "07:32",
+          realtimeDeparture: "07:41",
+          stopName: "Start",
+          minutesUntil: 20,
+          delayMinutes: 9,
+          isRealtime: true,
+          source: "live",
+          arrivesInTime: true,
+          matchedToWork: true,
+          isTestData: false,
+        },
+      },
+    });
+    expect(o.bus.status).toBe("delayed");
+    expect(o.bus.timingSource).toBe("realtime");
+    expect(o.summary).toMatch(/Verspätung/);
+  });
+
+  it("live bus cancelled overlays overview", () => {
+    const o = getMorningOverview("birgit", MON_MORNING, {
+      person: person("birgit"),
+      data: seedAppData,
+      live: {
+        busEnabled: true,
+        bus: {
+          line: "1",
+          destination: "Bruck",
+          departure: "05:32",
+          stopName: "Start",
+          minutesUntil: 0,
+          cancelled: true,
+          source: "live",
+        },
+      },
+    });
+    expect(o.bus.status).toBe("cancelled");
+    expect(o.summary).toMatch(/fällt aus/);
   });
 
   it("important tasks only", () => {

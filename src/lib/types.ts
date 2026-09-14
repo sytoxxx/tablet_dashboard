@@ -211,16 +211,29 @@ export type WorkShift = {
 export type BusInfo = {
   line: string;
   destination: string;
+  /** Display departure HH:MM — realtime preferred when known. */
   departure: string;
   stopName: string;
   minutesUntil: number;
   /** true when chosen for work/school start, not just wall-clock next. */
   matchedToWork?: boolean;
   /**
-   * true/false when arrival time is known from API;
-   * null when unknown (do not invent travel time).
+   * true/false when arrival fit vs target is known;
+   * null when unknown (do not invent travel time / do not assume punctual).
    */
   arrivesInTime?: boolean | null;
+  /** Planned departure HH:MM when known (may differ from realtime). */
+  scheduledDeparture?: string;
+  /** Realtime departure HH:MM when the provider supplies it. */
+  realtimeDeparture?: string;
+  /** Positive = late. Only set when provider reports delay — never invent. */
+  delayMinutes?: number | null;
+  /** True when this departure is cancelled / unusable. */
+  cancelled?: boolean;
+  /** True when departure time comes from realtime, not timetable alone. */
+  isRealtime?: boolean;
+  /** True for local/mock Testdaten — never label as live. */
+  isTestData?: boolean;
   /** ISO timestamp of last successful fetch (client may set). */
   fetchedAt?: string;
   source?: "live" | "local" | "cache";

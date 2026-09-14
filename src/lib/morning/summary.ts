@@ -46,64 +46,124 @@ export function resolveCoffeeMorning(input: {
   };
 }
 
-/**
- * Short spoken-style briefing for later Jarvis — structured string only.
- * No voice / speech synthesis yet.
- */
-export function buildMorningSummary(input: {
+type SummaryFields = {
   displayName: string;
   greeting: string;
   nextActivity: NextActivity;
   itemsToTake: string[];
   bus: BusMorning;
   weather: WeatherInfo | null;
-}): string {
+};
+
+function toSummaryFields(
+  input:
+    | SummaryFields
+    | Pick<
+        MorningOverview,
+        | "displayName"
+        | "greeting"
+        | "nextActivity"
+        | "itemsToTake"
+        | "bus"
+        | "weather"
+      >,
+): SummaryFields {
+  const weatherRaw = input.weather;
+  const weather: WeatherInfo | null =
+    weatherRaw && typeof weatherRaw === "object" && "tip" in weatherRaw
+      ? (weatherRaw as MorningOverview["weather"]).weather
+      : ((weatherRaw as WeatherInfo | null) ?? null);
+
+  return {
+    displayName: input.displayName,
+    greeting: input.greeting,
+    nextActivity: input.nextActivity,
+    itemsToTake: input.itemsToTake,
+    bus: input.bus,
+    weather,
+  };
+}
+
+/**
+ * Short spoken-style briefing for later Jarvis — structured string only.
+ * Prefer `buildMorningSummary(overview)`.
+ * No voice / speech synthesis yet.
+ */
+export function buildMorningSummary(
+  input:
+    | SummaryFields
+    | Pick<
+        MorningOverview,
+        | "displayName"
+        | "greeting"
+        | "nextActivity"
+        | "itemsToTake"
+        | "bus"
+        | "weather"
+      >,
+): string {
+  const fields = toSummaryFields(input);
   const parts: string[] = [];
 
-  parts.push(`${input.greeting}.`);
+  parts.push(`${fields.greeting}.`);
 
-  if (input.nextActivity.status === "empty") {
+  if (fields.nextActivity.status === "empty") {
     parts.push("Heute ist nichts Festes geplant.");
-  } else if (input.nextActivity.status === "done") {
+  } else if (fields.nextActivity.status === "done") {
     parts.push("Dein Plan für heute ist erledigt.");
-  } else if (input.nextActivity.status === "current" && input.nextActivity.title) {
-    parts.push(`Gerade läuft: ${input.nextActivity.title}.`);
-  } else if (input.nextActivity.title && input.nextActivity.time) {
+  } else if (
+    fields.nextActivity.status === "current" &&
+    fields.nextActivity.title
+  ) {
+    parts.push(`Gerade läuft: ${fields.nextActivity.title}.`);
+  } else if (fields.nextActivity.title && fields.nextActivity.time) {
     parts.push(
-      `Du hast um ${input.nextActivity.time} ${input.nextActivity.title}.`,
+      `Du hast um ${fields.nextActivity.time} ${fields.nextActivity.title}.`,
     );
   }
 
-  if (input.itemsToTake.length > 0) {
+  if (fields.itemsToTake.length > 0) {
     const list =
-      input.itemsToTake.length === 1
-        ? input.itemsToTake[0]
-        : `${input.itemsToTake.slice(0, -1).join(", ")} und ${input.itemsToTake[input.itemsToTake.length - 1]}`;
+      fields.itemsToTake.length === 1
+        ? fields.itemsToTake[0]
+        : `${fields.itemsToTake.slice(0, -1).join(", ")} und ${fields.itemsToTake[fields.itemsToTake.length - 1]}`;
     parts.push(`Du brauchst ${list}.`);
   } else {
     parts.push(EMPTY_BRING_MESSAGE + ".");
   }
 
-  if (input.bus.enabled && input.bus.bus) {
+  if (fields.bus.enabled && fields.bus.bus && !fields.bus.cancelled) {
     parts.push(
-      `Der nächste passende Bus fährt um ${input.bus.bus.departure}.`,
+      `Der nächste passende Bus fährt um ${fields.bus.displayDeparture ?? fields.bus.bus.departure}.`,
     );
-    if (input.bus.status === "on_time") {
+    if (fields.bus.status === "delayed" && fields.bus.delayMinutes) {
+      parts.push(`Es gibt etwa ${fields.bus.delayMinutes} Minuten Verspätung.`);
+    }
+    if (fields.bus.status === "on_time") {
       parts.push("Du kommst rechtzeitig an.");
-    } else if (input.bus.status === "too_late") {
+    } else if (fields.bus.status === "too_late") {
       parts.push("Der Bus reicht möglicherweise nicht.");
     }
-  } else if (input.bus.enabled && input.bus.status === "none") {
+    if (fields.bus.timingSource === "schedule") {
+      parts.push("Die Abfahrt basiert auf dem Fahrplan.");
+    } else if (fields.bus.timingSource === "test") {
+      parts.push("Busdaten sind Testdaten.");
+    }
+  } else if (fields.bus.enabled && fields.bus.status === "cancelled") {
+    parts.push("Der Bus fällt aus.");
+  } else if (fields.bus.enabled && fields.bus.status === "none") {
     parts.push("Kein passender Bus gefunden.");
   }
 
-  if (input.weather) {
-    const tip = input.weather.clothingTip
-      ? ` ${stripEmoji(input.weather.clothingTip)}.`
+  if (fields.weather) {
+    const tip = fields.weather.clothingTip
+      ? ` ${stripEmoji(fields.weather.clothingTip)}.`
       : "";
     parts.push(
-      `Es sind ${input.weather.temperatureC} Grad${
-        input.weather.summary ? ` und ${input.weather.summary.toLowerCase()}` : ""
+      `Es sind ${fields.weather.temperatureC} Grad${
+        fields.weather.summary
+          ? ` und ${fields.weather.summary.toLowerCase()}`
+          : ""
       }.${tip}`,
     );
   }
@@ -124,7 +184,7 @@ export function weatherTipFrom(weather: WeatherInfo | null): string | null {
   return weather.clothingTip || null;
 }
 
-/** Ensure summary helpers stay in sync with overview shape. */
+/** @deprecated prefer buildMorningSummary(overview) */
 export function summaryFromOverview(
   overview: Pick<
     MorningOverview,
@@ -136,12 +196,5 @@ export function summaryFromOverview(
     | "weather"
   >,
 ): string {
-  return buildMorningSummary({
-    displayName: overview.displayName,
-    greeting: overview.greeting,
-    nextActivity: overview.nextActivity,
-    itemsToTake: overview.itemsToTake,
-    bus: overview.bus,
-    weather: overview.weather.weather,
-  });
+  return buildMorningSummary(overview);
 }
