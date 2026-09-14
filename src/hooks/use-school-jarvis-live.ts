@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import type { PersonId } from "@/lib/types";
 import type {
   SchoolJarvisDailySummary,
@@ -28,6 +28,7 @@ const EMPTY: SchoolJarvisLiveState = {
 /**
  * Browser hook: calls Coffee Morning API only (never School Jarvis directly).
  * Only mounts polling for eligible persons (currently Levi).
+ * Initial fetch runs on mount even if document visibility is flaky (headless/kiosk).
  */
 export function useSchoolJarvisLive(personId: PersonId): SchoolJarvisLiveState {
   const eligible = isSchoolJarvisUiPerson(personId);
@@ -69,6 +70,16 @@ export function useSchoolJarvisLive(personId: PersonId): SchoolJarvisLiveState {
     }
   }, [eligible, personId]);
 
+  // Always load once when eligible (do not depend on visibility APIs).
+  useEffect(() => {
+    if (!eligible) {
+      setState(EMPTY);
+      return;
+    }
+    void refresh();
+  }, [eligible, refresh]);
+
+  // Background refresh only while the tablet/tab is visible.
   useVisibleInterval(refresh, POLL_MS, eligible);
 
   if (!eligible) return EMPTY;
