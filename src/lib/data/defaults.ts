@@ -14,6 +14,7 @@ export const DEFAULT_DISPLAY_PREFS: DisplayPrefs = {
 };
 
 export const DEFAULT_TRANSIT_PREFS: TransitPrefs = {
+  enabled: true,
   leadTimeMinutes: 30,
 };
 

@@ -28,8 +28,9 @@ export class VerbundSteiermarkBusProvider implements BusProvider {
         departures: query.localDepartures,
         source: "local",
         provider: this.name,
+        isTestData: true,
         warning:
-          "Steiermark TRIAS nicht konfiguriert (VERBUND_STEIERMARK_TRIAS_URL) — lokaler Plan.",
+          "Steiermark TRIAS nicht konfiguriert (VERBUND_STEIERMARK_TRIAS_URL) — lokale Testdaten.",
       };
     }
 
@@ -39,7 +40,8 @@ export class VerbundSteiermarkBusProvider implements BusProvider {
         departures: query.localDepartures,
         source: "local",
         provider: this.name,
-        warning: "Keine StopPointRef — lokaler Plan.",
+        isTestData: true,
+        warning: "Keine StopPointRef — lokale Testdaten.",
       };
     }
 
@@ -74,9 +76,10 @@ export class VerbundSteiermarkBusProvider implements BusProvider {
           departures: query.localDepartures,
           source: "local",
           provider: this.name,
+          isTestData: true,
           warning:
             query.localDepartures.length > 0
-              ? "Keine TRIAS-Abfahrten — lokaler Plan."
+              ? "Keine TRIAS-Abfahrten — lokale Testdaten."
               : "Keine Abfahrten gefunden.",
         };
       }
@@ -86,6 +89,7 @@ export class VerbundSteiermarkBusProvider implements BusProvider {
         departures,
         source: "live",
         provider: this.name,
+        isTestData: false,
       };
     } catch {
       return {
@@ -93,7 +97,8 @@ export class VerbundSteiermarkBusProvider implements BusProvider {
         departures: query.localDepartures,
         source: "local",
         provider: this.name,
-        warning: "Steiermark TRIAS nicht erreichbar — lokaler Plan.",
+        isTestData: true,
+        warning: "Steiermark TRIAS nicht erreichbar — lokale Testdaten.",
       };
     } finally {
       clearTimeout(timeout);

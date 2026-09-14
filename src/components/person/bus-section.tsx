@@ -2,34 +2,50 @@ import type { BusInfo } from "@/lib/types";
 import { formatMinutesUntil } from "@/lib/format";
 import { EmptyState } from "@/components/empty-state";
 import { Section } from "@/components/section";
+import { friendlyBusEmptyMessage } from "@/lib/bus/select";
 
 type BusSectionProps = {
   bus: BusInfo | null;
   stopName?: string | null;
   hasBusConfig?: boolean;
+  busEnabled?: boolean;
   /** Friendly empty / error copy (Birgit). */
   message?: string | null;
+  emptyTitle?: string | null;
   /** Extra upcoming times HH:MM */
   upcoming?: Array<{ time: string; line?: string }>;
   /** Hide technical wording entirely. */
   simple?: boolean;
   matchedToWork?: boolean;
   fetchedAt?: string | null;
+  offline?: boolean;
+  unavailable?: boolean;
+  /** Admin/Levi only — never on Birgit simple view. */
+  isTestData?: boolean;
 };
 
 export function BusSection({
   bus,
   stopName,
   hasBusConfig = true,
+  busEnabled = true,
   message,
+  emptyTitle,
   upcoming,
   simple = false,
   matchedToWork,
   fetchedAt,
+  offline,
+  unavailable,
+  isTestData,
 }: BusSectionProps) {
   const title = simple ? "Dein Bus" : "Bus";
 
   if (bus) {
+    const showOnTime =
+      simple &&
+      (bus.arrivesInTime === true || (matchedToWork && bus.arrivesInTime !== false));
+
     return (
       <Section title={title}>
         <div>
@@ -39,8 +55,16 @@ export function BusSection({
           <p className="mt-2 text-lg text-[color:var(--ink)]">
             {formatMinutesUntil(bus.minutesUntil)}
           </p>
-          {simple && bus.arrivesInTime === true ? (
+          {showOnTime ? (
             <p className="mt-2 text-base text-[color:var(--ink)]">Du kommst rechtzeitig an.</p>
+          ) : null}
+          {!simple && bus.arrivesInTime === false ? (
+            <p className="mt-2 text-sm text-[color:var(--quiet)]">
+              Möglicherweise zu spät für den Start.
+            </p>
+          ) : null}
+          {!simple && bus.arrivesInTime === true && matchedToWork ? (
+            <p className="mt-2 text-sm text-[color:var(--quiet)]">Passend zur Ankunftszeit.</p>
           ) : null}
           {!simple ? (
             <p className="mt-1 text-[color:var(--quiet)]">
@@ -50,7 +74,7 @@ export function BusSection({
           {!simple ? (
             <p className="mt-1 text-[color:var(--quiet)]">
               {stopName ?? bus.stopName}
-              {matchedToWork ? " · passend zur Arbeit" : null}
+              {matchedToWork ? " · passend zur Arbeit/Schule" : null}
             </p>
           ) : null}
           {upcoming && upcoming.length > 1 && !simple ? (
@@ -62,6 +86,9 @@ export function BusSection({
                 .join(" · ")}
             </p>
           ) : null}
+          {!simple && isTestData ? (
+            <p className="mt-2 text-xs text-[color:var(--quiet)]">Testdaten — keine Live-Abfahrt</p>
+          ) : null}
           {fetchedAt && bus.source === "cache" ? (
             <p className="mt-2 text-xs text-[color:var(--quiet)]">Zuletzt gespeichert</p>
           ) : null}
@@ -70,35 +97,22 @@ export function BusSection({
     );
   }
 
-  if (!hasBusConfig) {
-    return (
-      <Section title={title}>
-        <EmptyState
-          title={simple ? "Kein Bus nötig" : "Kein Bus nötig"}
-          description={
-            simple
-              ? "Heute bleibst du in der Nähe."
-              : "Keine Haltestelle eingerichtet."
-          }
-        />
-      </Section>
-    );
-  }
+  const fallback = friendlyBusEmptyMessage({
+    simple,
+    hasConfig: hasBusConfig,
+    enabled: busEnabled,
+    offline,
+    unavailable,
+  });
 
   return (
-    <Section title={title}>
+    <Section title={simple ? "Dein Bus" : "Bus"}>
       <EmptyState
-        title={
-          message?.includes("verfügbar")
-            ? "Busdaten gerade nicht verfügbar."
-            : "Heute keine weitere Verbindung"
-        }
+        title={emptyTitle || fallback.title}
         description={
           simple
-            ? message && !message.includes("API")
-              ? message
-              : "Schau später noch einmal vorbei."
-            : message || "Alle Abfahrten für heute sind vorbei."
+            ? fallback.description
+            : message || fallback.description
         }
       />
     </Section>

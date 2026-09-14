@@ -137,6 +137,7 @@ export const seedPersons: PersonProfile[] = [
     personalSettings: { preferredCoffee: "espresso", notes: "Schultasche am Abend packen." },
     displayPrefs: { showBus: true, showWeather: true, showCalendar: true, showTasks: true },
     transitPrefs: {
+      enabled: true,
       leadTimeMinutes: 25,
       preferredModes: ["bus"],
       destinationStop: { name: "Ziel (im Admin setzen)" },
@@ -182,6 +183,7 @@ export const seedPersons: PersonProfile[] = [
     personalSettings: { preferredCoffee: "cappuccino", notes: "Schlüsselbund mit Chip." },
     displayPrefs: { showBus: true, showWeather: true, showCalendar: true, showTasks: true },
     transitPrefs: {
+      enabled: true,
       leadTimeMinutes: 30,
       desiredArrivalHHmm: "06:00",
       preferredModes: ["bus"],
@@ -226,6 +228,7 @@ export const seedPersons: PersonProfile[] = [
     personalSettings: { preferredCoffee: "latte", notes: "Ruhiger Vormittag bevorzugen." },
     displayPrefs: { showBus: true, showWeather: true, showCalendar: true, showTasks: true },
     transitPrefs: {
+      enabled: true,
       leadTimeMinutes: 30,
       preferredModes: ["bus"],
       destinationStop: { name: "Ziel Apfelmoar (im Admin setzen)" },

@@ -30,8 +30,9 @@ export class VaoBusProvider implements BusProvider {
         departures: query.localDepartures,
         source: "local",
         provider: this.name,
+        isTestData: true,
         warning:
-          "VAO START nicht konfiguriert (VAO_API_KEY / VAO_BASE_URL) — lokaler Plan.",
+          "VAO START nicht konfiguriert (VAO_API_KEY / VAO_BASE_URL) — lokale Testdaten.",
       };
     }
 
@@ -41,7 +42,8 @@ export class VaoBusProvider implements BusProvider {
         departures: query.localDepartures,
         source: "local",
         provider: this.name,
-        warning: "Keine VAO-Haltestellen-ID — lokaler Plan.",
+        isTestData: true,
+        warning: "Keine VAO-Haltestellen-ID — lokale Testdaten.",
       };
     }
 
@@ -70,9 +72,10 @@ export class VaoBusProvider implements BusProvider {
           departures: query.localDepartures,
           source: "local",
           provider: this.name,
+          isTestData: true,
           warning:
             query.localDepartures.length > 0
-              ? "Keine VAO-Abfahrten — lokaler Plan."
+              ? "Keine VAO-Abfahrten — lokale Testdaten."
               : "Keine Abfahrten gefunden.",
         };
       }
@@ -82,6 +85,7 @@ export class VaoBusProvider implements BusProvider {
         departures,
         source: "live",
         provider: this.name,
+        isTestData: false,
       };
     } catch {
       return {
@@ -89,7 +93,8 @@ export class VaoBusProvider implements BusProvider {
         departures: query.localDepartures,
         source: "local",
         provider: this.name,
-        warning: "VAO nicht erreichbar — lokaler Plan.",
+        isTestData: true,
+        warning: "VAO nicht erreichbar — lokale Testdaten.",
       };
     } finally {
       clearTimeout(timeout);

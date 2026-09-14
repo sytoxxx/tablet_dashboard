@@ -17,7 +17,8 @@ export class WienerLinienBusProvider implements BusProvider {
         departures: query.localDepartures,
         source: "local",
         provider: this.name,
-        warning: "Keine gültige Haltestellen-ID — lokaler Plan.",
+        isTestData: true,
+        warning: "Keine gültige Haltestellen-ID — lokale Testdaten.",
       };
     }
 
@@ -42,11 +43,12 @@ export class WienerLinienBusProvider implements BusProvider {
         return {
           stopName: stopTitle,
           departures: query.localDepartures,
-          source: departures.length ? "live" : "local",
+          source: "local",
           provider: this.name,
+          isTestData: true,
           warning:
             query.localDepartures.length > 0
-              ? "Keine Live-Abfahrten — lokaler Plan."
+              ? "Keine Live-Abfahrten — lokale Testdaten."
               : "Keine Abfahrten gefunden.",
         };
       }
@@ -56,6 +58,7 @@ export class WienerLinienBusProvider implements BusProvider {
         departures,
         source: "live",
         provider: this.name,
+        isTestData: false,
       };
     } catch {
       return {
@@ -63,7 +66,8 @@ export class WienerLinienBusProvider implements BusProvider {
         departures: query.localDepartures,
         source: "local",
         provider: this.name,
-        warning: "Live-Bus nicht erreichbar — lokaler Plan.",
+        isTestData: true,
+        warning: "Live-Bus nicht erreichbar — lokale Testdaten.",
       };
     } finally {
       clearTimeout(timeout);

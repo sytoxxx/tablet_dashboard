@@ -25,8 +25,12 @@ export function SimpleMorningDashboard({
   mode,
   simple = false,
   busMessage,
+  busEmptyTitle,
   busUpcoming,
   busMatched,
+  busEnabled = true,
+  busOffline,
+  busUnavailable,
   weatherPlace,
 }: {
   view: DayIntelligenceView;
@@ -34,8 +38,12 @@ export function SimpleMorningDashboard({
   mode: "work" | "personal";
   simple?: boolean;
   busMessage?: string | null;
+  busEmptyTitle?: string | null;
   busUpcoming?: Array<{ time: string; line: string; destination: string }>;
   busMatched?: boolean;
+  busEnabled?: boolean;
+  busOffline?: boolean;
+  busUnavailable?: boolean;
   weatherPlace?: string | null;
 }) {
   const headline = useMemo(
@@ -130,11 +138,15 @@ export function SimpleMorningDashboard({
             <BusSection
               bus={view.nextBus}
               stopName={view.busStopName}
-              hasBusConfig={Boolean(view.busStopName)}
+              hasBusConfig={Boolean(view.busStopName) && busEnabled}
+              busEnabled={busEnabled}
               message={busMessage}
+              emptyTitle={busEmptyTitle}
               upcoming={busUpcoming}
               simple={simple || mode === "work"}
               matchedToWork={busMatched}
+              offline={busOffline}
+              unavailable={busUnavailable}
             />
           ) : null}
           {view.displayPrefs.showWeather ? (

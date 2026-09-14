@@ -8,6 +8,7 @@ import { SimpleMorningDashboard } from "@/components/person/simple-morning-dashb
 import { useBusLive } from "@/hooks/use-bus-live";
 import { useWeatherLive } from "@/hooks/use-weather-live";
 import { MorningSkeleton } from "@/components/shared/skeleton";
+import { DEFAULT_TRANSIT_PREFS } from "@/lib/data/defaults";
 
 /** Routes each person to their Phase-6/7 morning layout with live bus/weather. */
 export function PersonDashboard({
@@ -21,22 +22,29 @@ export function PersonDashboard({
 }) {
   const bus = useBusLive(person);
   const weather = useWeatherLive(person);
+  const busEnabled =
+    (person.transitPrefs?.enabled ?? DEFAULT_TRANSIT_PREFS.enabled) !== false;
 
   const liveView = useMemo<DayIntelligenceView>(() => {
     return {
       ...view,
-      nextBus: bus.next ?? view.nextBus,
-      busStopName: bus.stopName ?? view.busStopName,
+      nextBus: busEnabled ? (bus.next ?? view.nextBus) : null,
+      busStopName: busEnabled ? (bus.stopName ?? view.busStopName) : null,
       weather: weather.weather ?? view.weather,
     };
-  }, [view, bus.next, bus.stopName, weather.weather]);
+  }, [view, bus.next, bus.stopName, weather.weather, busEnabled]);
 
   const liveMeta = {
     busMessage: bus.message,
+    busEmptyTitle: bus.emptyTitle,
     busUpcoming: bus.upcoming,
     busMatched: bus.matchedToWork,
     busArrivesInTime: bus.arrivesInTime,
     busFetchedAt: bus.fetchedAt,
+    busIsTestData: bus.isTestData,
+    busEnabled,
+    busOffline: bus.offline,
+    busUnavailable: bus.unavailable,
     weatherPlace: weather.place,
     busLoading: bus.loading && !bus.fetchedAt,
     weatherLoading: weather.loading && !weather.fetchedAt,
@@ -52,7 +60,13 @@ export function PersonDashboard({
         view={liveView}
         wallNow={wallNow}
         busMessage={liveMeta.busMessage}
+        busEmptyTitle={liveMeta.busEmptyTitle}
         busUpcoming={liveMeta.busUpcoming}
+        busMatched={liveMeta.busMatched}
+        busIsTestData={liveMeta.busIsTestData}
+        busEnabled={liveMeta.busEnabled}
+        busOffline={liveMeta.busOffline}
+        busUnavailable={liveMeta.busUnavailable}
         weatherPlace={liveMeta.weatherPlace}
       />
     );
@@ -65,8 +79,12 @@ export function PersonDashboard({
         mode="work"
         simple
         busMessage={liveMeta.busMessage}
+        busEmptyTitle={liveMeta.busEmptyTitle}
         busUpcoming={liveMeta.busUpcoming}
         busMatched={liveMeta.busMatched}
+        busEnabled={liveMeta.busEnabled}
+        busOffline={liveMeta.busOffline}
+        busUnavailable={liveMeta.busUnavailable}
         weatherPlace={liveMeta.weatherPlace}
       />
     );
@@ -78,7 +96,12 @@ export function PersonDashboard({
       mode="personal"
       simple
       busMessage={liveMeta.busMessage}
+      busEmptyTitle={liveMeta.busEmptyTitle}
       busUpcoming={liveMeta.busUpcoming}
+      busMatched={liveMeta.busMatched}
+      busEnabled={liveMeta.busEnabled}
+      busOffline={liveMeta.busOffline}
+      busUnavailable={liveMeta.busUnavailable}
       weatherPlace={liveMeta.weatherPlace}
     />
   );

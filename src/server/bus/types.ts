@@ -28,6 +28,15 @@ export type BusProviderResult = {
   source: "live" | "local";
   provider: BusProviderId | string;
   warning?: string;
+  /** True when result is local/mock Testdaten — never label as live. */
+  isTestData?: boolean;
+};
+
+export type StopSearchHit = {
+  id: string;
+  name: string;
+  place?: string;
+  provider: BusProviderId | string;
 };
 
 export interface BusProvider {

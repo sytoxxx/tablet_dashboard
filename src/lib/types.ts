@@ -113,6 +113,8 @@ export type RegionConfig = {
 };
 
 export type TransitPrefs = {
+  /** When false, morning dashboards hide bus entirely. Default true. */
+  enabled?: boolean;
   /** Minutes buffer before desired arrival / work / school start. */
   leadTimeMinutes: number;
   /** Optional HH:MM override; empty → use work/school start from schedule. */

@@ -1,6 +1,10 @@
 import { NextResponse } from "next/server";
 import { createBusProvider } from "@/server/bus";
-import { departuresFromLocalStop, selectRelevantDeparture } from "@/lib/bus/select";
+import {
+  departuresFromLocalStop,
+  friendlyBusEmptyMessage,
+  selectRelevantDeparture,
+} from "@/lib/bus/select";
 import { seedPersons } from "@/data/seed";
 import { DEFAULT_TRANSIT_PREFS } from "@/lib/data/defaults";
 import { getWorkShiftForDate } from "@/lib/work/schedule";
@@ -17,29 +21,40 @@ function isPersonId(value: string): value is PersonId {
  * Prefers client-provided profile (LocalStorage) via header or POST body.
  */
 export async function GET(request: Request) {
-  const { searchParams } = new URL(request.url);
-  const personId = String(searchParams.get("personId") || "");
-  if (!isPersonId(personId)) {
-    return NextResponse.json({ error: "Ungültige Person." }, { status: 400 });
-  }
-
-  const seed = seedPersons.find((p) => p.id === personId);
-  if (!seed) {
-    return NextResponse.json({ error: "Person nicht gefunden." }, { status: 404 });
-  }
-
-  const profileHeader = request.headers.get("x-app-person");
-  let person: PersonProfile = seed;
-  if (profileHeader) {
-    try {
-      const parsed = JSON.parse(profileHeader) as PersonProfile;
-      if (parsed?.id === personId) person = parsed;
-    } catch {
-      /* ignore bad header */
+  try {
+    const { searchParams } = new URL(request.url);
+    const personId = String(searchParams.get("personId") || "");
+    if (!isPersonId(personId)) {
+      return NextResponse.json({ error: "Ungültige Person." }, { status: 400 });
     }
-  }
 
-  return respondForPerson(person);
+    const seed = seedPersons.find((p) => p.id === personId);
+    if (!seed) {
+      return NextResponse.json({ error: "Person nicht gefunden." }, { status: 404 });
+    }
+
+    const profileHeader = request.headers.get("x-app-person");
+    let person: PersonProfile = seed;
+    if (profileHeader) {
+      try {
+        const parsed = JSON.parse(profileHeader) as PersonProfile;
+        if (parsed?.id === personId) person = parsed;
+      } catch {
+        /* ignore bad header */
+      }
+    }
+
+    return respondForPerson(person);
+  } catch {
+    return NextResponse.json(
+      {
+        ok: false,
+        error: "Busdaten gerade nicht verfügbar.",
+        message: "Busdaten gerade nicht verfügbar.",
+      },
+      { status: 503 },
+    );
+  }
 }
 
 export async function POST(request: Request) {
@@ -56,7 +71,17 @@ export async function POST(request: Request) {
 
 async function respondForPerson(person: PersonProfile) {
   try {
-    if (!person.busStop) {
+    const prefs = {
+      ...DEFAULT_TRANSIT_PREFS,
+      ...person.transitPrefs,
+    };
+    const enabled = prefs.enabled !== false;
+
+    if (!enabled || !person.busStop) {
+      const empty = friendlyBusEmptyMessage({
+        hasConfig: Boolean(person.busStop),
+        enabled,
+      });
       return NextResponse.json({
         ok: true,
         stopName: null,
@@ -64,15 +89,14 @@ async function respondForPerson(person: PersonProfile) {
         next: null,
         upcoming: [],
         source: "local",
-        message: "Keine Haltestelle konfiguriert.",
+        isTestData: true,
+        enabled,
+        message: empty.description,
+        emptyTitle: empty.title,
         fetchedAt: new Date().toISOString(),
       });
     }
 
-    const prefs = {
-      ...DEFAULT_TRANSIT_PREFS,
-      ...person.transitPrefs,
-    };
     const local = departuresFromLocalStop(person.busStop);
     const preferredProvider = person.busStop.provider ?? "auto";
     const query = {
@@ -112,6 +136,10 @@ async function respondForPerson(person: PersonProfile) {
       destination: d.destination,
     }));
 
+    const empty = next
+      ? null
+      : friendlyBusEmptyMessage({ hasConfig: true, enabled: true });
+
     return NextResponse.json({
       ok: true,
       stopName: result.stopName,
@@ -121,11 +149,14 @@ async function respondForPerson(person: PersonProfile) {
       source: result.source,
       provider: result.provider,
       warning: result.warning,
+      isTestData: Boolean(result.isTestData) || result.source === "local",
+      enabled: true,
       targetStart,
       leadTimeMinutes: prefs.leadTimeMinutes,
       destinationHint: prefs.destinationHint ?? null,
       fetchedAt: new Date().toISOString(),
-      message: next ? null : "Heute keine weitere Verbindung",
+      message: next ? null : empty?.description ?? "Heute keine passende Verbindung gefunden.",
+      emptyTitle: next ? null : empty?.title ?? null,
     });
   } catch {
     return NextResponse.json(
@@ -133,6 +164,7 @@ async function respondForPerson(person: PersonProfile) {
         ok: false,
         error: "Busdaten gerade nicht verfügbar.",
         message: "Busdaten gerade nicht verfügbar.",
+        emptyTitle: "Kein passender Bus",
       },
       { status: 503 },
     );

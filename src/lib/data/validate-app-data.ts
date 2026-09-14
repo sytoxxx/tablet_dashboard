@@ -98,6 +98,7 @@ function sanitizeTransitPrefs(raw: unknown, fallback?: TransitPrefs): TransitPre
 
   return {
     leadTimeMinutes: lead,
+    enabled: typeof raw.enabled === "boolean" ? raw.enabled : (base.enabled ?? true),
     desiredArrivalHHmm: desired,
     preferredLines: preferredLines?.length ? preferredLines : undefined,
     preferredModes: preferredModes?.length ? preferredModes : undefined,

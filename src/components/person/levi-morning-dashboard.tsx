@@ -21,13 +21,25 @@ export function LeviMorningDashboard({
   view,
   wallNow,
   busMessage,
+  busEmptyTitle,
   busUpcoming,
+  busMatched,
+  busIsTestData,
+  busEnabled = true,
+  busOffline,
+  busUnavailable,
   weatherPlace,
 }: {
   view: DayIntelligenceView;
   wallNow: Date;
   busMessage?: string | null;
+  busEmptyTitle?: string | null;
   busUpcoming?: Array<{ time: string; line: string; destination: string }>;
+  busMatched?: boolean;
+  busIsTestData?: boolean;
+  busEnabled?: boolean;
+  busOffline?: boolean;
+  busUnavailable?: boolean;
   weatherPlace?: string | null;
 }) {
   const headline = useMemo(
@@ -85,9 +97,15 @@ export function LeviMorningDashboard({
             <BusSection
               bus={view.nextBus}
               stopName={view.busStopName}
-              hasBusConfig={Boolean(view.busStopName)}
+              hasBusConfig={Boolean(view.busStopName) && busEnabled}
+              busEnabled={busEnabled}
               message={busMessage}
+              emptyTitle={busEmptyTitle}
               upcoming={busUpcoming}
+              matchedToWork={busMatched}
+              isTestData={busIsTestData}
+              offline={busOffline}
+              unavailable={busUnavailable}
             />
           ) : null}
           {view.displayPrefs.showWeather ? (

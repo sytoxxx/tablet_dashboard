@@ -1,6 +1,5 @@
 "use client";
 
-import { useEffect, useState } from "react";
 import { AdminShell } from "@/components/admin/admin-shell";
 import { useOnlineStatus } from "@/components/admin/offline-banner";
 import { useAppData } from "@/components/providers/data-provider";
@@ -22,12 +21,8 @@ const PROVIDERS: BusProviderPreference[] = [
 export default function SystemSettingsPage() {
   const { data, resetToSeed, replaceData } = useAppData();
   const online = useOnlineStatus();
-  const [backupExists, setBackupExists] = useState(false);
+  const backupExists = typeof window !== "undefined" ? hasLocalBackup() : false;
   const region = data.region ?? DEFAULT_REGION;
-
-  useEffect(() => {
-    setBackupExists(hasLocalBackup());
-  }, [data]);
 
   return (
     <AdminShell title="System" subtitle="Region, Status, Speicher und Zurücksetzen.">
