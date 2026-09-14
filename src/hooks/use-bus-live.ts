@@ -88,8 +88,17 @@ export function useBusLive(
     if (!online) {
       const cached = cacheRef.current;
       const age = formatDataAge(cached?.fetchedAt ?? null);
+      const cachedNext = cached?.next
+        ? {
+            ...cached.next,
+            source: "cache" as const,
+            isRealtime: false,
+            isTestData: true,
+          }
+        : null;
       setState((prev) => ({
         ...(cached ?? prev),
+        next: cachedNext ?? prev.next,
         warning: age
           ? `Offline — Daten zuletzt aktualisiert ${age}`
           : "Offline — zuletzt gespeicherte Busdaten",
@@ -98,11 +107,12 @@ export function useBusLive(
         offline: true,
         unavailable: false,
         enabled: true,
-        emptyTitle: cached?.next ? null : "Keine Busdaten verfügbar",
-        message: cached?.next
+        isTestData: true,
+        emptyTitle: cachedNext || cached?.next ? null : "Keine Busdaten verfügbar",
+        message: cachedNext || cached?.next
           ? age
             ? `Daten zuletzt aktualisiert ${age}`
-            : cached.message
+            : cached?.message ?? null
           : "Keine Busdaten verfügbar",
         dataAgeLabel: age,
       }));
@@ -128,6 +138,7 @@ export function useBusLive(
         warning?: string | null;
         source?: BusLiveState["source"];
         fetchedAt?: string;
+        realtimeAt?: string | null;
         ok?: boolean;
         error?: string;
         isTestData?: boolean;
@@ -139,17 +150,25 @@ export function useBusLive(
         const fallback = getNextBus(person.busStop);
         const cached = cacheRef.current;
         const age = formatDataAge(cached?.fetchedAt);
+        const cachedNext = cached?.next
+          ? {
+              ...cached.next,
+              source: "cache" as const,
+              isRealtime: false,
+              isTestData: true,
+            }
+          : null;
         setState({
-          next: fallback ?? cached?.next ?? null,
+          next: fallback ?? cachedNext,
           upcoming: cached?.upcoming ?? [],
           stopName: person.busStop?.name ?? cached?.stopName ?? null,
           message:
-            fallback || cached?.next
+            fallback || cachedNext
               ? age
                 ? `Daten zuletzt aktualisiert ${age}`
                 : null
               : "Keine Busdaten verfügbar",
-          emptyTitle: fallback || cached?.next ? null : "Keine Busdaten verfügbar",
+          emptyTitle: fallback || cachedNext ? null : "Keine Busdaten verfügbar",
           warning: "Busdaten gerade nicht verfügbar.",
           source: fallback ? "local" : "cache",
           fetchedAt: cached?.fetchedAt ?? null,
@@ -193,6 +212,7 @@ export function useBusLive(
             provider: json.provider ?? null,
             isTestData: Boolean(json.isTestData),
             warning: json.warning ?? null,
+            realtimeAt: json.realtimeAt ?? null,
           }),
         );
       } catch {
@@ -202,8 +222,16 @@ export function useBusLive(
     } catch {
       const fallback = getNextBus(person.busStop);
       const cached = cacheRef.current;
+      const cachedNext = cached?.next
+        ? {
+            ...cached.next,
+            source: "cache" as const,
+            isRealtime: false,
+            isTestData: true,
+          }
+        : null;
       setState({
-        next: fallback ?? cached?.next ?? null,
+        next: fallback ?? cachedNext,
         upcoming: cached?.upcoming ?? [],
         stopName: person.busStop?.name ?? cached?.stopName ?? null,
         message: "Keine Busdaten verfügbar",

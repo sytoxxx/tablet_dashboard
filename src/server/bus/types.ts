@@ -30,12 +30,24 @@ export type BusProviderResult = {
   warning?: string;
   /** True when result is local/mock Testdaten — never label as live. */
   isTestData?: boolean;
+  /** When this provider response was obtained. */
+  fetchedAt?: string;
+  /**
+   * When realtime samples in this response were produced (if known).
+   * Omit when only timetable / testdata — do not pretend cache is live.
+   */
+  realtimeAt?: string;
 };
 
 export type StopSearchHit = {
+  /** Original provider stop id (StopPointRef / VAO id / RBL) — never invent. */
   id: string;
   name: string;
+  /** @deprecated prefer locality */
   place?: string;
+  locality?: string;
+  latitude?: number;
+  longitude?: number;
   provider: BusProviderId | string;
 };
 

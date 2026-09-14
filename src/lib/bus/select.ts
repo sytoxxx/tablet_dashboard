@@ -1,6 +1,14 @@
 import type { BusDeparture, BusInfo, BusStop } from "@/lib/types";
 import { getMinutesSinceMidnight, parseTimeToMinutes } from "@/lib/format";
 
+/** Normalized service state from provider (TRIAS/VAO/local). */
+export type DepartureServiceStatus =
+  | "PLANNED"
+  | "REALTIME"
+  | "DELAYED"
+  | "CANCELLED"
+  | "UNKNOWN";
+
 export type LiveDeparture = {
   line: string;
   destination: string;
@@ -20,10 +28,11 @@ export type LiveDeparture = {
   scheduledTime?: string;
   /** Realtime HH:MM when the provider supplies it. */
   realtimeTime?: string;
-  /** Delay minutes when reported — never invent. */
+  /** Delay minutes when reported or derived from timetable vs estimate — never invent. */
   delayMinutes?: number | null;
   cancelled?: boolean;
   isRealtime?: boolean;
+  status?: DepartureServiceStatus;
 };
 
 /** Prefer realtime clock over timetable — never invent delay. */
@@ -182,6 +191,7 @@ export function selectRelevantDeparture(
         delayMinutes: c.delayMinutes ?? null,
         isRealtime: Boolean(c.isRealtime || c.realtimeTime),
         isTestData: options?.source === "local",
+        status: "CANCELLED",
         source: options?.source ?? "local",
       };
     }
@@ -233,6 +243,15 @@ export function selectRelevantDeparture(
 
   const isRealtime = Boolean(chosen.isRealtime || chosen.realtimeTime);
   const isTestData = options?.source === "local";
+  const status =
+    chosen.status ??
+    (chosen.cancelled
+      ? "CANCELLED"
+      : chosen.delayMinutes != null && chosen.delayMinutes > 0
+        ? "DELAYED"
+        : isRealtime
+          ? "REALTIME"
+          : "PLANNED");
 
   return {
     line: chosen.line,
@@ -249,6 +268,7 @@ export function selectRelevantDeparture(
     cancelled: false,
     isRealtime,
     isTestData,
+    status,
     source: options?.source ?? "local",
   };
 }

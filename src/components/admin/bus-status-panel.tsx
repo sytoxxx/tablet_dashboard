@@ -14,6 +14,7 @@ type BusStatusResponse = {
   busProviderEnv: string;
   lastSuccessAt: string | null;
   lastError: string | null;
+  dataAgeLabel?: string | null;
   message: string;
 };
 
@@ -137,6 +138,7 @@ export function BusStatusPanel({
             <dt className="inline">Letzter Abruf: </dt>
             <dd className="inline">
               {new Date(status.lastSuccessAt).toLocaleString("de-AT")}
+              {status.dataAgeLabel ? ` (${status.dataAgeLabel})` : ""}
             </dd>
           </div>
         ) : null}

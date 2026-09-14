@@ -234,8 +234,12 @@ export type BusInfo = {
   isRealtime?: boolean;
   /** True for local/mock Testdaten — never label as live. */
   isTestData?: boolean;
+  /** Normalized service status from provider mapping. */
+  status?: "PLANNED" | "REALTIME" | "DELAYED" | "CANCELLED" | "UNKNOWN";
   /** ISO timestamp of last successful fetch (client may set). */
   fetchedAt?: string;
+  /** ISO timestamp of realtime sample when distinct from fetch. */
+  realtimeAt?: string;
   source?: "live" | "local" | "cache";
 };
 

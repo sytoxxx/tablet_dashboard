@@ -149,13 +149,30 @@ async function respondForPerson(
       destinationHint: prefs.destinationHint,
     });
 
-    const upcoming = result.departures.slice(0, 5).map((d) => ({
-      time: d.time,
-      line: d.line,
-      destination: d.destination,
-    }));
+    const fetchedAt = result.fetchedAt ?? new Date().toISOString();
+    const nextWithMeta = next
+      ? {
+          ...next,
+          fetchedAt,
+          realtimeAt: result.realtimeAt,
+          isTestData: Boolean(result.isTestData) || result.source === "local",
+          source: result.source,
+        }
+      : null;
 
-    const empty = next
+    const upcoming = result.departures
+      .filter((d) => !d.cancelled)
+      .slice(0, 5)
+      .map((d) => ({
+        time: d.realtimeTime || d.time,
+        line: d.line,
+        destination: d.destination,
+        status: d.status,
+        delayMinutes: d.delayMinutes ?? null,
+        cancelled: Boolean(d.cancelled),
+      }));
+
+    const empty = nextWithMeta
       ? null
       : friendlyBusEmptyMessage({ hasConfig: true, enabled: true });
 
@@ -164,7 +181,7 @@ async function respondForPerson(
       stopName: result.stopName,
       departures: result.departures,
       upcoming,
-      next,
+      next: nextWithMeta,
       source: result.source,
       provider: result.provider,
       warning: result.warning,
@@ -173,9 +190,12 @@ async function respondForPerson(
       targetStart,
       leadTimeMinutes: prefs.leadTimeMinutes,
       destinationHint: prefs.destinationHint ?? null,
-      fetchedAt: new Date().toISOString(),
-      message: next ? null : empty?.description ?? "Heute keine passende Verbindung gefunden.",
-      emptyTitle: next ? null : empty?.title ?? null,
+      fetchedAt,
+      realtimeAt: result.realtimeAt ?? null,
+      message: nextWithMeta
+        ? null
+        : empty?.description ?? "Heute keine passende Verbindung gefunden.",
+      emptyTitle: nextWithMeta ? null : empty?.title ?? null,
     });
   } catch {
     return NextResponse.json(
