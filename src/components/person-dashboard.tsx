@@ -3,6 +3,10 @@
 import { useMemo } from "react";
 import type { DayIntelligenceView } from "@/lib/day/intelligence";
 import type { PersonProfile } from "@/lib/types";
+import {
+  applyOverviewToDayView,
+  getMorningOverview,
+} from "@/lib/morning/overview";
 import { LeviMorningDashboard } from "@/components/person/levi-morning-dashboard";
 import { SimpleMorningDashboard } from "@/components/person/simple-morning-dashboard";
 import { useBusLive } from "@/hooks/use-bus-live";
@@ -11,7 +15,7 @@ import { MorningSkeleton } from "@/components/shared/skeleton";
 import { DEFAULT_TRANSIT_PREFS } from "@/lib/data/defaults";
 import { useAppData } from "@/components/providers/data-provider";
 
-/** Routes each person to their Phase-6/7 morning layout with live bus/weather. */
+/** Routes each person to their morning layout with live bus/weather + Phase-9 overview. */
 export function PersonDashboard({
   view,
   wallNow,
@@ -38,6 +42,27 @@ export function PersonDashboard({
     };
   }, [view, bus.next, bus.stopName, weather.weather, busEnabled]);
 
+  const overview = useMemo(
+    () =>
+      getMorningOverview(person.id, wallNow, {
+        person,
+        data,
+        dayView: liveView,
+        live: {
+          bus: busEnabled ? liveView.nextBus : null,
+          weather: liveView.weather,
+          busMatched: bus.matchedToWork,
+          busEnabled,
+        },
+      }),
+    [person, wallNow, data, liveView, bus.matchedToWork, busEnabled],
+  );
+
+  const overviewView = useMemo(
+    () => applyOverviewToDayView(liveView, overview, wallNow),
+    [liveView, overview, wallNow],
+  );
+
   const liveMeta = {
     busMessage: bus.message,
     busEmptyTitle: bus.emptyTitle,
@@ -61,8 +86,8 @@ export function PersonDashboard({
   if (view.id === "levi") {
     return (
       <LeviMorningDashboard
-        view={liveView}
-        wallNow={wallNow}
+        view={overviewView}
+        overview={overview}
         busMessage={liveMeta.busMessage}
         busEmptyTitle={liveMeta.busEmptyTitle}
         busUpcoming={liveMeta.busUpcoming}
@@ -79,7 +104,8 @@ export function PersonDashboard({
   if (view.id === "birgit") {
     return (
       <SimpleMorningDashboard
-        view={liveView}
+        view={overviewView}
+        overview={overview}
         wallNow={wallNow}
         mode="work"
         simple
@@ -97,7 +123,8 @@ export function PersonDashboard({
   }
   return (
     <SimpleMorningDashboard
-      view={liveView}
+      view={overviewView}
+      overview={overview}
       wallNow={wallNow}
       mode="personal"
       simple

@@ -1,34 +1,62 @@
 import type { WeatherSnapshot } from "@/lib/types";
 
-/** Simple everyday clothing tip — short German copy. */
+function isSnow(code?: number): boolean {
+  return code !== undefined && code >= 71 && code <= 77;
+}
+
+function isHeavyRain(code?: number, rainMm?: number): boolean {
+  if ((rainMm ?? 0) >= 4) return true;
+  return (
+    code !== undefined &&
+    ((code >= 63 && code <= 67) || (code >= 80 && code <= 82) || code >= 95)
+  );
+}
+
+function isRain(code?: number, rainMm?: number): boolean {
+  if ((rainMm ?? 0) > 0.2) return true;
+  return (
+    code !== undefined &&
+    ((code >= 51 && code <= 67) ||
+      (code >= 80 && code <= 82) ||
+      code === 95)
+  );
+}
+
+/**
+ * Short everyday clothing tip for the morning dashboard.
+ * Examples: Regen → Jacke, kalt → warme Jacke, heiß → leichte Kleidung.
+ */
 export function clothingRecommendation(input: {
   temperatureC: number;
   rainMm?: number;
   weatherCode?: number;
 }): string {
-  const raining =
-    (input.rainMm ?? 0) > 0.2 ||
-    (input.weatherCode !== undefined &&
-      ((input.weatherCode >= 51 && input.weatherCode <= 67) ||
-        (input.weatherCode >= 80 && input.weatherCode <= 82) ||
-        input.weatherCode === 95));
+  const snow = isSnow(input.weatherCode);
+  const heavy = isHeavyRain(input.weatherCode, input.rainMm);
+  const raining = isRain(input.weatherCode, input.rainMm);
 
+  if (snow) {
+    return "❄ Warme Kleidung";
+  }
+  if (heavy) {
+    return "🌧 Regenjacke mitnehmen";
+  }
   if (raining && input.temperatureC <= 8) {
-    return "☔🧥 Regenschirm und warme Jacke empfohlen";
+    return "🌦 Jacke und Regenschirm";
   }
   if (raining) {
-    return "☔ Regenschirm empfohlen";
+    return "🌦 Leichter Regen möglich → Jacke mitnehmen";
   }
   if (input.temperatureC <= 5) {
-    return "🧥 Warme Jacke empfohlen";
+    return "🧥 Warme Jacke mitnehmen";
   }
   if (input.temperatureC <= 14) {
-    return "🧥 Jacke empfohlen";
+    return "🧥 Jacke mitnehmen";
   }
   if (input.temperatureC <= 22) {
     return "👕 Leichte Jacke reicht";
   }
-  return "👕 Leichte Kleidung";
+  return "☀️ Leichte Kleidung";
 }
 
 export function weatherCodeLabel(code: number): string {

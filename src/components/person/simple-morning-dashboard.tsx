@@ -1,8 +1,7 @@
 "use client";
 
-import { useMemo } from "react";
 import type { DayIntelligenceView } from "@/lib/day/intelligence";
-import { personalizedGreeting } from "@/lib/day/greeting";
+import type { MorningOverview } from "@/lib/morning/types";
 import { MorningNav } from "@/components/shared/morning-nav";
 import { LiveClock } from "@/components/shared/live-clock";
 import { DayFlowHero } from "@/components/person/day-flow-hero";
@@ -11,16 +10,17 @@ import { BusSection } from "@/components/person/bus-section";
 import { WeatherSection } from "@/components/person/weather-section";
 import { CalendarSection } from "@/components/person/calendar-section";
 import { Section } from "@/components/section";
-import { EmptyState } from "@/components/empty-state";
 import { formatGermanDate, WEEKDAY_LABELS } from "@/lib/format";
 import { cn } from "@/lib/utils";
 
 /**
  * Extremely simple morning layout for Birgit (and Heidi).
- * No Admin, no tech jargon — greeting, date, work/plan, bus, weather, appointments.
+ * Phase 9: Birgit stays Arbeit → Bus → Wetter (+ optional hint).
+ * Heidi gets a little more context (plan + mitnehmen + termine if present).
  */
 export function SimpleMorningDashboard({
   view,
+  overview,
   wallNow,
   mode,
   simple = false,
@@ -35,6 +35,7 @@ export function SimpleMorningDashboard({
   weatherPlace,
 }: {
   view: DayIntelligenceView;
+  overview: MorningOverview;
   wallNow: Date;
   mode: "work" | "personal";
   simple?: boolean;
@@ -48,10 +49,16 @@ export function SimpleMorningDashboard({
   busDataAgeLabel?: string | null;
   weatherPlace?: string | null;
 }) {
-  const headline = useMemo(
-    () => personalizedGreeting(view.displayName, wallNow),
-    [view.displayName, wallNow],
-  );
+  const headline = overview.greeting;
+  const isBirgit = mode === "work";
+  const showMitnehmen =
+    !isBirgit && overview.itemsToTake.length > 0;
+  const showCalendar =
+    view.displayPrefs.showCalendar && overview.appointments.length > 0;
+  const showBus = view.displayPrefs.showBus && overview.visibility.bus;
+  const showWeather =
+    view.displayPrefs.showWeather && overview.visibility.weather;
+  const showHint = Boolean(view.hint) && (isBirgit || mode === "personal");
 
   return (
     <div className="morning-shell mx-auto flex w-full max-w-6xl flex-col gap-5 px-5 py-5 sm:gap-6 sm:px-8 sm:py-6 lg:px-10 landscape-tablet:gap-4 landscape-tablet:py-4">
@@ -61,7 +68,7 @@ export function SimpleMorningDashboard({
         <div className="space-y-1">
           <p className="text-sm tracking-[0.14em] text-[color:var(--quiet)] uppercase">
             {WEEKDAY_LABELS[view.weekdayKey]}
-            {view.focusIsTomorrow ? " · Morgen" : ""}
+            {overview.focusIsTomorrow ? " · Morgen" : ""}
           </p>
           <h1
             className="font-display text-4xl leading-tight tracking-tight sm:text-5xl landscape-tablet:text-5xl"
@@ -86,21 +93,12 @@ export function SimpleMorningDashboard({
       >
         <div className="space-y-6 landscape-tablet:space-y-5">
           {mode === "work" ? (
-            view.workShift ? (
-              <WorkShiftSection shift={view.workShift} simple />
-            ) : (
-              <WorkShiftSection shift={null} simple />
-            )
+            <WorkShiftSection shift={view.workShift} simple />
           ) : (
             <>
               <DayFlowHero flow={view.dayFlow} />
-              <Section title="Heute">
-                {view.timetable.length === 0 ? (
-                  <EmptyState
-                    title="Nichts Festes"
-                    description="Du kannst den Tag frei gestalten."
-                  />
-                ) : (
+              {view.timetable.length > 0 ? (
+                <Section title="Heute">
                   <ul className="space-y-3">
                     {view.timetable.slice(0, 4).map((entry) => (
                       <li
@@ -113,54 +111,67 @@ export function SimpleMorningDashboard({
                         <span>
                           {entry.subject}
                           {entry.room ? (
-                            <span className="text-[color:var(--quiet)]"> · {entry.room}</span>
+                            <span className="text-[color:var(--quiet)]">
+                              {" "}
+                              · {entry.room}
+                            </span>
                           ) : null}
                         </span>
                       </li>
                     ))}
                   </ul>
-                )}
-              </Section>
+                </Section>
+              ) : null}
             </>
           )}
 
-          {view.mitnehmen.length > 0 ? (
+          {showMitnehmen ? (
             <Section title="Mitnehmen">
               <ul className="flex flex-wrap gap-x-5 gap-y-2 text-lg">
-                {view.mitnehmen.map((item) => (
+                {overview.itemsToTake.map((item) => (
                   <li key={item}>{item}</li>
                 ))}
               </ul>
             </Section>
           ) : null}
+
+          {isBirgit && showHint ? (
+            <p className="text-base text-[color:var(--quiet)]">{view.hint}</p>
+          ) : null}
         </div>
 
         <aside className="space-y-5 landscape-tablet:space-y-4">
-          {view.displayPrefs.showBus ? (
+          {showBus ? (
             <BusSection
               bus={view.nextBus}
               stopName={view.busStopName}
               hasBusConfig={Boolean(view.busStopName) && busEnabled}
               busEnabled={busEnabled}
               message={busMessage}
-              emptyTitle={busEmptyTitle}
+              emptyTitle={
+                overview.bus.status === "none"
+                  ? "Kein passender Bus"
+                  : busEmptyTitle
+              }
               upcoming={busUpcoming}
               simple={simple || mode === "work"}
-              matchedToWork={busMatched}
+              matchedToWork={busMatched || overview.bus.matchedToActivity}
               offline={busOffline}
               unavailable={busUnavailable}
               dataAgeLabel={busDataAgeLabel}
+              arrivalStatus={overview.bus.status}
+              arrivalMessage={overview.bus.message || null}
             />
           ) : null}
-          {view.displayPrefs.showWeather ? (
+          {showWeather ? (
             <WeatherSection
-              weather={view.weather}
+              weather={overview.weather.weather ?? view.weather}
               simple={simple || mode === "work"}
               place={weatherPlace}
             />
           ) : null}
-          {view.displayPrefs.showCalendar && view.calendar.length > 0 ? (
-            <CalendarSection events={view.calendar} />
+          {showCalendar ? (
+            <CalendarSection events={overview.appointments} />
           ) : null}
         </aside>
       </div>

@@ -41,8 +41,8 @@ export function resolveDayFlow(
     return {
       status: "free",
       block: null,
-      message: "Heute frei — genieß den Tag.",
-      relativeLabel: "frei",
+      message: "Heute nichts geplant",
+      relativeLabel: "Heute nichts geplant",
       minutesUntilStart: null,
     };
   }

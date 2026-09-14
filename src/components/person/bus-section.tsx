@@ -21,6 +21,12 @@ type BusSectionProps = {
   isTestData?: boolean;
   /** Friendly age label e.g. "vor 4 Min." */
   dataAgeLabel?: string | null;
+  /**
+   * From morning overview: on_time / too_late / none.
+   * Drives “Du kommst rechtzeitig an.” / “Bus reicht nicht”.
+   */
+  arrivalStatus?: "on_time" | "too_late" | "none" | "disabled" | "unknown" | null;
+  arrivalMessage?: string | null;
 };
 
 export function BusSection({
@@ -38,13 +44,30 @@ export function BusSection({
   unavailable,
   isTestData,
   dataAgeLabel,
+  arrivalStatus = null,
+  arrivalMessage = null,
 }: BusSectionProps) {
   const title = simple ? "Dein Bus" : "Bus";
 
   if (bus) {
-    const showOnTime =
-      simple &&
-      (bus.arrivesInTime === true || (matchedToWork && bus.arrivesInTime !== false));
+    const status =
+      arrivalStatus ??
+      (bus.arrivesInTime === false
+        ? "too_late"
+        : bus.arrivesInTime === true || matchedToWork
+          ? "on_time"
+          : "unknown");
+
+    const onTimeCopy =
+      arrivalMessage && status === "on_time"
+        ? arrivalMessage
+        : "Du kommst rechtzeitig an.";
+    const lateCopy =
+      arrivalMessage && status === "too_late"
+        ? arrivalMessage
+        : simple
+          ? "Bus reicht nicht"
+          : "Möglicherweise zu spät für den Start.";
 
     return (
       <Section title={title}>
@@ -55,15 +78,21 @@ export function BusSection({
           <p className="mt-2 text-lg text-[color:var(--ink)]">
             {formatMinutesUntil(bus.minutesUntil)}
           </p>
-          {showOnTime ? (
-            <p className="mt-2 text-base text-[color:var(--ink)]">Du kommst rechtzeitig an.</p>
+          {status === "on_time" ? (
+            <p className="mt-2 text-base text-[color:var(--ink)]">{onTimeCopy}</p>
           ) : null}
-          {!simple && bus.arrivesInTime === false ? (
-            <p className="mt-2 text-sm text-[color:var(--quiet)]">
-              Möglicherweise zu spät für den Start.
+          {status === "too_late" ? (
+            <p
+              className={
+                simple
+                  ? "mt-2 text-base text-[color:var(--ink)]"
+                  : "mt-2 text-sm text-[color:var(--quiet)]"
+              }
+            >
+              {lateCopy}
             </p>
           ) : null}
-          {!simple && bus.arrivesInTime === true && matchedToWork ? (
+          {!simple && status === "on_time" && matchedToWork && !arrivalMessage ? (
             <p className="mt-2 text-sm text-[color:var(--quiet)]">Passend zur Ankunftszeit.</p>
           ) : null}
           {!simple ? (

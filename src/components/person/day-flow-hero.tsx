@@ -17,7 +17,10 @@ export function DayFlowHero({
   if (flow.status === "free") {
     return (
       <Section title="Dein Tag">
-        <EmptyState title="Heute frei" description={flow.message} />
+        <EmptyState
+          title="Heute nichts geplant"
+          description={flow.message || "Heute nichts geplant"}
+        />
       </Section>
     );
   }
