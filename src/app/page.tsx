@@ -100,6 +100,12 @@ export default function HomePage() {
           <Coffee className="size-5" aria-hidden />
           Zur Kaffeeecke
         </Link>
+        <Link
+          href="/jarvis"
+          className="inline-flex min-h-14 items-center gap-3 rounded-2xl bg-[color:var(--surface)] px-6 text-lg text-[color:var(--ink)] transition-[opacity,transform] duration-200 ease-out hover:bg-[color:var(--surface-strong)] active:scale-[0.97] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[color:var(--brand)]"
+        >
+          Jarvis
+        </Link>
       </div>
 
       {/* Admin: long-press corner — not accidental for Birgit morning use */}

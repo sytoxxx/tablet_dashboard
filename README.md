@@ -43,5 +43,6 @@ Dev: `npm run dev` (gleicher Port).
 8: Real-world ready — Live/Test/Offline, visibility-aware Polling, Landscape  
 9: Intelligent Daily / Smart Morning Engine — `getMorningOverview`, Mitnehmen-Regeln, Bus Echtzeit/Fahrplan, Summary für Jarvis  
 10: TRIAS-Integration vorbereitet — Parser/Fixtures, ENV-Fallback Testdaten, Admin Status (Zugang ausstehend)  
+11: Jarvis — `askJarvis()` auf Morning Overview, `/jarvis` UI, AI-Formulierung optional  
 
-Details: `docs/phase-10-trias-integration.md`
+Details: `docs/phase-11-jarvis.md`
