@@ -44,5 +44,6 @@ Dev: `npm run dev` (gleicher Port).
 9: Intelligent Daily / Smart Morning Engine — `getMorningOverview`, Mitnehmen-Regeln, Bus Echtzeit/Fahrplan, Summary für Jarvis  
 10: TRIAS-Integration vorbereitet — Parser/Fixtures, ENV-Fallback Testdaten, Admin Status (Zugang ausstehend)  
 11: Jarvis — `askJarvis()` auf Morning Overview, `/jarvis` UI, AI-Formulierung optional  
+12: School Jarvis Integration Contract — `SchoolJarvisDailySummary`, Stub-API, Validierung (keine echte Verbindung)
 
-Details: `docs/phase-11-jarvis.md`
+Details: `docs/phase-12-school-jarvis-integration.md`
