@@ -81,6 +81,13 @@ export type PersonalSettings = {
   notes?: string;
 };
 
+export type DisplayPrefs = {
+  showBus: boolean;
+  showWeather: boolean;
+  showCalendar: boolean;
+  showTasks: boolean;
+};
+
 /** Canonical persisted person record — single source for UI + later backend. */
 export type PersonProfile = {
   id: PersonId;
@@ -96,6 +103,7 @@ export type PersonProfile = {
   defaultBringItems: string[];
   weather: WeatherSettings;
   personalSettings: PersonalSettings;
+  displayPrefs: DisplayPrefs;
 };
 
 export type CoffeeDrinkId = "espresso" | "cappuccino" | "latte";
@@ -110,9 +118,13 @@ export type CoffeeDrink = {
 };
 
 export type AppData = {
-  version: 2;
+  version: 3;
   persons: PersonProfile[];
   coffeeDrinks: CoffeeDrink[];
+  meta?: {
+    exportedAt?: string;
+    label?: string;
+  };
 };
 
 /** Derived morning view for dashboards (not persisted). */

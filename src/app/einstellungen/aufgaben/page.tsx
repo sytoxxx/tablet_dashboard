@@ -1,6 +1,6 @@
 "use client";
 
-import { AppNav } from "@/components/shared/app-nav";
+import { AdminShell } from "@/components/admin/admin-shell";
 import { useAppData } from "@/components/providers/data-provider";
 import type { PersonId } from "@/lib/types";
 import { Button } from "@/components/ui/button";
@@ -9,13 +9,7 @@ export default function AufgabenSettingsPage() {
   const { data, updatePerson } = useAppData();
 
   return (
-    <main className="mx-auto flex w-full max-w-3xl flex-col gap-8 px-5 py-6 sm:px-8">
-      <AppNav showSettings={false} backLabel="Einstellungen" backHref="/einstellungen" />
-      <header>
-        <h1 className="font-display text-4xl tracking-tight">Aufgaben</h1>
-        <p className="mt-2 text-[color:var(--quiet)]">Eine Aufgabe pro Zeile. Haken = erledigt mit [x].</p>
-      </header>
-
+    <AdminShell title="Aufgaben" subtitle="Eine Aufgabe pro Zeile. [x] = erledigt, * am Anfang = wichtig.">
       {data.persons.map((person) => (
         <form
           key={person.id}
@@ -29,8 +23,15 @@ export default function AufgabenSettingsPage() {
               .filter(Boolean)
               .map((line, index) => {
                 const done = line.startsWith("[x]") || line.startsWith("[X]");
-                const label = line.replace(/^\[[ xX]\]\s*/, "");
-                return { id: `${person.id}-t-${index}`, label, done };
+                let label = line.replace(/^\[[ xX]\]\s*/, "");
+                const important = label.startsWith("*");
+                if (important) label = label.slice(1).trim();
+                return {
+                  id: `${person.id}-t-${index}`,
+                  label: label.replace(/[<>]/g, "").slice(0, 120),
+                  done,
+                  important,
+                };
               });
             updatePerson(person.id as PersonId, (p) => ({ ...p, tasks }));
           }}
@@ -40,7 +41,7 @@ export default function AufgabenSettingsPage() {
             name="tasks"
             rows={5}
             defaultValue={person.tasks
-              .map((t) => `${t.done ? "[x] " : ""}${t.label}`)
+              .map((t) => `${t.done ? "[x] " : ""}${t.important ? "*" : ""}${t.label}`)
               .join("\n")}
             className="w-full rounded-2xl bg-[color:var(--surface)] px-4 py-3 text-base outline-none ring-[color:var(--brand)] focus:ring-2"
           />
@@ -49,6 +50,6 @@ export default function AufgabenSettingsPage() {
           </Button>
         </form>
       ))}
-    </main>
+    </AdminShell>
   );
 }

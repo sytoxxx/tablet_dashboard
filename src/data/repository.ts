@@ -1,10 +1,28 @@
 import type { AppData, DataRepository } from "@/lib/types";
 import { seedAppData } from "@/data/seed";
+import { migrateAppData, validateAppDataImport } from "@/lib/data/validate-app-data";
 
 export const STORAGE_KEY = "coffee-morning-data-v2";
 
 function cloneSeed(): AppData {
   return structuredClone(seedAppData);
+}
+
+function normalizeLoaded(parsed: unknown): AppData {
+  const validated = validateAppDataImport(parsed);
+  if (validated.ok) return validated.data;
+  if (
+    parsed &&
+    typeof parsed === "object" &&
+    Array.isArray((parsed as AppData).persons)
+  ) {
+    try {
+      return migrateAppData(parsed as AppData);
+    } catch {
+      return cloneSeed();
+    }
+  }
+  return cloneSeed();
 }
 
 /** In-memory fallback (SSR / private mode). */
@@ -35,11 +53,7 @@ export class LocalStorageRepository implements DataRepository {
     try {
       const raw = window.localStorage.getItem(STORAGE_KEY);
       if (!raw) return cloneSeed();
-      const parsed = JSON.parse(raw) as AppData;
-      if (!parsed || parsed.version !== 2 || !Array.isArray(parsed.persons)) {
-        return cloneSeed();
-      }
-      return parsed;
+      return normalizeLoaded(JSON.parse(raw));
     } catch {
       return cloneSeed();
     }

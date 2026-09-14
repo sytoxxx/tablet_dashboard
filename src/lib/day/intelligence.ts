@@ -31,6 +31,7 @@ export type DayIntelligenceView = TodayView & {
   dayFlow: DayFlowState;
   importantTasks: ReturnType<typeof selectMorningTasks>;
   monthHighlights: MonthHighlight[];
+  displayPrefs: PersonProfile["displayPrefs"];
 };
 
 export function getAppointmentsForDate(
@@ -184,6 +185,12 @@ export function buildDayIntelligence(
     dayFlow,
     importantTasks: selectMorningTasks(person.tasks),
     monthHighlights: monthHighlightsFor(person, focusDate),
+    displayPrefs: {
+      showBus: person.displayPrefs?.showBus ?? true,
+      showWeather: person.displayPrefs?.showWeather ?? true,
+      showCalendar: person.displayPrefs?.showCalendar ?? true,
+      showTasks: person.displayPrefs?.showTasks ?? true,
+    },
   };
 }
 

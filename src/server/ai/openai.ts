@@ -27,7 +27,7 @@ export class OpenAiPlanAi implements PlanAiProvider {
         {
           role: "system",
           content:
-            "You extract weekly school or work schedules from images. Only include what is visible. Mark unclear fields uncertain. Never invent subjects, rooms, or times. Times HH:MM. Weekday keys: mon,tue,wed,thu,fri,sat,sun. German labels OK.",
+            "You extract weekly school or work schedules from images. Only include what is clearly visible or legible. Mark unclear fields with uncertain:true and list them in uncertainties. Never invent subjects, rooms, times, locations, or days. If unreadable, omit the entry and add a warning. Never output HTML. Times must be HH:MM. Weekday keys: mon,tue,wed,thu,fri,sat,sun. German labels OK. Do not replace existing schedules — you only return a draft.",
         },
         {
           role: "user",

@@ -1,6 +1,21 @@
-import type { PersonProfile, Schedule, SchoolDay, WeekdayKey, WorkShiftDay } from "@/lib/types";
+import type {
+  PersonProfile,
+  Schedule,
+  SchoolDay,
+  SchoolLesson,
+  WeekdayKey,
+  WorkShiftDay,
+} from "@/lib/types";
 import type { PlanDraft, SchoolPlanDraft, WorkPlanDraft } from "@/lib/plan-analysis/types";
 import { WEEKDAY_ORDER } from "@/lib/format";
+import {
+  detectDraftConflicts,
+  type PlanConflict,
+} from "@/lib/data/conflicts";
+import {
+  conflictKey,
+  type ConflictResolution,
+} from "@/lib/data/conflict-resolution";
 
 export type ApplyMode = "replace" | "merge";
 
@@ -30,6 +45,80 @@ function stripWorkUncertainty(draft: WorkPlanDraft): Partial<Record<WeekdayKey, 
     week[day] = shift;
   }
   return week;
+}
+
+function lessonLabel(lesson: SchoolLesson): string {
+  return `${lesson.time} ${lesson.subject}`;
+}
+
+function shiftLabel(shift: WorkShiftDay): string {
+  return `${shift.start}–${shift.end} ${shift.label}`;
+}
+
+function filterIncomingByResolutions(
+  draft: PlanDraft,
+  conflicts: PlanConflict[],
+  resolutions: Record<string, ConflictResolution>,
+): PlanDraft {
+  if (conflicts.length === 0) return draft;
+
+  if (draft.type === "school") {
+    const week = structuredClone(draft.week);
+    for (const conflict of conflicts) {
+      const res = resolutions[conflictKey(conflict)] ?? "both";
+      if (res === "keep") {
+        const day = week[conflict.day];
+        if (!day) continue;
+        day.lessons = day.lessons.filter(
+          (l) => lessonLabel(l) !== conflict.incomingLabel,
+        );
+        if (day.lessons.length === 0) delete week[conflict.day];
+      }
+      // take / both: keep incoming; take removes existing later
+    }
+    return { ...draft, week };
+  }
+
+  const week = structuredClone(draft.week);
+  for (const conflict of conflicts) {
+    const res = resolutions[conflictKey(conflict)] ?? "both";
+    if (res === "keep") {
+      delete week[conflict.day];
+    }
+  }
+  return { ...draft, week };
+}
+
+function removeExistingTaken(
+  existing: Partial<Record<WeekdayKey, SchoolDay>>,
+  conflicts: PlanConflict[],
+  resolutions: Record<string, ConflictResolution>,
+): Partial<Record<WeekdayKey, SchoolDay>> {
+  const next = structuredClone(existing);
+  for (const conflict of conflicts) {
+    const res = resolutions[conflictKey(conflict)] ?? "both";
+    if (res !== "take") continue;
+    const day = next[conflict.day];
+    if (!day) continue;
+    day.lessons = day.lessons.filter((l) => lessonLabel(l) !== conflict.existingLabel);
+    if (day.lessons.length === 0) delete next[conflict.day];
+  }
+  return next;
+}
+
+function removeExistingWorkTaken(
+  existing: Partial<Record<WeekdayKey, WorkShiftDay>>,
+  conflicts: PlanConflict[],
+  resolutions: Record<string, ConflictResolution>,
+): Partial<Record<WeekdayKey, WorkShiftDay>> {
+  const next = { ...existing };
+  for (const conflict of conflicts) {
+    const res = resolutions[conflictKey(conflict)] ?? "both";
+    if (res === "take") {
+      delete next[conflict.day];
+    }
+  }
+  return next;
 }
 
 function mergeSchool(
@@ -63,8 +152,28 @@ function mergeSchool(
 function mergeWork(
   existing: Partial<Record<WeekdayKey, WorkShiftDay>>,
   incoming: Partial<Record<WeekdayKey, WorkShiftDay>>,
+  conflicts: PlanConflict[],
+  resolutions: Record<string, ConflictResolution>,
 ): Partial<Record<WeekdayKey, WorkShiftDay>> {
-  return { ...existing, ...incoming };
+  const next = { ...existing };
+  for (const day of WEEKDAY_ORDER) {
+    const add = incoming[day];
+    if (!add) continue;
+    const conflict = conflicts.find((c) => c.day === day);
+    const res = conflict ? resolutions[conflictKey(conflict)] ?? "both" : undefined;
+    if (res === "both" && next[day]) {
+      const prev = next[day]!;
+      next[day] = {
+        ...prev,
+        notes: [prev.notes, `Konflikt-Entwurf: ${shiftLabel(add)} @ ${add.location}`]
+          .filter(Boolean)
+          .join(" · "),
+      };
+      continue;
+    }
+    next[day] = add;
+  }
+  return next;
 }
 
 export function personHasScheduleContent(person: PersonProfile, mode: PlanDraft["type"]): boolean {
@@ -76,20 +185,36 @@ export function applyPlanDraft(
   person: PersonProfile,
   draft: PlanDraft,
   applyMode: ApplyMode,
+  options?: {
+    conflicts?: PlanConflict[];
+    resolutions?: Record<string, ConflictResolution>;
+  },
 ): PersonProfile {
-  if (draft.type === "school") {
-    const incoming = stripSchoolUncertainty(draft);
-    const existing =
+  const conflicts =
+    options?.conflicts ??
+    detectDraftConflicts(person.schedule, draft);
+  const resolutions = options?.resolutions ?? {};
+  const filteredDraft = filterIncomingByResolutions(draft, conflicts, resolutions);
+
+  if (filteredDraft.type === "school") {
+    const incoming = stripSchoolUncertainty(filteredDraft);
+    let existing =
       person.schedule.type === "school" ? person.schedule.week : {};
+    if (applyMode === "merge") {
+      existing = removeExistingTaken(existing, conflicts, resolutions);
+    }
     const week =
       applyMode === "replace" ? incoming : mergeSchool(existing, incoming);
     const schedule: Schedule = { type: "school", week };
     return { ...person, schedule };
   }
 
-  const incoming = stripWorkUncertainty(draft);
-  const existing = person.schedule.type === "work" ? person.schedule.week : {};
-  const week = applyMode === "replace" ? incoming : mergeWork(existing, incoming);
+  const incoming = stripWorkUncertainty(filteredDraft);
+  let existing = person.schedule.type === "work" ? person.schedule.week : {};
+  if (applyMode === "merge") {
+    existing = removeExistingWorkTaken(existing, conflicts, resolutions);
+  }
+  const week = applyMode === "replace" ? incoming : mergeWork(existing, incoming, conflicts, resolutions);
   const schedule: Schedule = { type: "work", week };
   return { ...person, schedule };
 }

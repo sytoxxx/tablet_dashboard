@@ -131,6 +131,7 @@ export const seedPersons: PersonProfile[] = [
       clothingTip: "Leichte Jacke reicht — kein Regenschirm nötig.",
     },
     personalSettings: { preferredCoffee: "espresso", notes: "Schultasche am Abend packen." },
+    displayPrefs: { showBus: true, showWeather: true, showCalendar: true, showTasks: true },
   },
   {
     id: "birgit",
@@ -166,6 +167,7 @@ export const seedPersons: PersonProfile[] = [
       clothingTip: "Warme Jacke und Schal — morgens noch frisch.",
     },
     personalSettings: { preferredCoffee: "cappuccino", notes: "Schlüsselbund mit Chip." },
+    displayPrefs: { showBus: true, showWeather: true, showCalendar: true, showTasks: true },
   },
   {
     id: "heidi",
@@ -191,6 +193,7 @@ export const seedPersons: PersonProfile[] = [
       clothingTip: "Leichte Kleidung — Sonnencreme nicht vergessen.",
     },
     personalSettings: { preferredCoffee: "latte", notes: "Ruhiger Vormittag bevorzugen." },
+    displayPrefs: { showBus: false, showWeather: true, showCalendar: true, showTasks: true },
   },
 ];
 
@@ -237,7 +240,7 @@ export const seedCoffeeDrinks: CoffeeDrink[] = [
 ];
 
 export const seedAppData: AppData = {
-  version: 2,
+  version: 3,
   persons: seedPersons,
   coffeeDrinks: seedCoffeeDrinks,
 };

@@ -2,11 +2,13 @@
 
 Minimaler Morgen-Tablet-Dashboard (deutsch) für ein wandmontiertes Android-Tablet neben der Kaffeemaschine.
 
+**Profile:** Levi, Birgit, Heidi
+
 ## Stack
 
 - Next.js (App Router) + TypeScript
 - Tailwind CSS + shadcn/ui
-- Zentrale Mock-Daten + LocalStorage-Adapter (`src/data/`)
+- AppData v3 in LocalStorage (`coffee-morning-data-v2` key, validated/migrated)
 
 ## Lokal starten
 
@@ -19,24 +21,20 @@ npm run start
 
 Server: Port **43127** → [http://127.0.0.1:43127](http://127.0.0.1:43127)
 
-Ohne `OPENAI_API_KEY` liefert `/api/plan/analyze` eine realistische **Mock-Analyse**.
+Dev: `npm run dev` (gleicher Port).
 
-## Routen
+## Admin
 
-| Route | Inhalt |
-| --- | --- |
-| `/` | Home — Guten Morgen + Levi / Birgit / Heidi |
-| `/person/[id]` | Tagesansicht |
-| `/kaffee` | Timer |
-| `/einstellungen` | Admin |
-| `/plan-aktualisieren` | Upload → Analyse → Bestätigen |
-| `/api/plan/analyze` | Plan-KI (Mock oder OpenAI) |
+`/einstellungen` — Personen, Pläne (Wocheneditor), Aufgaben, Bus, Kalender, Kaffee, Import/Export, KI, System. Getrennt vom Morning-Home.
+
+## KI
+
+- Route: `/api/plan/analyze` (Keys nur Backend/env)
+- Ohne `OPENAI_API_KEY`: Mock
+- Flow: Foto → Analyse → Draft → Edit → Konflikte → Confirm → Save (nie auto-replace)
+- Offline: gespeicherte Daten + Banner „Offline – zuletzt gespeicherte Daten“; KI graceful deaktiviert
 
 ## Phasen
 
-1. MVP UI + Timer  
-2. Datenlayer, Wochentag, LocalStorage, Admin  
-3. Plan-OCR / KI mit Confirm-before-save  
-4. Intelligentes Tages-Dashboard (Day-Flow, Abend→Morgen, Wetter-Provider, Mini-Kalender)
-
-Dev-Zeit-Simulator: `http://127.0.0.1:43127/person/levi?devTime=1`
+1–4: Home, Datenmodell, Plan-KI, Tageslogik  
+5: Admin-CRUD, Wocheneditor, Konflikte, Backup/Import, Offline, Display-Prefs

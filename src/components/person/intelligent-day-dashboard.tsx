@@ -93,25 +93,35 @@ export function IntelligentDayDashboard({
         </div>
 
         <aside className="space-y-8">
-          <BusSection
-            bus={view.nextBus}
-            stopName={view.busStopName}
-            hasBusConfig={Boolean(view.busStopName)}
-          />
-          <WeatherSection weather={view.weather} />
-          <TasksSection tasks={view.importantTasks} morningOnly />
+          {view.displayPrefs.showBus ? (
+            <BusSection
+              bus={view.nextBus}
+              stopName={view.busStopName}
+              hasBusConfig={Boolean(view.busStopName)}
+            />
+          ) : null}
+          {view.displayPrefs.showWeather ? (
+            <WeatherSection weather={view.weather} />
+          ) : null}
+          {view.displayPrefs.showTasks ? (
+            <TasksSection tasks={view.importantTasks} morningOnly />
+          ) : null}
         </aside>
       </div>
 
-      {/* Calendar below the morning essentials */}
-      <div className="animate-rise grid gap-10 lg:grid-cols-2" style={{ animationDelay: "120ms" }}>
-        <MiniMonthCalendar
-          focusDate={focusDate}
-          today={wallNow}
-          highlights={view.monthHighlights}
-        />
-        <CalendarSection events={view.calendar} />
-      </div>
+      {view.displayPrefs.showCalendar ? (
+        <div
+          className="animate-rise grid gap-10 lg:grid-cols-2"
+          style={{ animationDelay: "120ms" }}
+        >
+          <MiniMonthCalendar
+            focusDate={focusDate}
+            today={wallNow}
+            highlights={view.monthHighlights}
+          />
+          <CalendarSection events={view.calendar} />
+        </div>
+      ) : null}
     </div>
   );
 }

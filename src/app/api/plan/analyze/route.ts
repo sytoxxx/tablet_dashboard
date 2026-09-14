@@ -45,13 +45,15 @@ export async function POST(request: Request) {
 
     const buffer = Buffer.from(await file.arrayBuffer());
     const imageBase64 = buffer.toString("base64");
+    const personNameRaw = String(form.get("personName") || "").replace(/[<>]/g, "").slice(0, 40);
     const person = seedPersons.find((p) => p.id === personId);
+    const personName = personNameRaw || person?.name || personId;
 
     const provider = createPlanAiProvider();
     const result = await provider.analyze({
       planType,
       personId,
-      personName: person?.name ?? personId,
+      personName,
       imageBase64,
       mimeType,
     });

@@ -3,42 +3,39 @@
 import Link from "next/link";
 import {
   Bus,
+  CalendarDays,
   CalendarRange,
   Coffee,
-  Upload,
-  Users,
+  Database,
   ListTodo,
-  Briefcase,
+  Sparkles,
+  Users,
+  Settings2,
 } from "lucide-react";
-import { AppNav } from "@/components/shared/app-nav";
+import { AdminShell } from "@/components/admin/admin-shell";
 import { useAppData } from "@/components/providers/data-provider";
 import { Button } from "@/components/ui/button";
 
 const links = [
-  { href: "/einstellungen/personen", label: "Personen", icon: Users, hint: "Namen, Avatar, Hinweise" },
-  { href: "/einstellungen/stundenplan", label: "Stundenplan", icon: CalendarRange, hint: "Levi · Schule" },
-  { href: "/einstellungen/arbeitsplan", label: "Arbeitsplan", icon: Briefcase, hint: "Birgit · Schichten" },
-  { href: "/einstellungen/bus", label: "Bus", icon: Bus, hint: "Haltestelle & Abfahrten" },
+  { href: "/einstellungen/personen", label: "Personen", icon: Users, hint: "Name, Avatar, Plan-Typ, Anzeige" },
+  { href: "/einstellungen/plaene", label: "Pläne", icon: CalendarRange, hint: "Wocheneditor Mo–So" },
   { href: "/einstellungen/aufgaben", label: "Aufgaben", icon: ListTodo, hint: "To-dos pro Person" },
+  { href: "/einstellungen/bus", label: "Bus", icon: Bus, hint: "Haltestelle & Abfahrten" },
+  { href: "/einstellungen/kalender", label: "Kalender", icon: CalendarDays, hint: "Termine pflegen" },
   { href: "/einstellungen/kaffee", label: "Kaffee", icon: Coffee, hint: "Getränke & Timer" },
-  { href: "/plan-aktualisieren", label: "Plan aktualisieren", icon: Upload, hint: "Foto / Datei für späteren OCR" },
+  { href: "/einstellungen/import-export", label: "Import/Export", icon: Database, hint: "JSON & Backup" },
+  { href: "/einstellungen/ki", label: "KI", icon: Sparkles, hint: "Foto → Draft → Speichern" },
+  { href: "/einstellungen/system", label: "System", icon: Settings2, hint: "Offline, Reset, Info" },
 ];
 
 export default function SettingsPage() {
-  const { resetToSeed } = useAppData();
+  const { data, resetToSeed } = useAppData();
 
   return (
-    <main className="mx-auto flex w-full max-w-3xl flex-col gap-8 px-5 py-6 sm:px-8 sm:py-8">
-      <AppNav showCoffee showSettings={false} />
-
-      <header className="space-y-2">
-        <p className="text-sm tracking-[0.16em] text-[color:var(--quiet)] uppercase">Admin</p>
-        <h1 className="font-display text-4xl tracking-tight sm:text-5xl">Einstellungen</h1>
-        <p className="text-lg text-[color:var(--quiet)]">
-          Morning-Home bleibt klar — hier pflegst du Daten. Änderungen bleiben im Gerät gespeichert.
-        </p>
-      </header>
-
+    <AdminShell
+      title="Einstellungen"
+      subtitle="Morning-Home bleibt klar — hier pflegst du Daten. Änderungen bleiben im Gerät gespeichert."
+    >
       <ul className="divide-y divide-[color:var(--hairline)]">
         {links.map((item) => (
           <li key={item.href}>
@@ -56,6 +53,10 @@ export default function SettingsPage() {
         ))}
       </ul>
 
+      <p className="text-sm text-[color:var(--quiet)]">
+        Profile: {data.persons.map((p) => p.name).join(" · ")} · Datenversion {data.version}
+      </p>
+
       <Button
         type="button"
         variant="outline"
@@ -69,6 +70,6 @@ export default function SettingsPage() {
       >
         Auf Standard zurücksetzen
       </Button>
-    </main>
+    </AdminShell>
   );
 }

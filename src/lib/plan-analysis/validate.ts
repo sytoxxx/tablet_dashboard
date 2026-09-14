@@ -19,7 +19,10 @@ function isWeekday(value: string): value is WeekdayKey {
 
 function cleanText(value: unknown, max = 80): string | null {
   if (typeof value !== "string") return null;
-  const trimmed = value.trim().replace(/\s+/g, " ");
+  const trimmed = value
+    .trim()
+    .replace(/[<>]/g, "")
+    .replace(/\s+/g, " ");
   if (!trimmed || trimmed.length > max) return null;
   return trimmed;
 }

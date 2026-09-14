@@ -1,12 +1,18 @@
 "use client";
 
-import { useMemo, useRef, useState } from "react";
+import { useMemo, useRef, useState, type ReactNode } from "react";
 import { useRouter } from "next/navigation";
 import { Camera, ImagePlus, X } from "lucide-react";
 import { AppNav } from "@/components/shared/app-nav";
 import { Button } from "@/components/ui/button";
 import { useAppData } from "@/components/providers/data-provider";
 import { PlanPreviewEditor } from "@/components/plan/plan-preview-editor";
+import {
+  PlanConflictResolver,
+} from "@/components/plan/plan-conflict-resolver";
+import type { ConflictResolution } from "@/lib/data/conflict-resolution";
+import { detectDraftConflicts } from "@/lib/data/conflicts";
+import { useOnlineStatus } from "@/components/admin/offline-banner";
 import type { PersonId } from "@/lib/types";
 import type { PlanAnalysisMode, PlanAnalysisResult } from "@/lib/plan-analysis/types";
 import {
@@ -20,7 +26,7 @@ import { cn } from "@/lib/utils";
 const MAX_BYTES = 8 * 1024 * 1024;
 const ACCEPT = "image/jpeg,image/png,image/webp,image/heic,image/heif";
 
-type Step = "upload" | "analyzing" | "preview" | "saved";
+type Step = "upload" | "analyzing" | "preview" | "editor" | "saved";
 
 function validateImageFile(file: File): string | null {
   if (file.size <= 0) return "Datei ist leer.";
@@ -31,13 +37,20 @@ function validateImageFile(file: File): string | null {
   return null;
 }
 
-export function PlanUploadFlow() {
+export function PlanUploadFlow({
+  embedded = false,
+  initialPersonId,
+}: {
+  embedded?: boolean;
+  initialPersonId?: PersonId;
+}) {
   const router = useRouter();
+  const online = useOnlineStatus();
   const { data, updatePerson } = useAppData();
   const fileRef = useRef<HTMLInputElement>(null);
   const cameraRef = useRef<HTMLInputElement>(null);
 
-  const [personId, setPersonId] = useState<PersonId>("levi");
+  const [personId, setPersonId] = useState<PersonId>(initialPersonId ?? "levi");
   const person = data.persons.find((p) => p.id === personId) ?? data.persons[0];
 
   const [planType, setPlanType] = useState<PlanAnalysisMode>(() =>
@@ -50,11 +63,17 @@ export function PlanUploadFlow() {
   const [error, setError] = useState<string | null>(null);
   const [analysis, setAnalysis] = useState<PlanAnalysisResult | null>(null);
   const [applyMode, setApplyMode] = useState<ApplyMode>("replace");
+  const [resolutions, setResolutions] = useState<Record<string, ConflictResolution>>({});
 
   const hasExisting = useMemo(
     () => (person ? personHasScheduleContent(person, planType) : false),
     [person, planType],
   );
+
+  const conflicts = useMemo(() => {
+    if (!analysis || !person || applyMode === "replace") return [];
+    return detectDraftConflicts(person.schedule, analysis.draft);
+  }, [analysis, person, applyMode]);
 
   const onSelectPerson = (id: PersonId) => {
     setPersonId(id);
@@ -67,6 +86,7 @@ export function PlanUploadFlow() {
     setPreviewUrl(null);
     setFile(null);
     setAnalysis(null);
+    setResolutions({});
     setStep("upload");
     setError(null);
     if (fileRef.current) fileRef.current.value = "";
@@ -84,12 +104,17 @@ export function PlanUploadFlow() {
     setFile(next);
     setPreviewUrl(URL.createObjectURL(next));
     setAnalysis(null);
+    setResolutions({});
     setError(null);
     setStep("upload");
   };
 
   const analyze = async () => {
     if (!file || !person) return;
+    if (!online) {
+      setError("Offline – KI-Analyse ist nicht verfügbar. Gespeicherte Pläne bleiben nutzbar.");
+      return;
+    }
     setError(null);
     setStep("analyzing");
     try {
@@ -97,6 +122,7 @@ export function PlanUploadFlow() {
       body.append("file", file);
       body.append("personId", person.id);
       body.append("planType", planType);
+      body.append("personName", person.name);
       const res = await fetch("/api/plan/analyze", { method: "POST", body });
       const json = (await res.json()) as PlanAnalysisResult & { error?: string };
       if (!res.ok) {
@@ -104,32 +130,58 @@ export function PlanUploadFlow() {
       }
       setAnalysis(json);
       setApplyMode(hasExisting ? "merge" : "replace");
+      setResolutions({});
       setStep("preview");
     } catch (e) {
-      setError(e instanceof Error ? e.message : "Analyse fehlgeschlagen.");
+      const message =
+        e instanceof TypeError
+          ? "Netzwerkfehler – offline oder Server nicht erreichbar."
+          : e instanceof Error
+            ? e.message
+            : "Analyse fehlgeschlagen.";
+      setError(message);
       setStep("upload");
     }
   };
 
   const confirmSave = () => {
     if (!analysis || !person) return;
-    updatePerson(person.id, (p) => applyPlanDraft(p, analysis.draft, applyMode));
+    updatePerson(person.id, (p) =>
+      applyPlanDraft(p, analysis.draft, applyMode, { conflicts, resolutions }),
+    );
     setStep("saved");
   };
 
-  return (
-    <main className="mx-auto flex w-full max-w-3xl flex-col gap-8 px-5 py-6 sm:px-8">
-      <AppNav showSettings={false} backLabel="Einstellungen" backHref="/einstellungen" />
+  const shell = (children: ReactNode) =>
+    embedded ? (
+      <div className="space-y-8">{children}</div>
+    ) : (
+      <main className="mx-auto flex w-full max-w-3xl flex-col gap-8 px-5 py-6 sm:px-8">
+        <AppNav showSettings={false} backLabel="Einstellungen" backHref="/einstellungen" />
+        {children}
+      </main>
+    );
 
-      <header className="space-y-2">
-        <p className="text-sm tracking-[0.16em] text-[color:var(--quiet)] uppercase">
-          Plan aktualisieren
+  return shell(
+    <>
+      {!embedded ? (
+        <header className="space-y-2">
+          <p className="text-sm tracking-[0.16em] text-[color:var(--quiet)] uppercase">
+            Plan aktualisieren
+          </p>
+          <h1 className="font-display text-4xl tracking-tight sm:text-5xl">KI-Planerkennung</h1>
+          <p className="text-lg text-[color:var(--quiet)]">
+            Foto → Analyse → Draft → Bearbeiten → Konflikte → Speichern. Nichts wird automatisch
+            ersetzt.
+          </p>
+        </header>
+      ) : null}
+
+      {!online ? (
+        <p role="status" className="rounded-2xl bg-amber-50 px-4 py-3 text-sm text-amber-950">
+          Offline – zuletzt gespeicherte Daten. KI-Analyse ist deaktiviert.
         </p>
-        <h1 className="font-display text-4xl tracking-tight sm:text-5xl">KI-Planerkennung</h1>
-        <p className="text-lg text-[color:var(--quiet)]">
-          Foto analysieren, prüfen, dann bewusst übernehmen — nichts wird automatisch gespeichert.
-        </p>
-      </header>
+      ) : null}
 
       {step !== "saved" ? (
         <>
@@ -182,10 +234,6 @@ export function PlanUploadFlow() {
                 </button>
               ))}
             </div>
-            <p className="text-sm text-[color:var(--quiet)]">
-              Standard für {person?.name}:{" "}
-              {person ? defaultPlanTypeForPerson(person) === "school" ? "Stundenplan" : "Arbeitsplan" : "—"}
-            </p>
           </section>
         </>
       ) : null}
@@ -269,7 +317,7 @@ export function PlanUploadFlow() {
             type="button"
             size="lg"
             className="h-14 rounded-2xl text-base active:scale-[0.97]"
-            disabled={!file || step === "analyzing"}
+            disabled={!file || step === "analyzing" || !online}
             onClick={analyze}
           >
             {step === "analyzing" ? "Plan wird analysiert …" : "Plan analysieren"}
@@ -277,7 +325,7 @@ export function PlanUploadFlow() {
         </>
       ) : null}
 
-      {step === "preview" && analysis ? (
+      {(step === "preview" || step === "editor") && analysis ? (
         <div className="space-y-8">
           <PlanPreviewEditor result={analysis} onChange={setAnalysis} />
 
@@ -312,11 +360,17 @@ export function PlanUploadFlow() {
                   Ergänzen
                 </button>
               </div>
-              <p className="text-sm text-[color:var(--quiet)]">
-                Es existiert bereits ein {planType === "school" ? "Stundenplan" : "Arbeitsplan"} für{" "}
-                {person?.name}.
-              </p>
             </section>
+          ) : null}
+
+          {applyMode === "merge" ? (
+            <PlanConflictResolver
+              conflicts={conflicts}
+              resolutions={resolutions}
+              onChange={(key, value) =>
+                setResolutions((prev) => ({ ...prev, [key]: value }))
+              }
+            />
           ) : null}
 
           <div className="flex flex-wrap gap-3">
@@ -330,11 +384,21 @@ export function PlanUploadFlow() {
             </Button>
             <Button
               type="button"
+              variant="secondary"
+              size="lg"
+              className="h-14 rounded-2xl bg-[color:var(--surface)] px-6"
+              onClick={() => router.push("/einstellungen/plaene")}
+            >
+              Im Plan-Editor öffnen
+            </Button>
+            <Button
+              type="button"
               variant="outline"
               size="lg"
               className="h-14 rounded-2xl px-6"
               onClick={() => {
                 setAnalysis(null);
+                setResolutions({});
                 setStep("upload");
               }}
             >
@@ -363,6 +427,15 @@ export function PlanUploadFlow() {
               variant="secondary"
               size="lg"
               className="h-14 rounded-2xl bg-[color:var(--surface)]"
+              onClick={() => router.push("/einstellungen/plaene")}
+            >
+              Plan-Editor
+            </Button>
+            <Button
+              type="button"
+              variant="outline"
+              size="lg"
+              className="h-14 rounded-2xl"
               onClick={clearFile}
             >
               Weiteren Plan
@@ -370,6 +443,6 @@ export function PlanUploadFlow() {
           </div>
         </div>
       ) : null}
-    </main>
+    </>,
   );
 }

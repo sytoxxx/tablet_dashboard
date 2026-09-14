@@ -4,12 +4,17 @@ import Link from "next/link";
 import { Coffee, Settings } from "lucide-react";
 import { ProfileTile } from "@/components/profile-tile";
 import { useAppData } from "@/components/providers/data-provider";
+import { OfflineBanner } from "@/components/admin/offline-banner";
 
 export default function HomePage() {
   const { data } = useAppData();
 
   return (
     <main className="relative mx-auto flex min-h-dvh w-full max-w-5xl flex-col justify-center gap-12 px-5 py-10 sm:px-8 lg:px-10">
+      <div className="absolute top-4 right-4 left-4 z-10 sm:top-6 sm:right-8 sm:left-8">
+        <OfflineBanner />
+      </div>
+
       <div
         className="pointer-events-none absolute top-10 right-8 size-24 rounded-full bg-[radial-gradient(circle,rgba(184,149,74,0.35),transparent_70%)] blur-2xl animate-soft-pulse sm:top-16 sm:right-16"
         aria-hidden

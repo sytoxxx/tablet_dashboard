@@ -1,6 +1,6 @@
 "use client";
 
-import { AppNav } from "@/components/shared/app-nav";
+import { AdminShell } from "@/components/admin/admin-shell";
 import { useAppData } from "@/components/providers/data-provider";
 import type { CoffeeDrink } from "@/lib/types";
 import { Button } from "@/components/ui/button";
@@ -9,13 +9,7 @@ export default function KaffeeSettingsPage() {
   const { data, updateCoffeeDrinks } = useAppData();
 
   return (
-    <main className="mx-auto flex w-full max-w-3xl flex-col gap-8 px-5 py-6 sm:px-8">
-      <AppNav showSettings={false} backLabel="Einstellungen" backHref="/einstellungen" />
-      <header>
-        <h1 className="font-display text-4xl tracking-tight">Kaffee</h1>
-        <p className="mt-2 text-[color:var(--quiet)]">Timer-Sekunden und Kurzbeschreibung.</p>
-      </header>
-
+    <AdminShell title="Kaffee" subtitle="Timer-Sekunden und Kurzbeschreibung.">
       <div className="space-y-8">
         {data.coffeeDrinks.map((drink, index) => (
           <form
@@ -28,10 +22,17 @@ export default function KaffeeSettingsPage() {
                 i === index
                   ? {
                       ...d,
-                      name: String(fd.get("name") || d.name),
-                      prepNotes: String(fd.get("prepNotes") || d.prepNotes),
-                      amounts: String(fd.get("amounts") || d.amounts),
-                      timerSeconds: Number(fd.get("timerSeconds") || d.timerSeconds),
+                      name: String(fd.get("name") || d.name).replace(/[<>]/g, "").slice(0, 40),
+                      prepNotes: String(fd.get("prepNotes") || d.prepNotes)
+                        .replace(/[<>]/g, "")
+                        .slice(0, 200),
+                      amounts: String(fd.get("amounts") || d.amounts)
+                        .replace(/[<>]/g, "")
+                        .slice(0, 80),
+                      timerSeconds: Math.min(
+                        600,
+                        Math.max(5, Number(fd.get("timerSeconds") || d.timerSeconds)),
+                      ),
                     }
                   : d,
               );
@@ -72,6 +73,6 @@ export default function KaffeeSettingsPage() {
           </form>
         ))}
       </div>
-    </main>
+    </AdminShell>
   );
 }
