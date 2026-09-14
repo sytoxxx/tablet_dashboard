@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import type { CoffeeDrink, CoffeeDrinkId } from "@/lib/types";
 import { formatTimer } from "@/lib/format";
 import { Button } from "@/components/ui/button";
@@ -10,60 +10,70 @@ type CoffeeTimerProps = {
   drinks: CoffeeDrink[];
 };
 
+type TimerStatus = "idle" | "running" | "paused" | "done";
+
 export function CoffeeTimer({ drinks }: CoffeeTimerProps) {
   const [selectedId, setSelectedId] = useState<CoffeeDrinkId>(
     drinks[0]?.id ?? "espresso",
   );
   const selected = drinks.find((d) => d.id === selectedId) ?? drinks[0];
+  const duration = selected?.timerSeconds ?? 0;
 
-  const [remaining, setRemaining] = useState(selected?.timerSeconds ?? 0);
-  const [running, setRunning] = useState(false);
-  const [done, setDone] = useState(false);
-  const intervalRef = useRef<number | null>(null);
-
-  const clearTick = useCallback(() => {
-    if (intervalRef.current !== null) {
-      window.clearInterval(intervalRef.current);
-      intervalRef.current = null;
-    }
-  }, []);
+  const [remainingMs, setRemainingMs] = useState(duration * 1000);
+  const [status, setStatus] = useState<TimerStatus>("idle");
+  const endsAtRef = useRef<number | null>(null);
 
   const selectDrink = (id: CoffeeDrinkId) => {
-    clearTick();
     const drink = drinks.find((d) => d.id === id);
+    endsAtRef.current = null;
     setSelectedId(id);
-    setRunning(false);
-    setDone(false);
-    setRemaining(drink?.timerSeconds ?? 0);
+    setStatus("idle");
+    setRemainingMs((drink?.timerSeconds ?? 0) * 1000);
   };
 
   useEffect(() => {
-    if (!running) {
-      clearTick();
-      return;
-    }
+    if (status !== "running" || endsAtRef.current === null) return;
 
-    intervalRef.current = window.setInterval(() => {
-      setRemaining((prev) => {
-        if (prev <= 1) {
-          clearTick();
-          setRunning(false);
-          setDone(true);
-          return 0;
-        }
-        return prev - 1;
-      });
-    }, 1000);
+    const tick = () => {
+      const left = Math.max(0, (endsAtRef.current ?? 0) - Date.now());
+      setRemainingMs(left);
+      if (left <= 0) {
+        endsAtRef.current = null;
+        setStatus("done");
+      }
+    };
 
-    return clearTick;
-  }, [running, clearTick]);
+    tick();
+    const id = window.setInterval(tick, 200);
+    return () => window.clearInterval(id);
+  }, [status]);
 
-  if (!selected) {
-    return null;
-  }
+  if (!selected) return null;
 
+  const remainingSec = Math.ceil(remainingMs / 1000);
   const progress =
-    selected.timerSeconds > 0 ? 1 - remaining / selected.timerSeconds : 0;
+    duration > 0 ? 1 - remainingMs / (duration * 1000) : 0;
+
+  const start = () => {
+    const base = remainingMs > 0 ? remainingMs : duration * 1000;
+    endsAtRef.current = Date.now() + base;
+    setRemainingMs(base);
+    setStatus("running");
+  };
+
+  const stop = () => {
+    if (endsAtRef.current !== null) {
+      setRemainingMs(Math.max(0, endsAtRef.current - Date.now()));
+    }
+    endsAtRef.current = null;
+    setStatus("paused");
+  };
+
+  const reset = () => {
+    endsAtRef.current = null;
+    setRemainingMs(duration * 1000);
+    setStatus("idle");
+  };
 
   return (
     <div className="space-y-10">
@@ -108,13 +118,14 @@ export function CoffeeTimer({ drinks }: CoffeeTimerProps) {
         <div className="flex flex-col items-start gap-6 rounded-[1.75rem] bg-[color:var(--surface)] px-6 py-8 sm:px-8">
           <p className="text-sm tracking-[0.16em] text-[color:var(--quiet)] uppercase">Timer</p>
           <p
+            data-testid="coffee-timer-display"
             className={cn(
               "font-display text-6xl tabular-nums tracking-tight sm:text-7xl",
-              done && "text-[color:var(--brand)]",
+              status === "done" && "text-[color:var(--brand)]",
             )}
             aria-live="polite"
           >
-            {formatTimer(remaining)}
+            {formatTimer(remainingSec)}
           </p>
 
           <div
@@ -122,30 +133,30 @@ export function CoffeeTimer({ drinks }: CoffeeTimerProps) {
             aria-hidden
           >
             <div
-              className="h-full rounded-full bg-[color:var(--brand)] transition-[width] duration-1000 ease-linear"
+              className="h-full rounded-full bg-[color:var(--brand)] transition-[width] duration-200 ease-linear"
               style={{ width: `${Math.min(100, Math.max(0, progress * 100))}%` }}
             />
           </div>
 
-          {done ? (
-            <p className="text-lg text-[color:var(--brand)]">Fertig — genieß deinen Kaffee.</p>
-          ) : (
-            <p className="text-[color:var(--quiet)]">
-              {running ? "Läuft…" : "Bereit zum Start"}
-            </p>
-          )}
+          <p className="text-[color:var(--quiet)]" data-testid="coffee-timer-status">
+            {status === "running" && "Läuft…"}
+            {status === "paused" && "Pausiert"}
+            {status === "done" && (
+              <span className="text-lg text-[color:var(--brand)]">
+                Fertig — genieß deinen Kaffee.
+              </span>
+            )}
+            {status === "idle" && "Bereit zum Start"}
+          </p>
 
           <div className="flex flex-wrap gap-3 pt-2">
             <Button
               type="button"
               size="lg"
+              data-testid="coffee-timer-start"
               className="h-14 min-w-28 rounded-2xl px-6 text-base active:scale-[0.97]"
-              onClick={() => {
-                if (remaining === 0) setRemaining(selected.timerSeconds);
-                setDone(false);
-                setRunning(true);
-              }}
-              disabled={running}
+              onClick={start}
+              disabled={status === "running"}
             >
               Start
             </Button>
@@ -153,9 +164,10 @@ export function CoffeeTimer({ drinks }: CoffeeTimerProps) {
               type="button"
               variant="secondary"
               size="lg"
+              data-testid="coffee-timer-stop"
               className="h-14 min-w-28 rounded-2xl bg-[color:var(--surface-strong)] px-6 text-base active:scale-[0.97]"
-              onClick={() => setRunning(false)}
-              disabled={!running}
+              onClick={stop}
+              disabled={status !== "running"}
             >
               Stop
             </Button>
@@ -163,13 +175,9 @@ export function CoffeeTimer({ drinks }: CoffeeTimerProps) {
               type="button"
               variant="outline"
               size="lg"
+              data-testid="coffee-timer-reset"
               className="h-14 min-w-28 rounded-2xl px-6 text-base active:scale-[0.97]"
-              onClick={() => {
-                clearTick();
-                setRunning(false);
-                setDone(false);
-                setRemaining(selected.timerSeconds);
-              }}
+              onClick={reset}
             >
               Reset
             </Button>
