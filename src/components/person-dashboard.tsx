@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo } from "react";
+import { useMemo, useState } from "react";
 import type { DayIntelligenceView } from "@/lib/day/intelligence";
 import type { PersonProfile } from "@/lib/types";
 import {
@@ -14,6 +14,7 @@ import { useWeatherLive } from "@/hooks/use-weather-live";
 import { useSchoolJarvisLive } from "@/hooks/use-school-jarvis-live";
 import { MorningSkeleton } from "@/components/shared/skeleton";
 import { useLeaveReminder } from "@/hooks/use-leave-reminder";
+import { useWardrobe } from "@/hooks/use-wardrobe";
 import { DEFAULT_TRANSIT_PREFS } from "@/lib/data/defaults";
 import { useAppData } from "@/components/providers/data-provider";
 
@@ -33,6 +34,8 @@ export function PersonDashboard({
   });
   const weather = useWeatherLive(person);
   const schoolJarvis = useSchoolJarvisLive(person.id);
+  const { catalog: digitalWardrobe, replaceCatalog } = useWardrobe(person.id);
+  const [excludeCombinationKey, setExcludeCombinationKey] = useState<string | null>(null);
   const busEnabled =
     (person.transitPrefs?.enabled ?? DEFAULT_TRANSIT_PREFS.enabled) !== false &&
     person.displayPrefs?.showBus !== false;
@@ -89,6 +92,8 @@ export function PersonDashboard({
               }
             : null,
         },
+        digitalWardrobe,
+        excludeCombinationKey,
       }),
     [
       person,
@@ -100,6 +105,8 @@ export function PersonDashboard({
       bus.isTestData,
       bus.workTravel,
       bus.next,
+      digitalWardrobe,
+      excludeCombinationKey,
     ],
   );
 
@@ -161,6 +168,9 @@ export function PersonDashboard({
         schoolJarvisHandoffUrl={schoolJarvis.handoffUrl}
         leaveReminderActive={liveMeta.leaveReminderActive}
         leaveReminderLabel={liveMeta.leaveReminderLabel}
+      digitalWardrobe={digitalWardrobe}
+      onExcludeCombination={setExcludeCombinationKey}
+      onWardrobeChange={replaceCatalog}
       />
     );
   }
@@ -184,6 +194,9 @@ export function PersonDashboard({
         workTravel={bus.workTravel}
         leaveReminderActive={liveMeta.leaveReminderActive}
         leaveReminderLabel={liveMeta.leaveReminderLabel}
+      digitalWardrobe={digitalWardrobe}
+      onExcludeCombination={setExcludeCombinationKey}
+      onWardrobeChange={replaceCatalog}
       />
     );
   }
@@ -206,6 +219,9 @@ export function PersonDashboard({
       workTravel={bus.workTravel}
       leaveReminderActive={liveMeta.leaveReminderActive}
       leaveReminderLabel={liveMeta.leaveReminderLabel}
+    digitalWardrobe={digitalWardrobe}
+    onExcludeCombination={setExcludeCombinationKey}
+    onWardrobeChange={replaceCatalog}
     />
   );
 }

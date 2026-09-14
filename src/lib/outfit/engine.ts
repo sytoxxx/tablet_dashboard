@@ -17,8 +17,7 @@ import type { PersonId, WeatherInfo } from "@/lib/types";
 const WARDROBE_SETUP =
   "Outfit-Empfehlung verfügbar, sobald dein Kleiderschrank eingerichtet ist.";
 
-const PERFUME_SETUP =
-  "Parfum-Empfehlung verfügbar, sobald deine Düfte eingerichtet sind.";
+const PERFUME_SETUP = "Parfum noch nicht eingerichtet.";
 
 const SHOES_SETUP = "noch nicht verfügbar";
 

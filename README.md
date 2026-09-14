@@ -52,5 +52,6 @@ Work-Travel: Birgit/Heidi arbeitszeitbasierte Busplanung — `docs/work-travel-p
 15: Personal Morning Timeline + Evening Prep Foundation — `docs/phase-15-morning-timeline.md`
 16: Personal Leave Reminder — ein leiser Ton ~3 Min. vor Losgehen — `docs/phase-16-leave-reminder.md`
 17: Personal Evening Prep + Outfit Rule Engine — `docs/phase-17-evening-prep.md`
+18: Personal Digital Wardrobe + Phone Import — `docs/phase-18-wardrobe.md`
 
 Details: `school-jarvis/docs/phase-14-coffee-morning-contract.md`

@@ -3,6 +3,7 @@
 import { useMemo } from "react";
 import type { DayIntelligenceView } from "@/lib/day/intelligence";
 import type { MorningOverview } from "@/lib/morning/types";
+import type { WardrobeCatalog } from "@/lib/wardrobe/model";
 import { MorningNav } from "@/components/shared/morning-nav";
 import { LiveClock } from "@/components/shared/live-clock";
 import { DayFlowHero } from "@/components/person/day-flow-hero";
@@ -39,6 +40,9 @@ export function LeviMorningDashboard({
   schoolJarvisHandoffUrl = null,
   leaveReminderActive = false,
   leaveReminderLabel = null,
+  digitalWardrobe = null,
+  onExcludeCombination,
+  onWardrobeChange,
 }: {
   view: DayIntelligenceView;
   overview: MorningOverview;
@@ -56,6 +60,9 @@ export function LeviMorningDashboard({
   schoolJarvisHandoffUrl?: string | null;
   leaveReminderActive?: boolean;
   leaveReminderLabel?: string | null;
+  digitalWardrobe?: WardrobeCatalog | null;
+  onExcludeCombination?: (combinationKey: string) => void;
+  onWardrobeChange?: (catalog: WardrobeCatalog) => void;
 }) {
   const dayLabel = overview.focusIsTomorrow ? "Morgen" : "Heute";
   const headline = overview.greeting;
@@ -88,6 +95,14 @@ export function LeviMorningDashboard({
   return (
     <div className={`morning-shell mx-auto flex w-full max-w-6xl flex-col gap-3 px-5 py-4 sm:gap-4 sm:px-8 sm:py-5 lg:px-10 landscape-tablet:gap-3 landscape-tablet:py-3${overview.focusIsTomorrow ? " daypart-evening" : ""}`}>
       <MorningNav />
+      <div className="flex justify-end">
+        <a
+          href={`/person/${overview.personId}/kleiderschrank`}
+          className="text-base text-[color:var(--quiet)] underline-offset-2 hover:underline"
+        >
+          👕 Kleiderschrank
+        </a>
+      </div>
 
       <header className="flex flex-col gap-2 sm:flex-row sm:items-end sm:justify-between">
         <div className="min-w-0 space-y-1">
@@ -114,7 +129,12 @@ export function LeviMorningDashboard({
             />
           ) : null}
           {showEveningPrep ? (
-            <EveningPrepSection prep={overview.eveningPrep} />
+            <EveningPrepSection
+              prep={overview.eveningPrep}
+              digitalWardrobe={digitalWardrobe}
+              onExcludeCombination={onExcludeCombination}
+              onWardrobeChange={onWardrobeChange}
+            />
           ) : null}
           {showNext ? <DayFlowHero flow={view.dayFlow} dominant={!showTimeline} /> : null}
 

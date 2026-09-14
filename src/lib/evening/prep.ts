@@ -1,6 +1,7 @@
 /**
  * Evening prep — “Für morgen vorbereiten” from shared day + travel + outfit rules.
  * Never invents wardrobe / perfume / shoes unless stored as preferences.
+ * Phase 18: optional digital wardrobe drives real outfit picks.
  */
 import { addDays, toIsoDate } from "@/lib/day/tomorrow";
 import { DAY_CONFIG } from "@/lib/day/config";
@@ -30,6 +31,13 @@ import {
   planTravelForPerson,
   type TravelPlan,
 } from "@/lib/work/travel-planner";
+import type { WardrobeCatalog as DigitalWardrobeCatalog } from "@/lib/wardrobe/model";
+import {
+  pickOutfitForDay,
+  perfumeStatus,
+  type PickedOutfit,
+} from "@/lib/wardrobe/pick";
+import { pickedOutfitToRecommendation } from "@/lib/wardrobe/to-recommendation";
 
 export type EveningPrepItemKind =
   | "context"
@@ -67,6 +75,8 @@ export type EveningPrep = {
   leaveHome: string | null;
   destinationLabel: string | null;
   outfit: OutfitRecommendation;
+  /** Phase-18 pick from digital wardrobe; null when not supplied. */
+  pickedOutfit: PickedOutfit | null;
   weatherFactors: WeatherOutfitFactors;
   signals: DayOutfitSignals;
   checklist: EveningChecklistItem[];
@@ -80,10 +90,15 @@ export type BuildEveningPrepInput = {
   now: Date;
   weather?: WeatherInfo | null;
   travelPlan?: TravelPlan | null;
+  /** Phase-17 engine catalog (legacy). */
   wardrobe?: WardrobeCatalog | null;
+  /** Phase-18 digital wardrobe — when set (even empty), drives outfit picks. */
+  digitalWardrobe?: DigitalWardrobeCatalog | null;
   preferences?: PersonOutfitPreferences | null;
   dayHints?: string[] | null;
   checklistChecked?: Partial<Record<EveningChecklistKey, boolean>> | null;
+  /** Exclude previous combination when user asks for another outfit. */
+  excludeCombinationKey?: string | null;
 };
 
 /** Same threshold as tomorrow-focus evening mode. */
@@ -149,9 +164,11 @@ export function buildEveningPrep(input: BuildEveningPrepInput): EveningPrep {
         ),
       ).mitnehmen;
 
-  const wardrobeReady = Boolean(
-    input.wardrobe && input.wardrobe.items.length > 0,
-  );
+  const useDigital = input.digitalWardrobe !== undefined;
+  const digital = input.digitalWardrobe ?? null;
+  const wardrobeReady = useDigital
+    ? Boolean(digital && digital.items.some((i) => i.active))
+    : Boolean(input.wardrobe && input.wardrobe.items.length > 0);
 
   const travel =
     input.travelPlan &&
@@ -174,8 +191,33 @@ export function buildEveningPrep(input: BuildEveningPrepInput): EveningPrep {
     extraHints: input.dayHints,
   });
 
-  const { recommendation, weatherFactors, preferences } =
-    resolveOutfitRecommendation({
+  let recommendation: OutfitRecommendation;
+  let weatherFactors: WeatherOutfitFactors;
+  let preferences: PersonOutfitPreferences;
+  let pickedOutfit: PickedOutfit | null = null;
+
+  if (useDigital) {
+    pickedOutfit = pickOutfitForDay({
+      personId: input.person.id,
+      dateIso: date,
+      signals,
+      wardrobe: digital,
+      weather: input.weather ?? dayView.weather,
+      preferences: input.preferences,
+      excludeCombinationKey: input.excludeCombinationKey,
+    });
+    recommendation = pickedOutfitToRecommendation(pickedOutfit);
+    const resolved = resolveOutfitRecommendation({
+      personId: input.person.id,
+      dateIso: date,
+      signals,
+      weather: input.weather ?? dayView.weather,
+      preferences: input.preferences,
+    });
+    weatherFactors = resolved.weatherFactors;
+    preferences = resolved.preferences;
+  } else {
+    const resolved = resolveOutfitRecommendation({
       personId: input.person.id,
       dateIso: date,
       signals,
@@ -183,6 +225,10 @@ export function buildEveningPrep(input: BuildEveningPrepInput): EveningPrep {
       wardrobe: input.wardrobe,
       preferences: input.preferences,
     });
+    recommendation = resolved.recommendation;
+    weatherFactors = resolved.weatherFactors;
+    preferences = resolved.preferences;
+  }
 
   const dayContext = resolveDayContext(input.person, tomorrow, signals);
 
@@ -231,25 +277,48 @@ export function buildEveningPrep(input: BuildEveningPrepInput): EveningPrep {
       label: "Outfit",
       status: outfitReady ? "ready" : "unavailable",
       detail: recommendation.detail,
-      items: recommendation.pieces.map((p) => p.label),
+      items: pickedOutfit
+        ? pickedOutfit.pieces.map((p) => {
+            const emoji =
+              p.slot === "top"
+                ? "👕"
+                : p.slot === "bottom"
+                  ? "👖"
+                  : p.slot === "shoes"
+                    ? "👟"
+                    : "🧥";
+            if (p.item) return `${emoji} ${p.item.name}`;
+            return p.missingPrompt ?? `${emoji} ${p.label}`;
+          })
+        : recommendation.pieces.map((p) => p.label),
     },
     {
       kind: "shoes",
       label: "Schuhe",
       status:
-        recommendation.ruleKind === "mandatory_day"
+        recommendation.ruleKind === "mandatory_day" ||
+        Boolean(pickedOutfit?.pieces.find((p) => p.slot === "shoes")?.item)
           ? "ready"
           : wardrobeReady
             ? "ready"
             : "unavailable",
-      detail: shoesPlaceholderDetail(recommendation, wardrobeReady),
+      detail: (() => {
+        if (pickedOutfit) {
+          const shoes = pickedOutfit.pieces.find((p) => p.slot === "shoes");
+          if (shoes?.item) return shoes.item.name;
+          if (shoes?.missingPrompt) return shoes.missingPrompt;
+        }
+        return shoesPlaceholderDetail(recommendation, wardrobeReady);
+      })(),
     },
     {
       kind: "perfume",
       label: "Parfum",
       status:
         preferences.perfume.fragranceIds.length > 0 ? "ready" : "unavailable",
-      detail: perfumePlaceholderDetail(preferences),
+      detail: useDigital
+        ? perfumeStatus(true)
+        : perfumePlaceholderDetail(preferences),
     },
     {
       kind: "bag",
@@ -301,6 +370,7 @@ export function buildEveningPrep(input: BuildEveningPrepInput): EveningPrep {
     leaveHome: travel.leaveHome,
     destinationLabel: travel.destinationLabel,
     outfit: recommendation,
+    pickedOutfit,
     weatherFactors,
     signals,
     checklist,

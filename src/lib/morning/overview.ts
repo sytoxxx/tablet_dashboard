@@ -66,6 +66,10 @@ export type GetMorningOverviewOptions = {
    * computed buildDayIntelligence).
    */
   dayView?: DayIntelligenceView;
+  /** Phase-18 digital wardrobe for evening outfit picks (person-scoped). */
+  digitalWardrobe?: import("@/lib/wardrobe/model").WardrobeCatalog | null;
+  /** Exclude a previous outfit combination (alternative outfit). */
+  excludeCombinationKey?: string | null;
 };
 
 const LEVI_ORDER: MorningSectionKey[] = [
@@ -295,6 +299,8 @@ export function getMorningOverview(
         now: date,
         weather: weather.weather,
         travelPlan: resolvedTravel,
+        digitalWardrobe: options?.digitalWardrobe,
+        excludeCombinationKey: options?.excludeCombinationKey,
       })
     : null;
 

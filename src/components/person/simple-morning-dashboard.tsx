@@ -2,6 +2,7 @@
 
 import type { DayIntelligenceView } from "@/lib/day/intelligence";
 import type { MorningOverview } from "@/lib/morning/types";
+import type { WardrobeCatalog } from "@/lib/wardrobe/model";
 import type { WorkTravelLive } from "@/hooks/use-bus-live";
 import { MorningNav } from "@/components/shared/morning-nav";
 import { LiveClock } from "@/components/shared/live-clock";
@@ -39,6 +40,9 @@ export function SimpleMorningDashboard({
   workTravel,
   leaveReminderActive = false,
   leaveReminderLabel = null,
+  digitalWardrobe = null,
+  onExcludeCombination,
+  onWardrobeChange,
 }: {
   view: DayIntelligenceView;
   overview: MorningOverview;
@@ -57,6 +61,9 @@ export function SimpleMorningDashboard({
   workTravel?: WorkTravelLive | null;
   leaveReminderActive?: boolean;
   leaveReminderLabel?: string | null;
+  digitalWardrobe?: WardrobeCatalog | null;
+  onExcludeCombination?: (combinationKey: string) => void;
+  onWardrobeChange?: (catalog: WardrobeCatalog) => void;
 }) {
   const headline = overview.greeting;
   const isBirgit = mode === "work";
@@ -88,6 +95,14 @@ export function SimpleMorningDashboard({
       )}
     >
       <MorningNav quiet={mode === "work"} />
+      <div className="flex justify-end">
+        <a
+          href={`/person/${overview.personId}/kleiderschrank`}
+          className="text-base text-[color:var(--quiet)] underline-offset-2 hover:underline"
+        >
+          👕 Kleiderschrank
+        </a>
+      </div>
 
       <header className="animate-rise flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
         <div className="space-y-1">
@@ -126,7 +141,13 @@ export function SimpleMorningDashboard({
             />
           ) : null}
           {showEveningPrep ? (
-            <EveningPrepSection prep={overview.eveningPrep} simple />
+            <EveningPrepSection
+              prep={overview.eveningPrep}
+              simple
+              digitalWardrobe={digitalWardrobe}
+              onExcludeCombination={onExcludeCombination}
+              onWardrobeChange={onWardrobeChange}
+            />
           ) : null}
 
           {mode === "work" ? (
