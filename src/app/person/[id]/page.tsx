@@ -1,32 +1,30 @@
+"use client";
+
 import { notFound } from "next/navigation";
+import { use } from "react";
 import { PersonDashboard } from "@/components/person-dashboard";
-import { getPerson, isPersonId, profiles } from "@/data/profiles";
+import { isPersonId, useAppData } from "@/components/providers/data-provider";
+import { buildTodayView } from "@/lib/today";
+import { useNow } from "@/hooks/use-now";
 
 type PersonPageProps = {
   params: Promise<{ id: string }>;
 };
 
-export function generateStaticParams() {
-  return profiles.map((p) => ({ id: p.id }));
-}
+export default function PersonPage({ params }: PersonPageProps) {
+  const { id } = use(params);
+  const { getPerson } = useAppData();
+  const now = useNow(30_000);
 
-export async function generateMetadata({ params }: PersonPageProps) {
-  const { id } = await params;
-  const person = getPerson(id);
-  return {
-    title: person ? `${person.displayName} · Coffee Morning` : "Nicht gefunden",
-  };
-}
-
-export default async function PersonPage({ params }: PersonPageProps) {
-  const { id } = await params;
   if (!isPersonId(id)) notFound();
   const person = getPerson(id);
   if (!person) notFound();
 
+  const view = buildTodayView(person, now);
+
   return (
     <main>
-      <PersonDashboard person={person} />
+      <PersonDashboard view={view} />
     </main>
   );
 }

@@ -6,27 +6,32 @@ Minimaler Morgen-Tablet-Dashboard (deutsch) für ein wandmontiertes Android-Tabl
 
 - Next.js (App Router) + TypeScript
 - Tailwind CSS + shadcn/ui
-- Mock-Daten in `src/data/` (Personen getrennt unter `src/data/persons/`)
+- Zentrale Mock-Daten + LocalStorage-Adapter (`src/data/`)
 
 ## Lokal starten
 
 ```bash
 npm install
-npm run dev
+npm run build
+npm run start
 ```
 
-Dev-Server: Port **43127** → [http://127.0.0.1:43127](http://127.0.0.1:43127)
+Server: Port **43127** → [http://127.0.0.1:43127](http://127.0.0.1:43127)
+
+Dev: `npm run dev` (gleicher Port).
 
 ## Routen
 
 | Route | Inhalt |
 | --- | --- |
-| `/` | Home — „Guten Morgen“ + Profilwahl (Levi, Birgit, Heidi) |
-| `/person/levi` | Schule: Stundenplan, nächstes Fach, Bus, Wetter, To-dos |
-| `/person/birgit` | Schicht: Beginn/Ende, Bus, Wetter, Kalender |
-| `/person/heidi` | Persönlicher Tag |
-| `/kaffee` | Espresso / Cappuccino / Latte + funktionierender Timer |
+| `/` | Home — nur Guten Morgen + Levi / Birgit / Heidi |
+| `/person/[id]` | Tagesansicht (weekday + live clock) |
+| `/kaffee` | Timer |
+| `/einstellungen` | Admin-Hub |
+| `/plan-aktualisieren` | Upload-Vorschau (kein OCR) |
 
-## Phase 1
+## Phasen
 
-Mock-Daten und UI. Später: Datenlayer, Plan-Upload/OCR, Wetter/Bus/Kalender live, Jarvis, Kiosk, Smart Home.
+1. MVP UI + Timer
+2. Datenlayer, Wochentag, LocalStorage, Admin, Upload-Stub
+3. Plan-OCR mit Confirm-before-save (später)

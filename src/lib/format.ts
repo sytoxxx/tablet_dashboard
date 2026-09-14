@@ -1,3 +1,5 @@
+import type { WeekdayKey } from "@/lib/types";
+
 const germanDateFormatter = new Intl.DateTimeFormat("de-DE", {
   weekday: "long",
   day: "numeric",
@@ -10,21 +12,12 @@ const germanTimeFormatter = new Intl.DateTimeFormat("de-DE", {
   second: "2-digit",
 });
 
-const germanTimeShortFormatter = new Intl.DateTimeFormat("de-DE", {
-  hour: "2-digit",
-  minute: "2-digit",
-});
-
 export function formatGermanDate(date: Date = new Date()): string {
   return germanDateFormatter.format(date);
 }
 
 export function formatGermanTime(date: Date = new Date()): string {
   return germanTimeFormatter.format(date);
-}
-
-export function formatGermanTimeShort(date: Date = new Date()): string {
-  return germanTimeShortFormatter.format(date);
 }
 
 export function formatMinutesUntil(minutes: number): string {
@@ -40,7 +33,6 @@ export function formatTimer(totalSeconds: number): string {
   return `${String(minutes).padStart(2, "0")}:${String(seconds).padStart(2, "0")}`;
 }
 
-/** Parse "HH:MM" into minutes since midnight. */
 export function parseTimeToMinutes(time: string): number {
   const [h, m] = time.split(":").map(Number);
   return (h ?? 0) * 60 + (m ?? 0);
@@ -49,3 +41,29 @@ export function parseTimeToMinutes(time: string): number {
 export function getMinutesSinceMidnight(date: Date = new Date()): number {
   return date.getHours() * 60 + date.getMinutes();
 }
+
+const JS_DAY_TO_KEY: WeekdayKey[] = ["sun", "mon", "tue", "wed", "thu", "fri", "sat"];
+
+export function getWeekdayKey(date: Date = new Date()): WeekdayKey {
+  return JS_DAY_TO_KEY[date.getDay()] ?? "mon";
+}
+
+export const WEEKDAY_LABELS: Record<WeekdayKey, string> = {
+  mon: "Montag",
+  tue: "Dienstag",
+  wed: "Mittwoch",
+  thu: "Donnerstag",
+  fri: "Freitag",
+  sat: "Samstag",
+  sun: "Sonntag",
+};
+
+export const WEEKDAY_ORDER: WeekdayKey[] = [
+  "mon",
+  "tue",
+  "wed",
+  "thu",
+  "fri",
+  "sat",
+  "sun",
+];

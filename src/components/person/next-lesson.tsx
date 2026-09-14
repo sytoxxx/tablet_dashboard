@@ -1,20 +1,14 @@
 "use client";
 
-import { useEffect, useState } from "react";
 import type { TimetableEntry } from "@/lib/types";
-import { getCurrentOrNextLesson } from "@/lib/schedule";
+import { getCurrentOrNextLesson } from "@/lib/today";
 import { Section } from "@/components/section";
 import { EmptyState } from "@/components/empty-state";
+import { useNow } from "@/hooks/use-now";
 
 export function NextLessonHighlight({ entries }: { entries: TimetableEntry[] }) {
-  const [snapshot, setSnapshot] = useState(() => getCurrentOrNextLesson(entries));
-
-  useEffect(() => {
-    const id = window.setInterval(() => {
-      setSnapshot(getCurrentOrNextLesson(entries));
-    }, 30_000);
-    return () => window.clearInterval(id);
-  }, [entries]);
+  const now = useNow(30_000);
+  const snapshot = getCurrentOrNextLesson(entries, now);
 
   if (!snapshot) {
     return (
@@ -38,7 +32,10 @@ export function NextLessonHighlight({ entries }: { entries: TimetableEntry[] }) 
   const label = snapshot.status === "now" ? "Jetzt" : "Als Nächstes";
 
   return (
-    <Section title="Nächstes Fach" aside={<span className="text-sm text-[color:var(--quiet)]">{label}</span>}>
+    <Section
+      title="Nächstes Fach"
+      aside={<span className="text-sm text-[color:var(--quiet)]">{label}</span>}
+    >
       <p className="font-display text-4xl tracking-tight sm:text-5xl">{snapshot.lesson.subject}</p>
       <p className="mt-2 text-xl text-[color:var(--quiet)]">
         <span className="tabular-nums text-[color:var(--ink)]">{snapshot.lesson.time}</span>

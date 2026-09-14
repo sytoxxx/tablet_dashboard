@@ -1,14 +1,13 @@
-import { CoffeeArea } from "@/components/coffee/coffee-area";
-import { coffeeDrinks } from "@/data/coffee";
+"use client";
 
-export const metadata = {
-  title: "Kaffeeecke · Coffee Morning",
-};
+import { CoffeeArea } from "@/components/coffee/coffee-area";
+import { useAppData } from "@/components/providers/data-provider";
 
 export default function KaffeePage() {
+  const { data } = useAppData();
   return (
     <main>
-      <CoffeeArea drinks={coffeeDrinks} />
+      <CoffeeArea drinks={data.coffeeDrinks} />
     </main>
   );
 }

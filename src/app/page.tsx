@@ -1,9 +1,13 @@
+"use client";
+
 import Link from "next/link";
+import { Coffee, Settings } from "lucide-react";
 import { ProfileTile } from "@/components/profile-tile";
-import { profiles } from "@/data/profiles";
-import { Coffee } from "lucide-react";
+import { useAppData } from "@/components/providers/data-provider";
 
 export default function HomePage() {
+  const { data } = useAppData();
+
   return (
     <main className="relative mx-auto flex min-h-dvh w-full max-w-5xl flex-col justify-center gap-12 px-5 py-10 sm:px-8 lg:px-10">
       <div
@@ -22,19 +26,23 @@ export default function HomePage() {
       </header>
 
       <section className="grid gap-4 sm:grid-cols-3 sm:gap-5" aria-label="Profile">
-        {profiles.map((person, index) => (
+        {data.persons.map((person, index) => (
           <ProfileTile
             key={person.id}
             href={`/person/${person.id}`}
-            name={person.displayName}
+            name={person.name}
             hint={person.hint}
             accent={person.accent}
+            avatar={person.avatar}
             delayMs={100 + index * 70}
           />
         ))}
       </section>
 
-      <div className="animate-rise" style={{ animationDelay: "320ms" }}>
+      <div
+        className="animate-rise flex flex-wrap items-center gap-4"
+        style={{ animationDelay: "320ms" }}
+      >
         <Link
           href="/kaffee"
           className="inline-flex min-h-14 items-center gap-3 rounded-2xl bg-[color:var(--ink)] px-6 text-lg text-[color:var(--surface)] transition-[opacity,transform] duration-150 hover:opacity-90 active:scale-[0.97] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[color:var(--brand)] focus-visible:ring-offset-4 focus-visible:ring-offset-[color:var(--bg)]"
@@ -43,6 +51,14 @@ export default function HomePage() {
           Zur Kaffeeecke
         </Link>
       </div>
+
+      <Link
+        href="/einstellungen"
+        className="fixed right-4 bottom-4 inline-flex size-11 items-center justify-center rounded-full text-[color:var(--quiet)] opacity-50 transition-opacity hover:opacity-100 focus-visible:opacity-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[color:var(--brand)]"
+        aria-label="Einstellungen"
+      >
+        <Settings className="size-5" />
+      </Link>
     </main>
   );
 }

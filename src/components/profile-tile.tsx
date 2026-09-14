@@ -6,6 +6,7 @@ type ProfileTileProps = {
   name: string;
   hint: string;
   accent: string;
+  avatar?: string;
   delayMs?: number;
 };
 
@@ -14,6 +15,7 @@ export function ProfileTile({
   name,
   hint,
   accent,
+  avatar,
   delayMs = 0,
 }: ProfileTileProps) {
   return (
@@ -35,7 +37,18 @@ export function ProfileTile({
         style={{ background: "var(--tile-accent)" }}
         aria-hidden
       />
-      <span className="font-display text-3xl tracking-tight sm:text-4xl">{name}</span>
+      <div className="flex items-start justify-between gap-3">
+        <span className="font-display text-3xl tracking-tight sm:text-4xl">{name}</span>
+        {avatar ? (
+          <span
+            className="flex size-11 shrink-0 items-center justify-center rounded-full text-sm font-semibold text-white"
+            style={{ background: accent }}
+            aria-hidden
+          >
+            {avatar}
+          </span>
+        ) : null}
+      </div>
       <span className="text-sm text-[color:var(--quiet)] sm:text-base">{hint}</span>
     </Link>
   );
