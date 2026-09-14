@@ -19,7 +19,7 @@ function testConfig(
   return {
     configured: true,
     baseUrl: "https://school-jarvis.test",
-    summaryPath: "/api/integrations/coffee/school-summary",
+    summaryPath: "/api/integrations/coffee/daily-summary",
     apiToken: "test-token",
     handoffUrlTemplate:
       "https://school-jarvis.test/learn?target={target}&personId={personId}",

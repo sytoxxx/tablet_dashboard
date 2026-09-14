@@ -12,8 +12,6 @@ const eslintConfig = defineConfig([
     "out/**",
     "build/**",
     "next-env.d.ts",
-    // Separate School Jarvis app — linted via school-jarvis/eslint
-    "school-jarvis/**",
   ]),
 ]);
 

@@ -12,7 +12,7 @@ export type SchoolJarvisServerConfig = {
   allowedPersons: PersonId[];
 };
 
-const DEFAULT_SUMMARY_PATH = "/api/integrations/coffee/school-summary";
+const DEFAULT_SUMMARY_PATH = "/api/integrations/coffee/daily-summary";
 const DEFAULT_TIMEOUT_MS = 4_000;
 const DEFAULT_CACHE_TTL_MS = 90_000;
 
