@@ -10,23 +10,41 @@ import {
   wardrobeStorageKey,
 } from "@/lib/wardrobe/store";
 
+/** Stable empty catalogs for SSR / getServerSnapshot. */
+const EMPTY_BY_PERSON: Record<PersonId, WardrobeCatalog> = {
+  levi: emptyWardrobeCatalog("levi"),
+  birgit: emptyWardrobeCatalog("birgit"),
+  heidi: emptyWardrobeCatalog("heidi"),
+};
+
+const clientCache = new Map<string, WardrobeCatalog>();
+
+function cacheKey(personId: PersonId, epoch: number): string {
+  return `${personId}:${epoch}`;
+}
+
 function subscribeWardrobe(personId: PersonId, onStoreChange: () => void) {
   if (typeof window === "undefined") return () => {};
   const key = wardrobeStorageKey(personId);
   const onStorage = (event: StorageEvent) => {
     if (event.key === key) onStoreChange();
   };
+  const onLocal = () => onStoreChange();
   window.addEventListener("storage", onStorage);
-  window.addEventListener(`wardrobe:${personId}`, onStoreChange);
+  window.addEventListener(`wardrobe:${personId}`, onLocal);
   return () => {
     window.removeEventListener("storage", onStorage);
-    window.removeEventListener(`wardrobe:${personId}`, onStoreChange);
+    window.removeEventListener(`wardrobe:${personId}`, onLocal);
   };
 }
 
-function readWardrobe(personId: PersonId): WardrobeCatalog {
-  if (typeof window === "undefined") return emptyWardrobeCatalog(personId);
-  return loadWardrobeCatalog(personId);
+function readClientCatalog(personId: PersonId, epoch: number): WardrobeCatalog {
+  const key = cacheKey(personId, epoch);
+  const cached = clientCache.get(key);
+  if (cached) return cached;
+  const loaded = loadWardrobeCatalog(personId);
+  clientCache.set(key, loaded);
+  return loaded;
 }
 
 /**
@@ -37,11 +55,8 @@ export function useWardrobe(personId: PersonId) {
 
   const catalog = useSyncExternalStore(
     (onChange) => subscribeWardrobe(personId, onChange),
-    () => {
-      void epoch;
-      return readWardrobe(personId);
-    },
-    () => emptyWardrobeCatalog(personId),
+    () => readClientCatalog(personId, epoch),
+    () => EMPTY_BY_PERSON[personId],
   );
 
   const hydrated = useSyncExternalStore(
@@ -54,7 +69,11 @@ export function useWardrobe(personId: PersonId) {
     (next: WardrobeCatalog) => {
       if (next.personId !== personId) return;
       saveWardrobeCatalog(next);
-      setEpoch((e) => e + 1);
+      setEpoch((e) => {
+        const nextEpoch = e + 1;
+        clientCache.set(cacheKey(personId, nextEpoch), next);
+        return nextEpoch;
+      });
       if (typeof window !== "undefined") {
         window.dispatchEvent(new Event(`wardrobe:${personId}`));
       }
@@ -72,7 +91,7 @@ export function useWardrobe(personId: PersonId) {
   const upsertItem = useCallback(
     (item: WardrobeItem) => {
       if (item.personId !== personId) return;
-      const current = readWardrobe(personId);
+      const current = readClientCatalog(personId, epoch);
       const exists = current.items.some((i) => i.id === item.id);
       const items = exists
         ? current.items.map((i) => (i.id === item.id ? item : i))
@@ -83,19 +102,19 @@ export function useWardrobe(personId: PersonId) {
         updatedAt: new Date().toISOString(),
       });
     },
-    [personId, persist],
+    [personId, persist, epoch],
   );
 
   const removeItem = useCallback(
     (itemId: string) => {
-      const current = readWardrobe(personId);
+      const current = readClientCatalog(personId, epoch);
       persist({
         personId,
         items: current.items.filter((i) => i.id !== itemId),
         updatedAt: new Date().toISOString(),
       });
     },
-    [personId, persist],
+    [personId, persist, epoch],
   );
 
   return useMemo(
