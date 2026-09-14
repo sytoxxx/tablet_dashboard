@@ -8,6 +8,10 @@ import {
 import { seedPersons } from "@/data/seed";
 import { DEFAULT_TRANSIT_PREFS } from "@/lib/data/defaults";
 import { getWorkShiftForDate } from "@/lib/work/schedule";
+import {
+  isWorkTravelPerson,
+  planWorkTravel,
+} from "@/lib/work/travel-planner";
 import type { PersonId, PersonProfile } from "@/lib/types";
 
 export const runtime = "nodejs";
@@ -104,6 +108,7 @@ async function respondForPerson(
         departures: [],
         next: null,
         upcoming: [],
+        workTravel: null,
         source: "local",
         isTestData: true,
         enabled,
@@ -133,29 +138,62 @@ async function respondForPerson(
     const schoolStart =
       person.schedule.type === "school"
         ? person.schedule.week[
-            (["sun", "mon", "tue", "wed", "thu", "fri", "sat"] as const)[now.getDay()]
+            (["sun", "mon", "tue", "wed", "thu", "fri", "sat"] as const)[
+              now.getDay()
+            ]
           ]?.lessons?.[0]?.time
         : null;
 
+    // Work shift start is authoritative for the day; desiredArrival only as fallback.
     const targetStart =
-      prefs.desiredArrivalHHmm || work?.start || schoolStart || null;
+      work?.start || prefs.desiredArrivalHHmm || schoolStart || null;
 
-    const next = selectRelevantDeparture(result.departures, now, {
-      targetStartHHMM: targetStart,
-      leadTimeMinutes: prefs.leadTimeMinutes,
-      stopName: result.stopName,
-      source: result.source,
-      preferredLines: prefs.preferredLines,
-      destinationHint: prefs.destinationHint,
-    });
+    const workTravelEligible = isWorkTravelPerson(person.id);
+
+    const next = workTravelEligible
+      ? null
+      : selectRelevantDeparture(result.departures, now, {
+          targetStartHHMM: targetStart,
+          leadTimeMinutes: prefs.leadTimeMinutes,
+          stopName: result.stopName,
+          source: result.source,
+          preferredLines: prefs.preferredLines,
+          destinationHint: prefs.destinationHint,
+        });
+
+    const workTravel = workTravelEligible
+      ? planWorkTravel({
+          personId: person.id,
+          workStart: targetStart,
+          workEnd: work?.end ?? null,
+          transitPrefs: prefs,
+          departures: result.departures,
+          now,
+          stopName: result.stopName,
+          source: result.source,
+          preferredLines: prefs.preferredLines,
+          destinationHint: prefs.destinationHint,
+          enabled: true,
+        })
+      : null;
+
+    const chosenNext = workTravelEligible
+      ? workTravel?.status === "on-time" || workTravel?.status === "cancelled"
+        ? workTravel.bus
+        : null
+      : next;
 
     const fetchedAt = result.fetchedAt ?? new Date().toISOString();
-    const nextWithMeta = next
+    const nextWithMeta = chosenNext
       ? {
-          ...next,
+          ...chosenNext,
           fetchedAt,
           realtimeAt: result.realtimeAt,
-          isTestData: Boolean(result.isTestData) || result.source === "local",
+          isTestData:
+            Boolean(result.isTestData) ||
+            result.source === "local" ||
+            Boolean(workTravel?.isTestData) ||
+            Boolean(chosenNext.isTestData),
           source: result.source,
         }
       : null;
@@ -172,6 +210,11 @@ async function respondForPerson(
         cancelled: Boolean(d.cancelled),
       }));
 
+    const noConnection =
+      workTravelEligible &&
+      (workTravel?.status === "no-connection" ||
+        workTravel?.status === "cancelled");
+
     const empty = nextWithMeta
       ? null
       : friendlyBusEmptyMessage({ hasConfig: true, enabled: true });
@@ -182,6 +225,20 @@ async function respondForPerson(
       departures: result.departures,
       upcoming,
       next: nextWithMeta,
+      workTravel: workTravel
+        ? {
+            workStart: workTravel.workStart,
+            workEnd: workTravel.workEnd,
+            leaveHome: workTravel.leaveHome,
+            busDeparture: workTravel.busDeparture,
+            arrivalAtWork: workTravel.arrivalAtWork,
+            preparationStart: workTravel.preparationStart,
+            status: workTravel.status,
+            isTestData: workTravel.isTestData,
+            matched: workTravel.matched,
+            message: workTravel.message,
+          }
+        : null,
       source: result.source,
       provider: result.provider,
       warning: result.warning,
@@ -194,8 +251,14 @@ async function respondForPerson(
       realtimeAt: result.realtimeAt ?? null,
       message: nextWithMeta
         ? null
-        : empty?.description ?? "Heute keine passende Verbindung gefunden.",
-      emptyTitle: nextWithMeta ? null : empty?.title ?? null,
+        : noConnection
+          ? "Bitte prüfe die nächste Verbindung."
+          : (empty?.description ?? "Heute keine passende Verbindung gefunden."),
+      emptyTitle: nextWithMeta
+        ? null
+        : noConnection
+          ? "Kein passender Bus"
+          : (empty?.title ?? null),
     });
   } catch {
     return NextResponse.json(

@@ -96,6 +96,11 @@ function sanitizeTransitPrefs(raw: unknown, fallback?: TransitPrefs): TransitPre
       ? sanitizeString(raw.destinationHint, "", 40) || undefined
       : base.destinationHint;
 
+  const clampMin = (value: unknown, fallback: number, max = 180) =>
+    typeof value === "number" && Number.isFinite(value)
+      ? Math.min(max, Math.max(0, Math.trunc(value)))
+      : fallback;
+
   return {
     leadTimeMinutes: lead,
     enabled: typeof raw.enabled === "boolean" ? raw.enabled : (base.enabled ?? true),
@@ -104,6 +109,22 @@ function sanitizeTransitPrefs(raw: unknown, fallback?: TransitPrefs): TransitPre
     preferredModes: preferredModes?.length ? preferredModes : undefined,
     destinationStop,
     destinationHint,
+    walkToStopMinutes: clampMin(
+      raw.walkToStopMinutes,
+      base.walkToStopMinutes ?? 0,
+    ),
+    stopToWorkMinutes: clampMin(
+      raw.stopToWorkMinutes,
+      base.stopToWorkMinutes ?? 0,
+    ),
+    preparationMinutes: clampMin(
+      raw.preparationMinutes,
+      base.preparationMinutes ?? 0,
+    ),
+    safetyBufferMinutes: clampMin(
+      raw.safetyBufferMinutes,
+      base.safetyBufferMinutes ?? 5,
+    ),
   };
 }
 

@@ -90,6 +90,35 @@ function PersonBusEditor({ personId }: { personId: PersonId }) {
               Number(fd.get("leadTimeMinutes") || DEFAULT_TRANSIT_PREFS.leadTimeMinutes),
             ),
           );
+          const clampPref = (key: string, fallback: number) =>
+            Math.min(
+              180,
+              Math.max(0, Number(fd.get(key) ?? fallback) || fallback),
+            );
+          const walkToStopMinutes = clampPref(
+            "walkToStopMinutes",
+            person.transitPrefs?.walkToStopMinutes ??
+              DEFAULT_TRANSIT_PREFS.walkToStopMinutes ??
+              0,
+          );
+          const stopToWorkMinutes = clampPref(
+            "stopToWorkMinutes",
+            person.transitPrefs?.stopToWorkMinutes ??
+              DEFAULT_TRANSIT_PREFS.stopToWorkMinutes ??
+              0,
+          );
+          const preparationMinutes = clampPref(
+            "preparationMinutes",
+            person.transitPrefs?.preparationMinutes ??
+              DEFAULT_TRANSIT_PREFS.preparationMinutes ??
+              0,
+          );
+          const safetyBufferMinutes = clampPref(
+            "safetyBufferMinutes",
+            person.transitPrefs?.safetyBufferMinutes ??
+              DEFAULT_TRANSIT_PREFS.safetyBufferMinutes ??
+              5,
+          );
           const enabled = fd.get("enabled") === "on";
           const providerRaw = String(fd.get("provider") || "auto");
           const provider = (
@@ -137,6 +166,10 @@ function PersonBusEditor({ personId }: { personId: PersonId }) {
                   }
                 : undefined,
               destinationHint: destinationHint || undefined,
+              walkToStopMinutes,
+              stopToWorkMinutes,
+              preparationMinutes,
+              safetyBufferMinutes,
             },
           }));
           setSaved(true);
@@ -198,7 +231,7 @@ function PersonBusEditor({ personId }: { personId: PersonId }) {
             />
           </label>
           <label className="block space-y-1">
-            <span className="text-sm text-[color:var(--quiet)]">Vorlaufzeit (Minuten)</span>
+            <span className="text-sm text-[color:var(--quiet)]">Vorlaufzeit / Fahrzeit-Schätzung (Minuten)</span>
             <input
               name="leadTimeMinutes"
               type="number"
@@ -212,6 +245,79 @@ function PersonBusEditor({ personId }: { personId: PersonId }) {
             />
           </label>
         </div>
+
+        {personId === "birgit" || personId === "heidi" ? (
+          <div className="grid gap-3 sm:grid-cols-2">
+            <label className="block space-y-1">
+              <span className="text-sm text-[color:var(--quiet)]">
+                Fußweg Zuhause → Haltestelle (Min.)
+              </span>
+              <input
+                name="walkToStopMinutes"
+                type="number"
+                min={0}
+                max={180}
+                defaultValue={
+                  person.transitPrefs?.walkToStopMinutes ??
+                  DEFAULT_TRANSIT_PREFS.walkToStopMinutes ??
+                  0
+                }
+                className="h-12 w-full rounded-2xl bg-[color:var(--surface)] px-4 outline-none ring-[color:var(--brand)] focus:ring-2"
+              />
+            </label>
+            <label className="block space-y-1">
+              <span className="text-sm text-[color:var(--quiet)]">
+                Fußweg Haltestelle → Arbeit (Min.)
+              </span>
+              <input
+                name="stopToWorkMinutes"
+                type="number"
+                min={0}
+                max={180}
+                defaultValue={
+                  person.transitPrefs?.stopToWorkMinutes ??
+                  DEFAULT_TRANSIT_PREFS.stopToWorkMinutes ??
+                  0
+                }
+                className="h-12 w-full rounded-2xl bg-[color:var(--surface)] px-4 outline-none ring-[color:var(--brand)] focus:ring-2"
+              />
+            </label>
+            <label className="block space-y-1">
+              <span className="text-sm text-[color:var(--quiet)]">
+                Vorbereitungszeit (Min.)
+              </span>
+              <input
+                name="preparationMinutes"
+                type="number"
+                min={0}
+                max={180}
+                defaultValue={
+                  person.transitPrefs?.preparationMinutes ??
+                  DEFAULT_TRANSIT_PREFS.preparationMinutes ??
+                  0
+                }
+                className="h-12 w-full rounded-2xl bg-[color:var(--surface)] px-4 outline-none ring-[color:var(--brand)] focus:ring-2"
+              />
+            </label>
+            <label className="block space-y-1">
+              <span className="text-sm text-[color:var(--quiet)]">
+                Sicherheitspuffer (Min.)
+              </span>
+              <input
+                name="safetyBufferMinutes"
+                type="number"
+                min={0}
+                max={180}
+                defaultValue={
+                  person.transitPrefs?.safetyBufferMinutes ??
+                  DEFAULT_TRANSIT_PREFS.safetyBufferMinutes ??
+                  5
+                }
+                className="h-12 w-full rounded-2xl bg-[color:var(--surface)] px-4 outline-none ring-[color:var(--brand)] focus:ring-2"
+              />
+            </label>
+          </div>
+        ) : null}
 
         <label className="block space-y-1">
           <span className="text-sm text-[color:var(--quiet)]">Bevorzugte Linie (optional)</span>

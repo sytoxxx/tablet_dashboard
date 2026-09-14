@@ -115,7 +115,10 @@ export type RegionConfig = {
 export type TransitPrefs = {
   /** When false, morning dashboards hide bus entirely. Default true. */
   enabled?: boolean;
-  /** Minutes buffer before desired arrival / work / school start. */
+  /**
+   * Heuristic buffer (minutes) before work/school when no API arrival time exists.
+   * Approximates ride duration — never invents per-connection travel times.
+   */
   leadTimeMinutes: number;
   /** Optional HH:MM override; empty → use work/school start from schedule. */
   desiredArrivalHHmm?: string;
@@ -128,6 +131,14 @@ export type TransitPrefs = {
    * Not a concrete stop id.
    */
   destinationHint?: string;
+  /** Walk minutes from home to the start stop (Birgit/Heidi work travel). */
+  walkToStopMinutes?: number;
+  /** Walk minutes from destination stop to workplace. */
+  stopToWorkMinutes?: number;
+  /** Minutes to get ready before leaving home (“langsam fertig werden”). */
+  preparationMinutes?: number;
+  /** Extra safety buffer before work start (minutes). */
+  safetyBufferMinutes?: number;
 };
 
 export type WeatherSettings = {
@@ -222,6 +233,11 @@ export type BusInfo = {
    * null when unknown (do not invent travel time / do not assume punctual).
    */
   arrivesInTime?: boolean | null;
+  /**
+   * Estimated arrival at destination if the API provides it.
+   * Never invent — leave undefined when unknown.
+   */
+  estimatedArrivalHHmm?: string;
   /** Planned departure HH:MM when known (may differ from realtime). */
   scheduledDeparture?: string;
   /** Realtime departure HH:MM when the provider supplies it. */

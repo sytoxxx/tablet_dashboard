@@ -71,27 +71,28 @@ function birgitWeek() {
 }
 
 function heidiWeek() {
-  const base = {
-    blocks: [
-      { id: "hb1", time: "09:00", title: "Freies Arbeiten", place: "Zuhause" },
-      { id: "hb2", time: "11:30", title: "Spaziergang", place: "Park", bringItems: ["Sonnenbrille"] },
-      { id: "hb3", time: "14:00", title: "Kaffee mit Nachbarin", place: "Café Süd" },
-    ],
+  const office = {
+    label: "Büro / Termine",
+    start: "09:00",
+    end: "17:00",
+    location: "Apfelmoar",
+    notes: "Ruhiger Start.",
+    bringItems: ["Schlüssel", "Telefon"],
   };
-  const weekend = {
-    blocks: [
-      { id: "hw1", time: "10:00", title: "Markt", place: "Stadtplatz", bringItems: ["Einkaufstasche"] },
-      { id: "hw2", time: "15:00", title: "Garten", place: "Zuhause", bringItems: ["Handschuhe"] },
-    ],
+  const early = {
+    label: "Früher Termin",
+    start: "08:30",
+    end: "16:30",
+    location: "Apfelmoar",
+    notes: "Etwas früher starten.",
+    bringItems: ["Schlüssel", "Telefon"],
   };
   return {
-    mon: base,
-    tue: base,
-    wed: base,
-    thu: base,
-    fri: base,
-    sat: weekend,
-    sun: weekend,
+    mon: office,
+    tue: early,
+    wed: office,
+    thu: office,
+    fri: office,
   };
 }
 
@@ -185,10 +186,13 @@ export const seedPersons: PersonProfile[] = [
     transitPrefs: {
       enabled: true,
       leadTimeMinutes: 30,
-      desiredArrivalHHmm: "06:00",
       preferredModes: ["bus"],
       destinationStop: { name: "Ziel Bruck/Mur (im Admin setzen)" },
       destinationHint: "Bruck",
+      walkToStopMinutes: 12,
+      stopToWorkMinutes: 8,
+      preparationMinutes: 15,
+      safetyBufferMinutes: 5,
     },
     weatherLocation: { ...KAPFENBERG_WEATHER_LOCATION },
   },
@@ -199,7 +203,7 @@ export const seedPersons: PersonProfile[] = [
     hint: "Dein Tag",
     greeting: "Hallo Heidi",
     accent: "#6B5B4F",
-    schedule: { type: "personal", week: heidiWeek() },
+    schedule: { type: "work", week: heidiWeek() },
     appointments: [
       { id: "ha1", title: "Garten gießen", time: "16:30" },
       { id: "ha2", title: "Serie schauen", time: "20:00", weekday: "fri" },
@@ -209,9 +213,9 @@ export const seedPersons: PersonProfile[] = [
       provider: "local",
       departures: [
         // TESTDATEN Orientierung Apfelmoar — keine Live-Abfahrten
-        { id: "hb1", line: "2", destination: "Apfelmoar Einkaufszentrum [TEST]", time: "09:10" },
-        { id: "hb2", line: "2", destination: "Apfelmoar Einkaufszentrum [TEST]", time: "10:10" },
-        { id: "hb3", line: "2", destination: "Apfelmoar Einkaufszentrum [TEST]", time: "11:10" },
+        { id: "hb1", line: "2", destination: "Apfelmoar Einkaufszentrum [TEST]", time: "08:10" },
+        { id: "hb2", line: "2", destination: "Apfelmoar Einkaufszentrum [TEST]", time: "08:25" },
+        { id: "hb3", line: "2", destination: "Apfelmoar Einkaufszentrum [TEST]", time: "08:40" },
         { id: "hb4", line: "1", destination: "Kapfenberg Europaplatz [TEST]", time: "14:20" },
       ],
     },
@@ -229,10 +233,14 @@ export const seedPersons: PersonProfile[] = [
     displayPrefs: { showBus: true, showWeather: true, showCalendar: true, showTasks: true },
     transitPrefs: {
       enabled: true,
-      leadTimeMinutes: 30,
+      leadTimeMinutes: 25,
       preferredModes: ["bus"],
       destinationStop: { name: "Ziel Apfelmoar (im Admin setzen)" },
       destinationHint: "Apfelmoar",
+      walkToStopMinutes: 8,
+      stopToWorkMinutes: 5,
+      preparationMinutes: 20,
+      safetyBufferMinutes: 5,
     },
     weatherLocation: { ...KAPFENBERG_WEATHER_LOCATION },
   },

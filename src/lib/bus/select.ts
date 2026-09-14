@@ -53,6 +53,22 @@ export type SelectDepartureOptions = {
    * Default false (prefer preferred lines, else any matching destination).
    */
   strictPreferredLine?: boolean;
+  /**
+   * Birgit/Heidi work travel: use walk / stop-to-work / safety buffers
+   * and pick the latest connection that still arrives on time.
+   */
+  workTravelMode?: boolean;
+  /** Minutes to walk from home to the start stop (work travel). */
+  walkToStopMinutes?: number;
+  /** Minutes to walk from destination stop to workplace (work travel). */
+  stopToWorkMinutes?: number;
+  /** Extra minutes before work start that must remain free (work travel). */
+  safetyBufferMinutes?: number;
+  /**
+   * When true, return null if no on-time connection exists
+   * (do not fall back to a late bus). Work travel uses this.
+   */
+  requireOnTime?: boolean;
 };
 
 /** Upcoming departures at/after now from a local stop schedule. */
@@ -142,6 +158,7 @@ function buildPool(
  * - Desired arrival / work start + lead time → latest departure that still fits
  * - estimatedArrivalHHmm used when API provides it — never invent travel time
  * - Heuristic without travel time: depart by (target − leadTime)
+ * - Work travel mode: walk / stop-to-work / safety; latest on-time only
  * - Never invent delay minutes
  */
 export function selectRelevantDeparture(
@@ -151,6 +168,7 @@ export function selectRelevantDeparture(
 ): BusInfo | null {
   if (departures.length === 0) return null;
   const current = getMinutesSinceMidnight(now);
+  const walk = Math.max(0, options?.walkToStopMinutes ?? 0);
   const pool = buildPool(
     departures.filter((d) => !d.cancelled),
     options,
@@ -166,7 +184,8 @@ export function selectRelevantDeparture(
         minutes: parseTimeToMinutes(effective),
       };
     })
-    .filter((d) => d.minutes >= current)
+    // Must still be able to leave home and reach the stop in time.
+    .filter((d) => d.minutes - walk >= current)
     .sort((a, b) => a.minutes - b.minutes);
 
   if (withMinutes.length === 0) {
@@ -199,6 +218,9 @@ export function selectRelevantDeparture(
   }
 
   const lead = options?.leadTimeMinutes ?? 30;
+  const stopToWork = Math.max(0, options?.stopToWorkMinutes ?? 0);
+  const safety = Math.max(0, options?.safetyBufferMinutes ?? 0);
+  const workTravel = Boolean(options?.workTravelMode);
   const target = options?.targetStartHHMM
     ? parseTimeToMinutes(options.targetStartHHMM)
     : null;
@@ -212,12 +234,18 @@ export function selectRelevantDeparture(
     if (withKnownArrival.length) {
       const onTime = withKnownArrival.filter((d) => {
         const arr = parseTimeToMinutes(d.estimatedArrivalHHmm!);
+        if (workTravel) {
+          // arrival + Fußweg zur Arbeit + Puffer ≤ Arbeitsbeginn
+          return arr + stopToWork + safety <= target;
+        }
         return arr <= target - lead;
       });
       if (onTime.length) {
         chosen = onTime[onTime.length - 1];
         matchedToWork = true;
         arrivesInTime = true;
+      } else if (options?.requireOnTime) {
+        return null;
       } else {
         chosen = withMinutes[0];
         matchedToWork = false;
@@ -225,14 +253,18 @@ export function selectRelevantDeparture(
       }
     } else {
       // No reliable travel time — do not invent duration.
-      // Use lead time as departure buffer before target.
-      const latestUseful = target - lead;
+      // Heuristic: depart by (target − lead [− stopToWork − safety in work mode]).
+      const latestUseful = workTravel
+        ? target - lead - stopToWork - safety
+        : target - lead;
       const suitable = withMinutes.filter((d) => d.minutes <= latestUseful);
       if (suitable.length > 0) {
         chosen = suitable[suitable.length - 1];
         matchedToWork = true;
         // Heuristic arrival-fit (buffer before target), not proven vehicle punctuality.
         arrivesInTime = true;
+      } else if (options?.requireOnTime) {
+        return null;
       } else {
         chosen = withMinutes[0];
         matchedToWork = false;
@@ -242,7 +274,7 @@ export function selectRelevantDeparture(
   }
 
   const isRealtime = Boolean(chosen.isRealtime || chosen.realtimeTime);
-  const isTestData = options?.source === "local";
+  const isTestData = options?.source === "local" || options?.source === "cache";
   const status =
     chosen.status ??
     (chosen.cancelled
@@ -261,6 +293,7 @@ export function selectRelevantDeparture(
     minutesUntil: chosen.minutes - current,
     matchedToWork,
     arrivesInTime,
+    estimatedArrivalHHmm: chosen.estimatedArrivalHHmm,
     scheduledDeparture: chosen.scheduledTime,
     realtimeDeparture: chosen.realtimeTime,
     delayMinutes:

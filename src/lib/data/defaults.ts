@@ -16,6 +16,10 @@ export const DEFAULT_DISPLAY_PREFS: DisplayPrefs = {
 export const DEFAULT_TRANSIT_PREFS: TransitPrefs = {
   enabled: true,
   leadTimeMinutes: 30,
+  walkToStopMinutes: 0,
+  stopToWorkMinutes: 0,
+  preparationMinutes: 0,
+  safetyBufferMinutes: 5,
 };
 
 /** Kapfenberg, Steiermark — current home base; override per person / region. */

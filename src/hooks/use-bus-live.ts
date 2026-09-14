@@ -7,8 +7,23 @@ import { useOnlineStatus } from "@/components/admin/offline-banner";
 import { DEFAULT_TRANSIT_PREFS } from "@/lib/data/defaults";
 import { useVisibleInterval } from "@/hooks/use-visible-interval";
 import { formatDataAge } from "@/lib/day/relative-day";
+import type { WorkTravelPlan } from "@/lib/work/travel-planner";
 
 const BUS_POLL_MS = 60_000;
+
+export type WorkTravelLive = Pick<
+  WorkTravelPlan,
+  | "workStart"
+  | "workEnd"
+  | "leaveHome"
+  | "busDeparture"
+  | "arrivalAtWork"
+  | "preparationStart"
+  | "status"
+  | "isTestData"
+  | "matched"
+  | "message"
+>;
 
 export type BusLiveState = {
   next: BusInfo | null;
@@ -28,6 +43,7 @@ export type BusLiveState = {
   unavailable: boolean;
   provider?: string | null;
   dataAgeLabel?: string | null;
+  workTravel?: WorkTravelLive | null;
 };
 
 function isBusEnabled(person: PersonProfile): boolean {
@@ -57,6 +73,7 @@ export function useBusLive(
     unavailable: false,
     provider: null,
     dataAgeLabel: null,
+    workTravel: null,
   }));
   const cacheRef = useRef<BusLiveState | null>(null);
 
@@ -81,6 +98,7 @@ export function useBusLive(
         isTestData: true,
         provider: null,
         dataAgeLabel: null,
+        workTravel: null,
       });
       return;
     }
@@ -115,6 +133,9 @@ export function useBusLive(
             : cached?.message ?? null
           : "Keine Busdaten verfügbar",
         dataAgeLabel: age,
+        workTravel: cached?.workTravel
+          ? { ...cached.workTravel, isTestData: true }
+          : null,
       }));
       return;
     }
@@ -144,6 +165,7 @@ export function useBusLive(
         isTestData?: boolean;
         enabled?: boolean;
         provider?: string;
+        workTravel?: WorkTravelLive | null;
       };
 
       if (!res.ok || json.ok === false) {
@@ -179,6 +201,9 @@ export function useBusLive(
           unavailable: true,
           provider: cached?.provider ?? null,
           dataAgeLabel: age,
+          workTravel: cached?.workTravel
+            ? { ...cached.workTravel, isTestData: true }
+            : null,
         });
         return;
       }
@@ -202,6 +227,7 @@ export function useBusLive(
         unavailable: false,
         provider: json.provider ?? null,
         dataAgeLabel: null,
+        workTravel: json.workTravel ?? null,
       };
       cacheRef.current = nextState;
       try {
@@ -246,6 +272,9 @@ export function useBusLive(
         unavailable: true,
         provider: cached?.provider ?? null,
         dataAgeLabel: formatDataAge(cached?.fetchedAt),
+        workTravel: cached?.workTravel
+          ? { ...cached.workTravel, isTestData: true }
+          : null,
       });
     }
   }, [person, online, regionPreferredProvider]);

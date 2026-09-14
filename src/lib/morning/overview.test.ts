@@ -314,12 +314,13 @@ describe("getMorningOverview", () => {
     expect(o.priorityOrder).toContain("bus");
   });
 
-  it("Heidi has more context than Birgit", () => {
+  it("Heidi work day still keeps coffee off and hints", () => {
     const o = getMorningOverview("heidi", MON_MORNING, {
       person: person("heidi"),
       data: seedAppData,
     });
-    expect(o.visibility.nextActivity).toBe(true);
+    expect(o.workShift?.start).toBe("09:00");
+    expect(o.visibility.workShift).toBe(true);
     expect(o.priorityOrder).toContain("appointments");
     expect(o.priorityOrder).toContain("hint");
     expect(o.coffee.enabled).toBe(false);

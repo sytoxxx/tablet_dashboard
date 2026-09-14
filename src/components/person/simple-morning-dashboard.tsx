@@ -2,10 +2,12 @@
 
 import type { DayIntelligenceView } from "@/lib/day/intelligence";
 import type { MorningOverview } from "@/lib/morning/types";
+import type { WorkTravelLive } from "@/hooks/use-bus-live";
 import { MorningNav } from "@/components/shared/morning-nav";
 import { LiveClock } from "@/components/shared/live-clock";
 import { DayFlowHero } from "@/components/person/day-flow-hero";
 import { WorkShiftSection } from "@/components/person/work-shift";
+import { WorkTravelSection } from "@/components/person/work-travel-section";
 import { BusSection } from "@/components/person/bus-section";
 import { WeatherSection } from "@/components/person/weather-section";
 import { CalendarSection } from "@/components/person/calendar-section";
@@ -15,8 +17,7 @@ import { cn } from "@/lib/utils";
 
 /**
  * Extremely simple morning layout for Birgit (and Heidi).
- * Phase 9: Birgit stays Arbeit → Bus → Wetter (+ optional hint).
- * Heidi gets a little more context (plan + mitnehmen + termine if present).
+ * Work travel: Arbeit + Bus result only — no provider jargon.
  */
 export function SimpleMorningDashboard({
   view,
@@ -33,6 +34,7 @@ export function SimpleMorningDashboard({
   busUnavailable,
   busDataAgeLabel,
   weatherPlace,
+  workTravel,
 }: {
   view: DayIntelligenceView;
   overview: MorningOverview;
@@ -48,6 +50,7 @@ export function SimpleMorningDashboard({
   busUnavailable?: boolean;
   busDataAgeLabel?: string | null;
   weatherPlace?: string | null;
+  workTravel?: WorkTravelLive | null;
 }) {
   const headline = overview.greeting;
   const isBirgit = mode === "work";
@@ -61,6 +64,13 @@ export function SimpleMorningDashboard({
     view.displayPrefs.showWeather && overview.visibility.weather;
   const showHint =
     overview.visibility.hint && Boolean(overview.importantHint);
+
+  const useWorkTravel =
+    mode === "work" &&
+    workTravel &&
+    (workTravel.status === "on-time" ||
+      workTravel.status === "no-connection" ||
+      workTravel.status === "cancelled");
 
   return (
     <div className="morning-shell mx-auto flex w-full max-w-6xl flex-col gap-5 px-5 py-5 sm:gap-6 sm:px-8 sm:py-6 lg:px-10 landscape-tablet:gap-4 landscape-tablet:py-4">
@@ -95,7 +105,14 @@ export function SimpleMorningDashboard({
       >
         <div className="space-y-6 landscape-tablet:space-y-5">
           {mode === "work" ? (
-            <WorkShiftSection shift={view.workShift} simple />
+            useWorkTravel ? (
+              <WorkTravelSection
+                plan={workTravel}
+                workLabel={view.workShift?.label}
+              />
+            ) : (
+              <WorkShiftSection shift={view.workShift} simple />
+            )
           ) : (
             <>
               <DayFlowHero flow={view.dayFlow} />
@@ -145,7 +162,7 @@ export function SimpleMorningDashboard({
         </div>
 
         <aside className="space-y-5 landscape-tablet:space-y-4">
-          {showBus ? (
+          {showBus && !useWorkTravel ? (
             <BusSection
               bus={view.nextBus}
               stopName={view.busStopName}

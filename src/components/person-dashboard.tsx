@@ -131,6 +131,7 @@ export function PersonDashboard({
         busUnavailable={liveMeta.busUnavailable}
         busDataAgeLabel={liveMeta.busDataAgeLabel}
         weatherPlace={liveMeta.weatherPlace}
+        workTravel={bus.workTravel}
       />
     );
   }
@@ -139,7 +140,7 @@ export function PersonDashboard({
       view={overviewView}
       overview={overview}
       wallNow={wallNow}
-      mode="personal"
+      mode={person.schedule.type === "work" ? "work" : "personal"}
       simple
       busMessage={liveMeta.busMessage}
       busEmptyTitle={liveMeta.busEmptyTitle}
@@ -150,6 +151,7 @@ export function PersonDashboard({
       busUnavailable={liveMeta.busUnavailable}
       busDataAgeLabel={liveMeta.busDataAgeLabel}
       weatherPlace={liveMeta.weatherPlace}
+      workTravel={bus.workTravel}
     />
   );
 }

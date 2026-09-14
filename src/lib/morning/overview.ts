@@ -143,7 +143,7 @@ function buildVisibility(
     appointments: !isBirgit && overview.appointments.length > 0,
     importantTasks: personId === "levi" && overview.importantTasks.length > 0,
     coffee: overview.coffee.enabled && personId === "levi",
-    workShift: isBirgit || (isHeidi && overview.workShift !== null),
+    workShift: isBirgit || isHeidi || overview.workShift !== null,
     hint: Boolean(overview.importantHint) && (isBirgit || isHeidi),
   };
 }

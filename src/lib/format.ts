@@ -51,6 +51,15 @@ export function parseTimeToMinutes(time: string): number {
   return (h ?? 0) * 60 + (m ?? 0);
 }
 
+/** Format minutes-since-midnight as HH:MM (wraps across midnight). */
+export function minutesToHHmm(totalMinutes: number): string {
+  const day = 24 * 60;
+  const normalized = ((Math.trunc(totalMinutes) % day) + day) % day;
+  const h = Math.floor(normalized / 60);
+  const m = normalized % 60;
+  return `${String(h).padStart(2, "0")}:${String(m).padStart(2, "0")}`;
+}
+
 export function getMinutesSinceMidnight(date: Date = new Date()): number {
   return date.getHours() * 60 + date.getMinutes();
 }
