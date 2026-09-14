@@ -11,6 +11,7 @@ Minimaler Morgen-Tablet-Dashboard (deutsch) für ein wandmontiertes Android-Tabl
 ## Lokal starten
 
 ```bash
+cp .env.example .env.local   # optional: OPENAI_API_KEY für echte Vision-Analyse
 npm install
 npm run build
 npm run start
@@ -18,17 +19,18 @@ npm run start
 
 Server: Port **43127** → [http://127.0.0.1:43127](http://127.0.0.1:43127)
 
-Dev: `npm run dev` (gleicher Port).
+Ohne `OPENAI_API_KEY` liefert `/api/plan/analyze` eine realistische **Mock-Analyse**.
 
 ## Routen
 
 | Route | Inhalt |
 | --- | --- |
-| `/` | Home — nur Guten Morgen + Levi / Birgit / Heidi |
-| `/person/[id]` | Tagesansicht (weekday + live clock) |
+| `/` | Home — Guten Morgen + Levi / Birgit / Heidi |
+| `/person/[id]` | Tagesansicht |
 | `/kaffee` | Timer |
-| `/einstellungen` | Admin-Hub |
-| `/plan-aktualisieren` | Upload-Vorschau (kein OCR) |
+| `/einstellungen` | Admin |
+| `/plan-aktualisieren` | Upload → Analyse → Bestätigen |
+| `/api/plan/analyze` | Plan-KI (Mock oder OpenAI) |
 
 ## Phasen
 
