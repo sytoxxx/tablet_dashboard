@@ -14,11 +14,7 @@ function isPersonId(value: string): value is PersonId {
 
 /**
  * GET /api/bus/departures?personId=birgit
- * Optional override body fields via query: stopName, externalId (admin preview).
- *
- * Client may send cached person snapshot via headers later; for now we resolve
- * seed + accept query overrides so Admin-edited LocalStorage data is passed
- * from the client as JSON body on POST for accuracy.
+ * Prefers client-provided profile (LocalStorage) via header or POST body.
  */
 export async function GET(request: Request) {
   const { searchParams } = new URL(request.url);
@@ -32,7 +28,6 @@ export async function GET(request: Request) {
     return NextResponse.json({ error: "Person nicht gefunden." }, { status: 404 });
   }
 
-  // Prefer client-provided profile snapshot (LocalStorage may differ from seed)
   const profileHeader = request.headers.get("x-app-person");
   let person: PersonProfile = seed;
   if (profileHeader) {
@@ -74,14 +69,21 @@ async function respondForPerson(person: PersonProfile) {
       });
     }
 
+    const prefs = {
+      ...DEFAULT_TRANSIT_PREFS,
+      ...person.transitPrefs,
+    };
     const local = departuresFromLocalStop(person.busStop);
-    const preferLive = Boolean(person.busStop.externalId) || person.busStop.provider === "wienerlinien";
-    const provider = createBusProvider(preferLive);
-    const result = await provider.getDepartures({
+    const preferredProvider = person.busStop.provider ?? "auto";
+    const query = {
       stopName: person.busStop.name,
       externalId: person.busStop.externalId,
       localDepartures: local,
-    });
+      preferredLines: prefs.preferredLines,
+      destinationHint: prefs.destinationHint ?? prefs.destinationStop?.name,
+    };
+    const provider = createBusProvider(preferredProvider, query);
+    const result = await provider.getDepartures(query);
 
     const now = new Date();
     const work = getWorkShiftForDate(person, now);
@@ -92,15 +94,16 @@ async function respondForPerson(person: PersonProfile) {
           ]?.lessons?.[0]?.time
         : null;
 
-    const targetStart = work?.start ?? schoolStart ?? null;
-    const lead =
-      person.transitPrefs?.leadTimeMinutes ?? DEFAULT_TRANSIT_PREFS.leadTimeMinutes;
+    const targetStart =
+      prefs.desiredArrivalHHmm || work?.start || schoolStart || null;
 
     const next = selectRelevantDeparture(result.departures, now, {
       targetStartHHMM: targetStart,
-      leadTimeMinutes: lead,
+      leadTimeMinutes: prefs.leadTimeMinutes,
       stopName: result.stopName,
       source: result.source,
+      preferredLines: prefs.preferredLines,
+      destinationHint: prefs.destinationHint,
     });
 
     const upcoming = result.departures.slice(0, 5).map((d) => ({
@@ -119,11 +122,10 @@ async function respondForPerson(person: PersonProfile) {
       provider: result.provider,
       warning: result.warning,
       targetStart,
-      leadTimeMinutes: lead,
+      leadTimeMinutes: prefs.leadTimeMinutes,
+      destinationHint: prefs.destinationHint ?? null,
       fetchedAt: new Date().toISOString(),
-      message: next
-        ? null
-        : "Heute keine weitere Verbindung",
+      message: next ? null : "Heute keine weitere Verbindung",
     });
   } catch {
     return NextResponse.json(

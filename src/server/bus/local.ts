@@ -1,8 +1,8 @@
 import type { BusProvider, BusProviderResult, BusQuery } from "@/server/bus/types";
 
-/** Uses the person's saved local timetable — no network. */
+/** Local timetable / mock — no network. */
 export class LocalBusProvider implements BusProvider {
-  readonly name = "local";
+  readonly name: string = "local";
 
   async getDepartures(query: BusQuery): Promise<BusProviderResult> {
     return {
@@ -12,4 +12,9 @@ export class LocalBusProvider implements BusProvider {
       provider: this.name,
     };
   }
+}
+
+/** Alias for explicit mock mode. */
+export class MockBusProvider extends LocalBusProvider {
+  override readonly name = "mock";
 }

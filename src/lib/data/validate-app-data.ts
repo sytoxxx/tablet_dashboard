@@ -1,12 +1,39 @@
-import type { AppData, PersonId, PersonProfile, Schedule, WeatherLocation } from "@/lib/types";
+import type {
+  AppData,
+  BusProviderPreference,
+  DestinationStop,
+  PersonId,
+  PersonProfile,
+  RegionConfig,
+  Schedule,
+  TransitModePreference,
+  TransitPrefs,
+  WeatherLocation,
+} from "@/lib/types";
 import {
   DEFAULT_DISPLAY_PREFS,
+  DEFAULT_REGION,
   DEFAULT_TRANSIT_PREFS,
   DEFAULT_WEATHER_LOCATION,
 } from "@/lib/data/defaults";
 import { seedAppData } from "@/data/seed";
 
 const PERSON_IDS: PersonId[] = ["levi", "birgit", "heidi"];
+const BUS_PROVIDERS: BusProviderPreference[] = [
+  "auto",
+  "verbund-steiermark",
+  "vao",
+  "wienerlinien",
+  "local",
+  "mock",
+];
+const TRANSIT_MODES: TransitModePreference[] = [
+  "bus",
+  "tram",
+  "subway",
+  "train",
+  "other",
+];
 
 function isObject(value: unknown): value is Record<string, unknown> {
   return Boolean(value) && typeof value === "object" && !Array.isArray(value);
@@ -26,6 +53,86 @@ function sanitizeSchedule(raw: unknown, fallback: Schedule): Schedule {
   return { type, week: week as Schedule["week"] } as Schedule;
 }
 
+function sanitizeTransitPrefs(raw: unknown, fallback?: TransitPrefs): TransitPrefs {
+  const base = { ...DEFAULT_TRANSIT_PREFS, ...fallback };
+  if (!isObject(raw)) return base;
+  const lead =
+    typeof raw.leadTimeMinutes === "number"
+      ? Math.min(180, Math.max(5, raw.leadTimeMinutes))
+      : base.leadTimeMinutes;
+  const desired =
+    typeof raw.desiredArrivalHHmm === "string" &&
+    /^\d{2}:\d{2}$/.test(raw.desiredArrivalHHmm.trim())
+      ? raw.desiredArrivalHHmm.trim()
+      : base.desiredArrivalHHmm;
+  const preferredLines = Array.isArray(raw.preferredLines)
+    ? raw.preferredLines
+        .filter((l): l is string => typeof l === "string")
+        .map((l) => l.replace(/[<>]/g, "").slice(0, 16))
+        .filter(Boolean)
+        .slice(0, 8)
+    : base.preferredLines;
+  const preferredModes = Array.isArray(raw.preferredModes)
+    ? raw.preferredModes.filter((m): m is TransitModePreference =>
+        TRANSIT_MODES.includes(m as TransitModePreference),
+      )
+    : base.preferredModes;
+  let destinationStop: DestinationStop | undefined = base.destinationStop;
+  if (isObject(raw.destinationStop)) {
+    const name = sanitizeString(raw.destinationStop.name, "", 80);
+    if (name) {
+      destinationStop = {
+        name,
+        externalId:
+          typeof raw.destinationStop.externalId === "string"
+            ? raw.destinationStop.externalId.replace(/[<>\s]/g, "").slice(0, 64) ||
+              undefined
+            : undefined,
+      };
+    }
+  }
+  const destinationHint =
+    typeof raw.destinationHint === "string"
+      ? sanitizeString(raw.destinationHint, "", 40) || undefined
+      : base.destinationHint;
+
+  return {
+    leadTimeMinutes: lead,
+    desiredArrivalHHmm: desired,
+    preferredLines: preferredLines?.length ? preferredLines : undefined,
+    preferredModes: preferredModes?.length ? preferredModes : undefined,
+    destinationStop,
+    destinationHint,
+  };
+}
+
+function sanitizeBusStop(
+  raw: unknown,
+  fallback: PersonProfile["busStop"],
+): PersonProfile["busStop"] {
+  if (raw === null) return null;
+  if (!isObject(raw)) return fallback;
+  const name = sanitizeString(raw.name, fallback?.name ?? "Haltestelle", 80);
+  const externalId =
+    typeof raw.externalId === "string"
+      ? raw.externalId.replace(/[<>\s]/g, "").slice(0, 64) || undefined
+      : fallback?.externalId;
+  const provider =
+    typeof raw.provider === "string" &&
+    BUS_PROVIDERS.includes(raw.provider as BusProviderPreference)
+      ? (raw.provider as BusProviderPreference)
+      : (fallback?.provider ?? "local");
+  const departures = Array.isArray(raw.departures)
+    ? (raw.departures as NonNullable<PersonProfile["busStop"]>["departures"]).slice(0, 48)
+    : (fallback?.departures ?? []);
+  return {
+    name,
+    departures,
+    externalId,
+    provider,
+  };
+}
+
 function sanitizePerson(raw: unknown, fallback: PersonProfile): PersonProfile | null {
   if (!isObject(raw)) return null;
   const id = raw.id;
@@ -43,7 +150,7 @@ function sanitizePerson(raw: unknown, fallback: PersonProfile): PersonProfile | 
     appointments: Array.isArray(raw.appointments)
       ? (raw.appointments as PersonProfile["appointments"]).slice(0, 100)
       : fallback.appointments,
-    busStop: (raw.busStop as PersonProfile["busStop"]) ?? fallback.busStop,
+    busStop: sanitizeBusStop(raw.busStop, fallback.busStop),
     tasks: Array.isArray(raw.tasks)
       ? (raw.tasks as PersonProfile["tasks"]).slice(0, 100)
       : fallback.tasks,
@@ -71,31 +178,20 @@ function sanitizePerson(raw: unknown, fallback: PersonProfile): PersonProfile | 
             fallback.personalSettings.preferredCoffee ?? "",
             40,
           ),
-          notes: sanitizeString(raw.personalSettings.notes, fallback.personalSettings.notes ?? "", 200),
+          notes: sanitizeString(
+            raw.personalSettings.notes,
+            fallback.personalSettings.notes ?? "",
+            200,
+          ),
         }
       : fallback.personalSettings,
     displayPrefs: {
       ...DEFAULT_DISPLAY_PREFS,
-      ...(isObject(raw.displayPrefs) ? (raw.displayPrefs as Partial<typeof DEFAULT_DISPLAY_PREFS>) : {}),
-    },
-    transitPrefs: {
-      ...DEFAULT_TRANSIT_PREFS,
-      ...(isObject(raw.transitPrefs)
-        ? {
-            leadTimeMinutes:
-              typeof (raw.transitPrefs as { leadTimeMinutes?: number }).leadTimeMinutes ===
-              "number"
-                ? Math.min(
-                    180,
-                    Math.max(
-                      5,
-                      (raw.transitPrefs as { leadTimeMinutes: number }).leadTimeMinutes,
-                    ),
-                  )
-                : DEFAULT_TRANSIT_PREFS.leadTimeMinutes,
-          }
+      ...(isObject(raw.displayPrefs)
+        ? (raw.displayPrefs as Partial<typeof DEFAULT_DISPLAY_PREFS>)
         : {}),
     },
+    transitPrefs: sanitizeTransitPrefs(raw.transitPrefs, fallback.transitPrefs),
     weatherLocation: sanitizeWeatherLocation(raw.weatherLocation, fallback.weatherLocation),
   };
 }
@@ -112,6 +208,28 @@ function sanitizeWeatherLocation(
     place: sanitizeString(raw.place, base.place, 60),
     latitude,
     longitude,
+  };
+}
+
+function sanitizeRegion(raw: unknown, fallback?: RegionConfig): RegionConfig {
+  const base = fallback ?? DEFAULT_REGION;
+  if (!isObject(raw)) return base;
+  const preferred =
+    typeof raw.preferredBusProvider === "string" &&
+    BUS_PROVIDERS.includes(raw.preferredBusProvider as BusProviderPreference)
+      ? (raw.preferredBusProvider as BusProviderPreference)
+      : base.preferredBusProvider;
+  return {
+    label: sanitizeString(raw.label, base.label, 120),
+    notes:
+      typeof raw.notes === "string"
+        ? sanitizeString(raw.notes, base.notes ?? "", 400) || undefined
+        : base.notes,
+    defaultWeatherLocation: sanitizeWeatherLocation(
+      raw.defaultWeatherLocation,
+      base.defaultWeatherLocation,
+    )!,
+    preferredBusProvider: preferred,
   };
 }
 
@@ -144,7 +262,6 @@ export function validateAppDataImport(
     if (person) persons.push(person);
   }
 
-  // Ensure all three core profiles exist
   for (const id of PERSON_IDS) {
     if (!persons.some((p) => p.id === id)) {
       const seed = seedById.get(id);
@@ -162,6 +279,7 @@ export function validateAppDataImport(
       version: 3,
       persons,
       coffeeDrinks,
+      region: sanitizeRegion(raw.region, seedAppData.region ?? DEFAULT_REGION),
       meta: isObject(raw.meta)
         ? {
             exportedAt: sanitizeString(raw.meta.exportedAt, "", 40) || undefined,
@@ -172,23 +290,26 @@ export function validateAppDataImport(
   };
 }
 
-export function migrateAppData(raw: AppData | (Omit<AppData, "version"> & { version: 2 })): AppData {
+export function migrateAppData(
+  raw: AppData | (Omit<AppData, "version"> & { version: 2 }),
+): AppData {
   const persons = raw.persons.map((p) => ({
     ...p,
     displayPrefs: {
       ...DEFAULT_DISPLAY_PREFS,
       ...(p as PersonProfile).displayPrefs,
     },
-    transitPrefs: {
-      ...DEFAULT_TRANSIT_PREFS,
-      ...(p as PersonProfile).transitPrefs,
-    },
+    transitPrefs: sanitizeTransitPrefs(
+      (p as PersonProfile).transitPrefs,
+      (p as PersonProfile).transitPrefs,
+    ),
     weatherLocation: (p as PersonProfile).weatherLocation ?? DEFAULT_WEATHER_LOCATION,
   }));
   return {
     version: 3,
     persons,
     coffeeDrinks: raw.coffeeDrinks,
+    region: sanitizeRegion((raw as AppData).region, DEFAULT_REGION),
     meta: (raw as AppData).meta,
   };
 }

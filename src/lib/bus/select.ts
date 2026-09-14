@@ -6,8 +6,13 @@ export type LiveDeparture = {
   destination: string;
   /** HH:MM local */
   time: string;
-  /** Absolute ms if known */
+  /** Absolute ms if known from live API */
   atMs?: number;
+  /**
+   * Estimated arrival at destination if the API provides it.
+   * Never invent — leave undefined when unknown.
+   */
+  estimatedArrivalHHmm?: string;
 };
 
 /** Upcoming departures at/after now from a local stop schedule. */
@@ -48,10 +53,34 @@ export function getNextBus(
   };
 }
 
+function matchesPreferredLines(
+  d: LiveDeparture,
+  preferredLines?: string[],
+): boolean {
+  if (!preferredLines?.length) return true;
+  return preferredLines.some(
+    (l) => l.trim().toLowerCase() === d.line.trim().toLowerCase(),
+  );
+}
+
+function matchesDestinationHint(
+  d: LiveDeparture,
+  destinationHint?: string,
+): boolean {
+  if (!destinationHint?.trim()) return true;
+  const hint = destinationHint.trim().toLowerCase();
+  const dest = d.destination.toLowerCase();
+  return dest.includes(hint) || hint.includes(dest.slice(0, Math.min(8, dest.length)));
+}
+
 /**
- * Prefer a bus that arrives before (targetStart - leadTime).
- * If travel duration unknown, treat departure time as arrival estimate.
- * Falls back to wall-clock next departure when no suitable bus exists.
+ * Intelligent bus choice for morning dashboards.
+ *
+ * - Prefer preferred line + destination hint when set
+ * - If target arrival / work start + lead time: pick the latest departure that
+ *   still leaves enough buffer (when API travel time is unknown)
+ * - If estimatedArrivalHHmm exists: use it for on-time checks — never invent travel time
+ * - Falls back to wall-clock next matching departure
  */
 export function selectRelevantDeparture(
   departures: LiveDeparture[],
@@ -61,11 +90,21 @@ export function selectRelevantDeparture(
     leadTimeMinutes?: number;
     stopName: string;
     source?: BusInfo["source"];
+    preferredLines?: string[];
+    destinationHint?: string;
   },
 ): BusInfo | null {
   if (departures.length === 0) return null;
   const current = getMinutesSinceMidnight(now);
-  const withMinutes = departures
+
+  const filtered = departures.filter(
+    (d) =>
+      matchesPreferredLines(d, options?.preferredLines) &&
+      matchesDestinationHint(d, options?.destinationHint),
+  );
+  const pool = filtered.length ? filtered : departures;
+
+  const withMinutes = pool
     .map((d) => ({
       ...d,
       minutes: parseTimeToMinutes(d.time),
@@ -82,13 +121,38 @@ export function selectRelevantDeparture(
 
   let chosen = withMinutes[0];
   let matchedToWork = false;
+  let arrivesInTime: boolean | null = null;
 
   if (target !== null) {
-    const latestUseful = target - lead;
-    const suitable = withMinutes.filter((d) => d.minutes <= latestUseful);
-    if (suitable.length > 0) {
-      chosen = suitable[suitable.length - 1];
-      matchedToWork = true;
+    const withKnownArrival = withMinutes.filter((d) => d.estimatedArrivalHHmm);
+    if (withKnownArrival.length) {
+      const onTime = withKnownArrival.filter((d) => {
+        const arr = parseTimeToMinutes(d.estimatedArrivalHHmm!);
+        return arr <= target - lead;
+      });
+      if (onTime.length) {
+        chosen = onTime[onTime.length - 1];
+        matchedToWork = true;
+        arrivesInTime = true;
+      } else {
+        chosen = withMinutes[0];
+        matchedToWork = false;
+        arrivesInTime = false;
+      }
+    } else {
+      // No reliable travel time from API — do not invent.
+      // Heuristic: depart before (target - leadTime); pick the latest such bus.
+      const latestUseful = target - lead;
+      const suitable = withMinutes.filter((d) => d.minutes <= latestUseful);
+      if (suitable.length > 0) {
+        chosen = suitable[suitable.length - 1];
+        matchedToWork = true;
+        arrivesInTime = null;
+      } else {
+        chosen = withMinutes[0];
+        matchedToWork = false;
+        arrivesInTime = false;
+      }
     }
   }
 
@@ -99,6 +163,7 @@ export function selectRelevantDeparture(
     stopName: options?.stopName ?? "",
     minutesUntil: chosen.minutes - current,
     matchedToWork,
+    arrivesInTime,
     source: options?.source ?? "local",
   };
 }

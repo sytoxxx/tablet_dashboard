@@ -35,6 +35,7 @@ export function PersonDashboard({
     busMessage: bus.message,
     busUpcoming: bus.upcoming,
     busMatched: bus.matchedToWork,
+    busArrivesInTime: bus.arrivesInTime,
     busFetchedAt: bus.fetchedAt,
     weatherPlace: weather.place,
     busLoading: bus.loading && !bus.fetchedAt,

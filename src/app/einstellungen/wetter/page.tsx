@@ -12,7 +12,7 @@ export default function WetterSettingsPage() {
   return (
     <AdminShell
       title="Wetter"
-      subtitle="Ort mit Koordinaten für Open-Meteo. Keine Keys nötig. Morning zeigt nur Temperatur + Tipp."
+      subtitle="Ort mit Koordinaten für Open-Meteo. Default: Kapfenberg (Region). Keine Keys nötig."
     >
       {data.persons.map((person) => {
         const loc = person.weatherLocation ?? DEFAULT_WEATHER_LOCATION;

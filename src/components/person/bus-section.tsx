@@ -39,15 +39,20 @@ export function BusSection({
           <p className="mt-2 text-lg text-[color:var(--ink)]">
             {formatMinutesUntil(bus.minutesUntil)}
           </p>
+          {simple && bus.arrivesInTime === true ? (
+            <p className="mt-2 text-base text-[color:var(--ink)]">Du kommst rechtzeitig an.</p>
+          ) : null}
           {!simple ? (
             <p className="mt-1 text-[color:var(--quiet)]">
               Linie {bus.line} → {bus.destination}
             </p>
           ) : null}
-          <p className="mt-1 text-[color:var(--quiet)]">
-            {stopName ?? bus.stopName}
-            {matchedToWork && !simple ? " · passend zur Arbeit" : null}
-          </p>
+          {!simple ? (
+            <p className="mt-1 text-[color:var(--quiet)]">
+              {stopName ?? bus.stopName}
+              {matchedToWork ? " · passend zur Arbeit" : null}
+            </p>
+          ) : null}
           {upcoming && upcoming.length > 1 && !simple ? (
             <p className="mt-2 text-sm text-[color:var(--quiet)]">
               Danach:{" "}

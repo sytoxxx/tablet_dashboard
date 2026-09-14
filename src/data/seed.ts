@@ -1,4 +1,5 @@
 import type { AppData, CoffeeDrink, PersonProfile } from "@/lib/types";
+import { DEFAULT_REGION, KAPFENBERG_WEATHER_LOCATION } from "@/lib/data/defaults";
 
 function leviWeek() {
   const mon = {
@@ -46,18 +47,18 @@ function leviWeek() {
 function birgitWeek() {
   const early = {
     label: "Frühschicht Pflege",
-    start: "06:30",
-    end: "14:30",
-    location: "Station 3",
-    notes: "Übergabe um 14:15 nicht vergessen.",
+    start: "06:00",
+    end: "14:00",
+    location: "Bruck an der Mur",
+    notes: "Übergabe nicht vergessen.",
     bringItems: ["Dienstausweis", "Brotzeit", "Bequeme Schuhe"],
   };
   const late = {
     label: "Spätschicht Pflege",
     start: "13:30",
     end: "21:30",
-    location: "Station 3",
-    notes: "Parkplatz B nutzen.",
+    location: "Bruck an der Mur",
+    notes: "Parkplatz nutzen.",
     bringItems: ["Dienstausweis", "Abendbrot"],
   };
   return {
@@ -108,16 +109,18 @@ export const seedPersons: PersonProfile[] = [
       { id: "la2", title: "Abendessen zu Hause", time: "18:00" },
       { id: "la3", title: "Bandprobe", time: "16:00", weekday: "thu" },
     ],
+    // Start/Ziel-Haltestellen bewusst ohne echte Stop-IDs — nur im Admin setzen.
     busStop: {
-      name: "Schulstraße",
+      name: "Start (Kapfenberg — im Admin setzen)",
       provider: "local",
       departures: [
-        { id: "lb1", line: "620", destination: "Bahnhof", time: "07:12" },
-        { id: "lb2", line: "620", destination: "Bahnhof", time: "07:42" },
-        { id: "lb3", line: "620", destination: "Bahnhof", time: "08:12" },
-        { id: "lb4", line: "12", destination: "Stadtmitte", time: "12:05" },
-        { id: "lb5", line: "620", destination: "Bahnhof", time: "15:40" },
-        { id: "lb6", line: "620", destination: "Bahnhof", time: "16:10" },
+        // TESTDATEN Region Kapfenberg/Bruck — keine Live-Abfahrten
+        { id: "lb1", line: "1", destination: "Kapfenberg Europaplatz [TEST]", time: "07:12" },
+        { id: "lb2", line: "1", destination: "Kapfenberg Europaplatz [TEST]", time: "07:42" },
+        { id: "lb3", line: "1", destination: "Kapfenberg Europaplatz [TEST]", time: "08:12" },
+        { id: "lb4", line: "2", destination: "Schirmitzbühel Ort [TEST]", time: "12:05" },
+        { id: "lb5", line: "1", destination: "Kapfenberg Europaplatz [TEST]", time: "15:40" },
+        { id: "lb6", line: "1", destination: "Kapfenberg Europaplatz [TEST]", time: "16:10" },
       ],
     },
     tasks: [
@@ -133,8 +136,13 @@ export const seedPersons: PersonProfile[] = [
     },
     personalSettings: { preferredCoffee: "espresso", notes: "Schultasche am Abend packen." },
     displayPrefs: { showBus: true, showWeather: true, showCalendar: true, showTasks: true },
-    transitPrefs: { leadTimeMinutes: 25 },
-    weatherLocation: { place: "Wien", latitude: 48.2082, longitude: 16.3738 },
+    transitPrefs: {
+      leadTimeMinutes: 25,
+      preferredModes: ["bus"],
+      destinationStop: { name: "Ziel (im Admin setzen)" },
+      destinationHint: "Europaplatz",
+    },
+    weatherLocation: { ...KAPFENBERG_WEATHER_LOCATION },
   },
   {
     id: "birgit",
@@ -149,15 +157,16 @@ export const seedPersons: PersonProfile[] = [
       { id: "ba2", title: "Anruf Familie", time: "19:00" },
     ],
     busStop: {
-      name: "Klinik Nord",
+      name: "Start (Kapfenberg — im Admin setzen)",
       provider: "local",
       departures: [
-        { id: "bb1", line: "41", destination: "Klinik", time: "05:25" },
-        { id: "bb2", line: "41", destination: "Klinik", time: "05:55" },
-        { id: "bb3", line: "41", destination: "Klinik", time: "06:25" },
-        { id: "bb4", line: "41", destination: "Bahnhof", time: "14:45" },
-        { id: "bb5", line: "41", destination: "Bahnhof", time: "15:15" },
-        { id: "bb6", line: "7", destination: "Markt", time: "18:30" },
+        // TESTDATEN Richtung Bruck/Mur — keine Live-Abfahrten
+        { id: "bb1", line: "1", destination: "Bruck/Mur Bahnhof [TEST]", time: "05:12" },
+        { id: "bb2", line: "1", destination: "Bruck/Mur Bahnhof [TEST]", time: "05:32" },
+        { id: "bb3", line: "1", destination: "Bruck/Mur Bahnhof [TEST]", time: "05:52" },
+        { id: "bb4", line: "1", destination: "Koloman-Wallisch-Platz [TEST]", time: "14:45" },
+        { id: "bb5", line: "1", destination: "Bruck/Mur Bahnhof [TEST]", time: "15:15" },
+        { id: "bb6", line: "2", destination: "Kapfenberg Europaplatz [TEST]", time: "18:30" },
       ],
     },
     tasks: [
@@ -172,8 +181,14 @@ export const seedPersons: PersonProfile[] = [
     },
     personalSettings: { preferredCoffee: "cappuccino", notes: "Schlüsselbund mit Chip." },
     displayPrefs: { showBus: true, showWeather: true, showCalendar: true, showTasks: true },
-    transitPrefs: { leadTimeMinutes: 30 },
-    weatherLocation: { place: "Wien", latitude: 48.22, longitude: 16.35 },
+    transitPrefs: {
+      leadTimeMinutes: 30,
+      desiredArrivalHHmm: "06:00",
+      preferredModes: ["bus"],
+      destinationStop: { name: "Ziel Bruck/Mur (im Admin setzen)" },
+      destinationHint: "Bruck",
+    },
+    weatherLocation: { ...KAPFENBERG_WEATHER_LOCATION },
   },
   {
     id: "heidi",
@@ -187,7 +202,17 @@ export const seedPersons: PersonProfile[] = [
       { id: "ha1", title: "Garten gießen", time: "16:30" },
       { id: "ha2", title: "Serie schauen", time: "20:00", weekday: "fri" },
     ],
-    busStop: null,
+    busStop: {
+      name: "Start (im Admin setzen)",
+      provider: "local",
+      departures: [
+        // TESTDATEN Orientierung Apfelmoar — keine Live-Abfahrten
+        { id: "hb1", line: "2", destination: "Apfelmoar Einkaufszentrum [TEST]", time: "09:10" },
+        { id: "hb2", line: "2", destination: "Apfelmoar Einkaufszentrum [TEST]", time: "10:10" },
+        { id: "hb3", line: "2", destination: "Apfelmoar Einkaufszentrum [TEST]", time: "11:10" },
+        { id: "hb4", line: "1", destination: "Kapfenberg Europaplatz [TEST]", time: "14:20" },
+      ],
+    },
     tasks: [
       { id: "h1", label: "Blumen gießen", done: false, important: true },
       { id: "h2", label: "Rezept für Abendessen", done: false, important: false },
@@ -199,9 +224,14 @@ export const seedPersons: PersonProfile[] = [
       clothingTip: "👕 Leichte Kleidung",
     },
     personalSettings: { preferredCoffee: "latte", notes: "Ruhiger Vormittag bevorzugen." },
-    displayPrefs: { showBus: false, showWeather: true, showCalendar: true, showTasks: true },
-    transitPrefs: { leadTimeMinutes: 30 },
-    weatherLocation: { place: "Wien", latitude: 48.2, longitude: 16.37 },
+    displayPrefs: { showBus: true, showWeather: true, showCalendar: true, showTasks: true },
+    transitPrefs: {
+      leadTimeMinutes: 30,
+      preferredModes: ["bus"],
+      destinationStop: { name: "Ziel Apfelmoar (im Admin setzen)" },
+      destinationHint: "Apfelmoar",
+    },
+    weatherLocation: { ...KAPFENBERG_WEATHER_LOCATION },
   },
 ];
 
@@ -251,4 +281,5 @@ export const seedAppData: AppData = {
   version: 3,
   persons: seedPersons,
   coffeeDrinks: seedCoffeeDrinks,
+  region: { ...DEFAULT_REGION },
 };

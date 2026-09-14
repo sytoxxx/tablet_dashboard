@@ -65,15 +65,36 @@ export type BusDeparture = {
   time: string;
 };
 
+export type BusProviderPreference =
+  | "auto"
+  | "verbund-steiermark"
+  | "vao"
+  | "wienerlinien"
+  | "local"
+  | "mock";
+
+export type TransitModePreference = "bus" | "tram" | "subway" | "train" | "other";
+
+/**
+ * Home / start stop for a person.
+ * Concrete StopPointRef / VAO id / RBL must be set in Admin — never invent.
+ */
 export type BusStop = {
   name: string;
+  /** Local/mock timetable rows (fallback + offline). Marked as Testdaten in seed. */
   departures: BusDeparture[];
   /**
-   * Optional Wiener Linien RBL (Haltepunkt-ID) for live departures.
-   * Empty → use local `departures` schedule only.
+   * Provider-specific stop reference (StopPointRef / VAO id / Wiener Linien RBL).
+   * Empty → use local `departures` only.
    */
   externalId?: string;
-  provider?: "local" | "wienerlinien";
+  provider?: BusProviderPreference;
+};
+
+/** Destination stop — configurable per person; do not hardcode production IDs. */
+export type DestinationStop = {
+  name: string;
+  externalId?: string;
 };
 
 export type WeatherLocation = {
@@ -82,9 +103,29 @@ export type WeatherLocation = {
   longitude: number;
 };
 
+/** Deployable region defaults (Kapfenberg today — other places later). */
+export type RegionConfig = {
+  label: string;
+  /** Free-text orientation, e.g. Zone 103 / Bruck & Kapfenberg. */
+  notes?: string;
+  defaultWeatherLocation: WeatherLocation;
+  preferredBusProvider?: BusProviderPreference;
+};
+
 export type TransitPrefs = {
-  /** Minutes before work/school start when a bus should arrive. */
+  /** Minutes buffer before desired arrival / work / school start. */
   leadTimeMinutes: number;
+  /** Optional HH:MM override; empty → use work/school start from schedule. */
+  desiredArrivalHHmm?: string;
+  preferredLines?: string[];
+  preferredModes?: TransitModePreference[];
+  /** Destination stop (name + optional provider id). */
+  destinationStop?: DestinationStop;
+  /**
+   * Soft filter on departure destination text (e.g. "Bruck", "Apfelmoar").
+   * Not a concrete stop id.
+   */
+  destinationHint?: string;
 };
 
 export type WeatherSettings = {
@@ -142,6 +183,8 @@ export type AppData = {
   version: 3;
   persons: PersonProfile[];
   coffeeDrinks: CoffeeDrink[];
+  /** Current deployment region — configurable, not hardcoded in UI logic. */
+  region?: RegionConfig;
   meta?: {
     exportedAt?: string;
     label?: string;
@@ -171,6 +214,11 @@ export type BusInfo = {
   minutesUntil: number;
   /** true when chosen for work/school start, not just wall-clock next. */
   matchedToWork?: boolean;
+  /**
+   * true/false when arrival time is known from API;
+   * null when unknown (do not invent travel time).
+   */
+  arrivesInTime?: boolean | null;
   /** ISO timestamp of last successful fetch (client may set). */
   fetchedAt?: string;
   source?: "live" | "local" | "cache";

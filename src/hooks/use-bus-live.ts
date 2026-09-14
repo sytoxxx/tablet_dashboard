@@ -17,6 +17,7 @@ export type BusLiveState = {
   fetchedAt: string | null;
   loading: boolean;
   matchedToWork?: boolean;
+  arrivesInTime?: boolean | null;
 };
 
 export function useBusLive(person: PersonProfile | undefined): BusLiveState {
@@ -90,6 +91,7 @@ export function useBusLive(person: PersonProfile | undefined): BusLiveState {
         fetchedAt: json.fetchedAt ?? new Date().toISOString(),
         loading: false,
         matchedToWork: json.next?.matchedToWork,
+        arrivesInTime: json.next?.arrivesInTime ?? null,
       };
       cacheRef.current = nextState;
       setState(nextState);
