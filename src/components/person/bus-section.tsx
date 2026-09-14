@@ -11,10 +11,12 @@ type BusSectionProps = {
 
 export function BusSection({ bus, stopName, hasBusConfig = true }: BusSectionProps) {
   return (
-    <Section title="Nächster Bus">
+    <Section title="Bus">
       {bus ? (
         <div>
-          <p className="font-display text-4xl tabular-nums tracking-tight">{bus.departure}</p>
+          <p className="font-display text-4xl tabular-nums tracking-tight landscape-tablet:text-5xl">
+            {bus.departure}
+          </p>
           <p className="mt-2 text-lg">
             Linie {bus.line} → {bus.destination}
           </p>
@@ -26,13 +28,13 @@ export function BusSection({ bus, stopName, hasBusConfig = true }: BusSectionPro
         </div>
       ) : hasBusConfig ? (
         <EmptyState
-          title="Keine Busse mehr heute"
-          description="Alle Abfahrten für heute sind vorbei — oder der Plan ist leer."
+          title="Kein Bus mehr"
+          description="Für heute sind die Abfahrten vorbei."
         />
       ) : (
         <EmptyState
           title="Kein Bus nötig"
-          description="Heute bist du zu Fuß oder bleibst in der Nähe."
+          description="Heute bleibst du in der Nähe."
         />
       )}
     </Section>

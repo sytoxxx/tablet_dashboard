@@ -1,9 +1,10 @@
 "use client";
 
 import type { DayIntelligenceView } from "@/lib/day/intelligence";
-import { IntelligentDayDashboard } from "@/components/person/intelligent-day-dashboard";
+import { LeviMorningDashboard } from "@/components/person/levi-morning-dashboard";
+import { SimpleMorningDashboard } from "@/components/person/simple-morning-dashboard";
 
-/** Shared day intelligence for Levi / Birgit / Heidi. */
+/** Routes each person to their Phase-6 morning layout. */
 export function PersonDashboard({
   view,
   wallNow,
@@ -11,5 +12,11 @@ export function PersonDashboard({
   view: DayIntelligenceView;
   wallNow: Date;
 }) {
-  return <IntelligentDayDashboard view={view} wallNow={wallNow} />;
+  if (view.id === "levi") {
+    return <LeviMorningDashboard view={view} wallNow={wallNow} />;
+  }
+  if (view.id === "birgit") {
+    return <SimpleMorningDashboard view={view} wallNow={wallNow} mode="work" />;
+  }
+  return <SimpleMorningDashboard view={view} wallNow={wallNow} mode="personal" />;
 }

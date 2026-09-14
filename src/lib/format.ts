@@ -26,6 +26,19 @@ export function formatMinutesUntil(minutes: number): string {
   return `in ${minutes} Min.`;
 }
 
+/** Relative status for schedule blocks on the morning tablet. */
+export function formatRelativeBlockStatus(
+  kind: "current" | "next" | "done" | "free",
+  minutesUntilStart?: number,
+): string {
+  if (kind === "current") return "läuft gerade";
+  if (kind === "done") return "erledigt";
+  if (kind === "free") return "frei";
+  if (minutesUntilStart === undefined) return "Als Nächstes";
+  if (minutesUntilStart <= 0) return "gleich";
+  return formatMinutesUntil(minutesUntilStart);
+}
+
 export function formatTimer(totalSeconds: number): string {
   const safe = Math.max(0, Math.floor(totalSeconds));
   const minutes = Math.floor(safe / 60);

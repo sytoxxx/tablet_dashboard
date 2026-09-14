@@ -5,6 +5,7 @@ import type { CoffeeDrink, CoffeeDrinkId } from "@/lib/types";
 import { formatTimer } from "@/lib/format";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
+import { Check } from "lucide-react";
 
 type CoffeeTimerProps = {
   drinks: CoffeeDrink[];
@@ -51,8 +52,7 @@ export function CoffeeTimer({ drinks }: CoffeeTimerProps) {
   if (!selected) return null;
 
   const remainingSec = Math.ceil(remainingMs / 1000);
-  const progress =
-    duration > 0 ? 1 - remainingMs / (duration * 1000) : 0;
+  const progress = duration > 0 ? 1 - remainingMs / (duration * 1000) : 0;
 
   const start = () => {
     const base = remainingMs > 0 ? remainingMs : duration * 1000;
@@ -76,8 +76,12 @@ export function CoffeeTimer({ drinks }: CoffeeTimerProps) {
   };
 
   return (
-    <div className="space-y-10">
-      <div className="flex flex-wrap gap-3" role="tablist" aria-label="Getränke">
+    <div className="space-y-8">
+      <div
+        className="grid grid-cols-1 gap-3 sm:grid-cols-3"
+        role="tablist"
+        aria-label="Getränke"
+      >
         {drinks.map((drink) => {
           const active = drink.id === selected.id;
           return (
@@ -88,9 +92,9 @@ export function CoffeeTimer({ drinks }: CoffeeTimerProps) {
               aria-selected={active}
               onClick={() => selectDrink(drink.id)}
               className={cn(
-                "min-h-14 min-w-[8.5rem] rounded-2xl px-5 text-lg transition-transform duration-150 active:scale-[0.97]",
+                "min-h-20 rounded-[1.5rem] px-5 text-xl font-medium transition-[transform,background-color,color] duration-200 ease-out active:scale-[0.97]",
                 active
-                  ? "bg-[color:var(--ink)] text-[color:var(--surface)]"
+                  ? "bg-[color:var(--ink)] text-[color:var(--surface)] shadow-[0_16px_36px_-24px_rgba(28,36,48,0.55)]"
                   : "bg-[color:var(--surface)] text-[color:var(--ink)] hover:bg-[color:var(--surface-strong)]",
               )}
             >
@@ -100,8 +104,8 @@ export function CoffeeTimer({ drinks }: CoffeeTimerProps) {
         })}
       </div>
 
-      <div className="grid gap-10 lg:grid-cols-[1.1fr_0.9fr]">
-        <div className="space-y-6">
+      <div className="grid gap-8 lg:grid-cols-[1.05fr_0.95fr] landscape-tablet:grid-cols-[1fr_1fr] landscape-tablet:gap-6">
+        <div className="animate-soft-in space-y-5">
           <h2 className="font-display text-4xl tracking-tight sm:text-5xl">{selected.name}</h2>
           <p className="text-lg leading-relaxed text-[color:var(--ink)]">{selected.prepNotes}</p>
           <p className="text-[color:var(--quiet)]">{selected.amounts}</p>
@@ -115,48 +119,61 @@ export function CoffeeTimer({ drinks }: CoffeeTimerProps) {
           </ol>
         </div>
 
-        <div className="flex flex-col items-start gap-6 rounded-[1.75rem] bg-[color:var(--surface)] px-6 py-8 sm:px-8">
+        <div
+          className={cn(
+            "flex flex-col items-start gap-5 rounded-[1.75rem] bg-[color:var(--surface)] px-6 py-8 sm:px-8",
+            "transition-[box-shadow] duration-300",
+            status === "done" && "ring-2 ring-[color:var(--brand)]/40",
+          )}
+        >
           <p className="text-sm tracking-[0.16em] text-[color:var(--quiet)] uppercase">Timer</p>
           <p
             data-testid="coffee-timer-display"
             className={cn(
-              "font-display text-6xl tabular-nums tracking-tight sm:text-7xl",
+              "font-display text-7xl tabular-nums tracking-tight sm:text-8xl",
               status === "done" && "text-[color:var(--brand)]",
             )}
             aria-live="polite"
           >
-            {formatTimer(remainingSec)}
+            {status === "done" ? (
+              <span className="inline-flex items-center gap-3 animate-soft-in">
+                <Check className="size-14 sm:size-16" strokeWidth={2.5} aria-hidden />
+                Fertig
+              </span>
+            ) : (
+              formatTimer(remainingSec)
+            )}
           </p>
 
           <div
-            className="h-1.5 w-full overflow-hidden rounded-full bg-[color:var(--hairline)]"
+            className="h-2 w-full overflow-hidden rounded-full bg-[color:var(--hairline)]"
             aria-hidden
           >
             <div
               className="h-full rounded-full bg-[color:var(--brand)] transition-[width] duration-200 ease-linear"
-              style={{ width: `${Math.min(100, Math.max(0, progress * 100))}%` }}
+              style={{
+                width: `${Math.min(100, Math.max(0, (status === "done" ? 1 : progress) * 100))}%`,
+              }}
             />
           </div>
 
           <p className="text-[color:var(--quiet)]" data-testid="coffee-timer-status">
-            {status === "running" && "Läuft…"}
+            {status === "running" && "Läuft …"}
             {status === "paused" && "Pausiert"}
             {status === "done" && (
-              <span className="text-lg text-[color:var(--brand)]">
-                Fertig — genieß deinen Kaffee.
-              </span>
+              <span className="text-lg text-[color:var(--brand)]">✓ Fertig — genieß deinen Kaffee.</span>
             )}
             {status === "idle" && "Bereit zum Start"}
           </p>
 
-          <div className="flex flex-wrap gap-3 pt-2">
+          <div className="flex flex-wrap gap-3 pt-1">
             <Button
               type="button"
               size="lg"
               data-testid="coffee-timer-start"
               className="h-14 min-w-28 rounded-2xl px-6 text-base active:scale-[0.97]"
               onClick={start}
-              disabled={status === "running"}
+              disabled={status === "running" || status === "done"}
             >
               Start
             </Button>
@@ -179,7 +196,7 @@ export function CoffeeTimer({ drinks }: CoffeeTimerProps) {
               className="h-14 min-w-28 rounded-2xl px-6 text-base active:scale-[0.97]"
               onClick={reset}
             >
-              Reset
+              Neu
             </Button>
           </div>
         </div>

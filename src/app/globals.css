@@ -3,6 +3,8 @@
 @import "shadcn/tailwind.css";
 
 @custom-variant dark (&:is(.dark *));
+/* ~10" Android tablet landscape morning glance */
+@custom-variant landscape-tablet (@media (orientation: landscape) and (min-width: 900px) and (max-height: 980px));
 
 @theme inline {
   --color-background: var(--background);
@@ -61,6 +63,14 @@
   --gold: #b8954a;
   --hairline: rgba(28, 36, 48, 0.1);
 
+  /* Theme hooks (light default; dark ready later) */
+  --theme-bg: var(--bg);
+  --theme-surface: var(--surface);
+  --theme-ink: var(--ink);
+  --motion-fast: 180ms;
+  --motion-calm: 420ms;
+  --touch-min: 48px;
+
   --background: var(--bg);
   --foreground: var(--ink);
   --card: var(--surface);
@@ -100,6 +110,11 @@
     @apply border-border outline-ring/50;
   }
 
+  html {
+    @apply font-sans;
+    overflow-x: hidden;
+  }
+
   body {
     color: var(--ink);
     background:
@@ -108,25 +123,43 @@
       linear-gradient(165deg, var(--bg) 0%, var(--bg-deep) 100%);
     background-attachment: fixed;
     min-height: 100dvh;
-  }
-
-  html {
-    @apply font-sans;
+    overflow-x: hidden;
+    -webkit-tap-highlight-color: transparent;
+    touch-action: manipulation;
+    padding:
+      env(safe-area-inset-top) env(safe-area-inset-right)
+      env(safe-area-inset-bottom) env(safe-area-inset-left);
   }
 
   .font-display {
     font-family: var(--font-display), ui-serif, Georgia, serif;
+  }
+
+  .morning-shell {
+    max-width: 100%;
+    overflow-x: hidden;
   }
 }
 
 @keyframes rise {
   from {
     opacity: 0;
-    transform: translateY(12px);
+    transform: translateY(10px);
   }
   to {
     opacity: 1;
     transform: translateY(0);
+  }
+}
+
+@keyframes soft-in {
+  from {
+    opacity: 0;
+    transform: translateY(6px) scale(0.985);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
   }
 }
 
@@ -140,10 +173,39 @@
   }
 }
 
+@keyframes skeleton {
+  0% {
+    opacity: 0.55;
+  }
+  50% {
+    opacity: 0.9;
+  }
+  100% {
+    opacity: 0.55;
+  }
+}
+
 .animate-rise {
-  animation: rise 0.7s cubic-bezier(0.22, 1, 0.36, 1) both;
+  animation: rise var(--motion-calm) cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+
+.animate-soft-in {
+  animation: soft-in var(--motion-fast) cubic-bezier(0.22, 1, 0.36, 1) both;
 }
 
 .animate-soft-pulse {
   animation: soft-pulse 3.6s ease-in-out infinite;
+}
+
+.animate-skeleton {
+  animation: skeleton 1.4s ease-in-out infinite;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .animate-rise,
+  .animate-soft-in,
+  .animate-soft-pulse,
+  .animate-skeleton {
+    animation: none !important;
+  }
 }

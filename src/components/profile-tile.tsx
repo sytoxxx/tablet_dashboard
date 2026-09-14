@@ -22,11 +22,11 @@ export function ProfileTile({
     <Link
       href={href}
       className={cn(
-        "group relative flex min-h-40 flex-col justify-between rounded-[1.75rem] px-7 py-6",
+        "group relative flex min-h-44 flex-col justify-between rounded-[1.75rem] px-7 py-7 sm:min-h-48",
         "bg-[color:var(--surface)] text-[color:var(--ink)]",
         "transition-[transform,box-shadow,background-color] duration-200 ease-out",
         "hover:-translate-y-0.5 hover:shadow-[0_18px_40px_-28px_rgba(28,36,48,0.45)]",
-        "active:scale-[0.97] active:translate-y-0",
+        "active:scale-[0.96] active:translate-y-0",
         "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[color:var(--brand)] focus-visible:ring-offset-4 focus-visible:ring-offset-[color:var(--bg)]",
         "animate-rise",
       )}
@@ -38,7 +38,9 @@ export function ProfileTile({
         aria-hidden
       />
       <div className="flex items-start justify-between gap-3">
-        <span className="font-display text-3xl tracking-tight sm:text-4xl">{name}</span>
+        <span className="font-display text-3xl tracking-tight sm:text-4xl landscape-tablet:text-[2.75rem]">
+          {name}
+        </span>
         {avatar ? (
           <span
             className="flex size-11 shrink-0 items-center justify-center rounded-full text-sm font-semibold text-white"

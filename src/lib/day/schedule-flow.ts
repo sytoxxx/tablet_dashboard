@@ -1,4 +1,5 @@
 import {
+  formatMinutesUntil,
   getMinutesSinceMidnight,
   parseTimeToMinutes,
 } from "@/lib/format";
@@ -19,6 +20,9 @@ export type DayFlowState = {
   block: ScheduleBlock | null;
   /** German status copy for the hero “Als Nächstes” area. */
   message: string;
+  /** Short relative label: läuft gerade / in X Min. / erledigt */
+  relativeLabel: string;
+  minutesUntilStart: number | null;
 };
 
 function blockEndMinutes(block: ScheduleBlock): number {
@@ -37,7 +41,9 @@ export function resolveDayFlow(
     return {
       status: "free",
       block: null,
-      message: "Heute frei — nichts Festes im Plan.",
+      message: "Heute frei — genieß den Tag.",
+      relativeLabel: "frei",
+      minutesUntilStart: null,
     };
   }
 
@@ -54,6 +60,8 @@ export function resolveDayFlow(
         status: "current",
         block,
         message: "Jetzt",
+        relativeLabel: "läuft gerade",
+        minutesUntilStart: 0,
       };
     }
   }
@@ -61,10 +69,13 @@ export function resolveDayFlow(
   for (const block of sorted) {
     const start = parseTimeToMinutes(block.start);
     if (currentMin < start) {
+      const mins = start - currentMin;
       return {
         status: "next",
         block,
         message: "Als Nächstes",
+        relativeLabel: formatMinutesUntil(mins),
+        minutesUntilStart: mins,
       };
     }
   }
@@ -72,7 +83,9 @@ export function resolveDayFlow(
   return {
     status: "done",
     block: sorted[sorted.length - 1] ?? null,
-    message: "Dein Tag ist für heute erledigt.",
+    message: "Tag erledigt",
+    relativeLabel: "erledigt",
+    minutesUntilStart: null,
   };
 }
 
