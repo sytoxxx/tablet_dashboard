@@ -208,6 +208,42 @@ function sanitizePerson(raw: unknown, fallback: PersonProfile): PersonProfile | 
             fallback.weather.clothingTip,
             160,
           ),
+          afternoonTempC:
+            typeof raw.weather.afternoonTempC === "number" &&
+            Number.isFinite(raw.weather.afternoonTempC)
+              ? raw.weather.afternoonTempC
+              : fallback.weather.afternoonTempC,
+          afternoonLabel: sanitizeString(
+            raw.weather.afternoonLabel,
+            fallback.weather.afternoonLabel ?? "",
+            8,
+          ) || fallback.weather.afternoonLabel,
+          weatherCode:
+            typeof raw.weather.weatherCode === "number" &&
+            Number.isFinite(raw.weather.weatherCode)
+              ? raw.weather.weatherCode
+              : fallback.weather.weatherCode,
+          rainProbPct:
+            typeof raw.weather.rainProbPct === "number" &&
+            Number.isFinite(raw.weather.rainProbPct)
+              ? Math.max(0, Math.min(100, Math.round(raw.weather.rainProbPct)))
+              : fallback.weather.rainProbPct,
+          afternoonRainProbPct:
+            typeof raw.weather.afternoonRainProbPct === "number" &&
+            Number.isFinite(raw.weather.afternoonRainProbPct)
+              ? Math.max(
+                  0,
+                  Math.min(100, Math.round(raw.weather.afternoonRainProbPct)),
+                )
+              : fallback.weather.afternoonRainProbPct,
+          afternoonWeatherCode:
+            typeof raw.weather.afternoonWeatherCode === "number" &&
+            Number.isFinite(raw.weather.afternoonWeatherCode)
+              ? raw.weather.afternoonWeatherCode
+              : fallback.weather.afternoonWeatherCode,
+          week: Array.isArray(raw.weather.week)
+            ? (raw.weather.week as PersonProfile["weather"]["week"])
+            : fallback.weather.week,
         }
       : fallback.weather,
     personalSettings: isObject(raw.personalSettings)

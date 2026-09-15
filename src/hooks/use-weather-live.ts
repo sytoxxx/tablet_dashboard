@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import type { PersonProfile, WeatherSnapshot } from "@/lib/types";
 import { useOnlineStatus } from "@/components/admin/offline-banner";
 import { useVisibleInterval } from "@/hooks/use-visible-interval";
@@ -15,8 +15,28 @@ export type WeatherLiveState = {
   fetchedAt: string | null;
 };
 
+function weatherKey(person: PersonProfile | undefined): string {
+  if (!person) return "";
+  const loc = person.weatherLocation;
+  return [
+    person.id,
+    loc?.latitude ?? "",
+    loc?.longitude ?? "",
+    person.weather?.temperatureC ?? "",
+    person.weather?.afternoonTempC ?? "",
+  ].join("|");
+}
+
+/**
+ * Live weather with 15‑min poll. Stable across person object identity churn —
+ * only person id / location / seed fingerprint retriggers fetch.
+ */
 export function useWeatherLive(person: PersonProfile | undefined): WeatherLiveState {
   const online = useOnlineStatus();
+  const key = weatherKey(person);
+  const personRef = useRef(person);
+  personRef.current = person;
+
   const [state, setState] = useState<WeatherLiveState>(() => ({
     weather: person?.weather
       ? { ...person.weather, source: "local" }
@@ -29,7 +49,8 @@ export function useWeatherLive(person: PersonProfile | undefined): WeatherLiveSt
   const cacheRef = useRef<WeatherLiveState | null>(null);
 
   const refresh = useCallback(async () => {
-    if (!person) return;
+    const current = personRef.current;
+    if (!current) return;
     if (!online) {
       setState((prev) => ({
         ...(cacheRef.current ?? prev),
@@ -44,7 +65,7 @@ export function useWeatherLive(person: PersonProfile | undefined): WeatherLiveSt
       const res = await fetch("/api/weather", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ person }),
+        body: JSON.stringify({ person: current }),
       });
       const json = (await res.json()) as {
         weather?: WeatherSnapshot;
@@ -57,12 +78,12 @@ export function useWeatherLive(person: PersonProfile | undefined): WeatherLiveSt
       if (!res.ok && !json.weather) {
         setState({
           weather: cacheRef.current?.weather ?? {
-            ...person.weather,
+            ...current.weather,
             source: "cache",
           },
-          place: person.weatherLocation?.place ?? null,
+          place: current.weatherLocation?.place ?? null,
           loading: false,
-          error: "Wetter gerade nicht verfügbar.",
+          error: "Wetter momentan nicht verfügbar.",
           fetchedAt: cacheRef.current?.fetchedAt ?? null,
         });
         return;
@@ -70,7 +91,7 @@ export function useWeatherLive(person: PersonProfile | undefined): WeatherLiveSt
 
       const next: WeatherLiveState = {
         weather: json.weather ?? null,
-        place: json.place ?? person.weatherLocation?.place ?? null,
+        place: json.place ?? current.weatherLocation?.place ?? null,
         loading: false,
         error: null,
         fetchedAt: json.fetchedAt ?? json.weather?.fetchedAt ?? null,
@@ -80,18 +101,34 @@ export function useWeatherLive(person: PersonProfile | undefined): WeatherLiveSt
     } catch {
       setState({
         weather: cacheRef.current?.weather ?? {
-          ...person.weather,
+          ...current.weather,
           source: "cache",
         },
-        place: person.weatherLocation?.place ?? null,
+        place: current.weatherLocation?.place ?? null,
         loading: false,
-        error: "Wetter gerade nicht verfügbar.",
+        error: "Wetter momentan nicht verfügbar.",
         fetchedAt: cacheRef.current?.fetchedAt ?? null,
       });
     }
-  }, [person, online]);
+  }, [online]);
 
-  useVisibleInterval(refresh, WEATHER_POLL_MS, Boolean(person));
+  // Reset local seed when switching person / location — without refetch spam on identity churn.
+  useEffect(() => {
+    const current = personRef.current;
+    if (!current) return;
+    cacheRef.current = null;
+    setState({
+      weather: current.weather
+        ? { ...current.weather, source: "local" }
+        : null,
+      place: current.weatherLocation?.place ?? null,
+      loading: false,
+      error: null,
+      fetchedAt: null,
+    });
+  }, [key]);
+
+  useVisibleInterval(refresh, WEATHER_POLL_MS, Boolean(person) && Boolean(key));
 
   return state;
 }

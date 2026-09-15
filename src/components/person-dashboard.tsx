@@ -201,6 +201,9 @@ export function PersonDashboard({
         busDataAgeLabel={liveMeta.busDataAgeLabel}
         weatherPlace={liveMeta.weatherPlace}
         workTravel={bus.workTravel}
+        workWeek={
+          person.schedule.type === "work" ? person.schedule.week : null
+        }
         leaveReminderActive={liveMeta.leaveReminderActive}
         leaveReminderLabel={liveMeta.leaveReminderLabel}
       digitalWardrobe={digitalWardrobe}
@@ -226,6 +229,9 @@ export function PersonDashboard({
       busDataAgeLabel={liveMeta.busDataAgeLabel}
       weatherPlace={liveMeta.weatherPlace}
       workTravel={bus.workTravel}
+      workWeek={
+        person.schedule.type === "work" ? person.schedule.week : null
+      }
       leaveReminderActive={liveMeta.leaveReminderActive}
       leaveReminderLabel={liveMeta.leaveReminderLabel}
     digitalWardrobe={digitalWardrobe}

@@ -1,48 +1,58 @@
 import type { WorkShift } from "@/lib/types";
 import { Section } from "@/components/section";
 import { EmptyState } from "@/components/empty-state";
+import type { ClarityEmphasis } from "@/components/clarity-block";
 
 export function WorkShiftSection({
   shift,
   simple = false,
+  emphasis = "hero",
+  focusTomorrow = false,
 }: {
   shift: WorkShift | null;
   simple?: boolean;
+  emphasis?: ClarityEmphasis;
+  focusTomorrow?: boolean;
 }) {
-  const title = simple ? "Arbeit" : "Arbeitsschicht";
-
+  const title = focusTomorrow ? "Morgen" : "Heute";
   if (!shift) {
     return (
-      <Section title={title}>
+      <Section title={title} emphasis={emphasis}>
         <EmptyState
-          title="Heute frei"
-          description="Heute steht keine Schicht an — ruhiger Tag."
+          title={
+            focusTomorrow
+              ? "Morgen sind keine Arbeitszeiten eingetragen."
+              : "Heute sind keine Arbeitszeiten eingetragen."
+          }
+          description={
+            simple
+              ? "Sobald Schichtzeiten da sind, siehst du sie hier."
+              : focusTomorrow
+                ? "Morgen steht keine Schicht an."
+                : "Heute steht keine Schicht an — ruhiger Tag."
+          }
         />
       </Section>
     );
   }
 
   return (
-    <Section title={title}>
-      <p className="font-display text-3xl tracking-tight sm:text-4xl landscape-tablet:text-4xl">
-        {shift.label}
+    <Section title={title} emphasis={emphasis}>
+      <p className="text-lg text-[color:var(--ink)]">
+        {focusTomorrow ? "Du arbeitest morgen" : "Du arbeitest heute"}
       </p>
-      <div className="mt-5 flex flex-wrap gap-8">
-        <div>
-          <p className="text-sm tracking-[0.14em] text-[color:var(--quiet)] uppercase">Beginn</p>
-          <p className="mt-1 font-display text-4xl tabular-nums landscape-tablet:text-5xl">
-            {shift.start}
-          </p>
-        </div>
-        <div>
-          <p className="text-sm tracking-[0.14em] text-[color:var(--quiet)] uppercase">Ende</p>
-          <p className="mt-1 font-display text-4xl tabular-nums landscape-tablet:text-5xl">
-            {shift.end}
-          </p>
-        </div>
-      </div>
-      <p className="mt-4 text-lg">{shift.location}</p>
-      {shift.notes ? <p className="mt-2 text-[color:var(--quiet)]">{shift.notes}</p> : null}
+      <p className="mt-2 font-display text-4xl tabular-nums tracking-tight sm:text-5xl landscape-tablet:text-5xl">
+        {shift.start} – {shift.end} Uhr
+      </p>
+      {shift.label ? (
+        <p className="mt-3 text-base text-[color:var(--quiet)]">{shift.label}</p>
+      ) : null}
+      {!simple && shift.location ? (
+        <p className="mt-1 text-lg">{shift.location}</p>
+      ) : null}
+      {!simple && shift.notes ? (
+        <p className="mt-2 text-[color:var(--quiet)]">{shift.notes}</p>
+      ) : null}
     </Section>
   );
 }

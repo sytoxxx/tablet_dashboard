@@ -156,10 +156,35 @@ export type TransitPrefs = {
   safetyBufferMinutes?: number;
 };
 
+export type WeatherDayGlance = {
+  /** ISO date YYYY-MM-DD */
+  dateIso: string;
+  /** Mo–So short label derived client-side if needed */
+  weekdayKey?: WeekdayKey;
+  tempMaxC?: number;
+  weatherCode?: number;
+  /** 0–100 when known from forecast */
+  rainProbPct?: number;
+};
+
 export type WeatherSettings = {
   summary: string;
   temperatureC: number;
   clothingTip: string;
+  /** Optional ~afternoon sample when known from forecast/seed. */
+  afternoonTempC?: number;
+  /** Clock label for afternoonTempC, e.g. "14:00". */
+  afternoonLabel?: string;
+  /** WMO weather code when known. */
+  weatherCode?: number;
+  /** Rain probability 0–100 for “jetzt” when known. */
+  rainProbPct?: number;
+  /** Rain probability near afternoon sample. */
+  afternoonRainProbPct?: number;
+  /** Weather code near afternoon sample. */
+  afternoonWeatherCode?: number;
+  /** Compact Mo–So forecast when provider supplies it. */
+  week?: WeatherDayGlance[];
 };
 
 export type PersonalSettings = {

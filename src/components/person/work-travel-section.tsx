@@ -1,11 +1,9 @@
 import type { TravelConnection, TravelLeg } from "@/lib/work/travel-types";
 import type { TravelPlan } from "@/lib/work/travel-planner";
-import {
-  arrivalWindowCopy,
-  preparationCopy,
-} from "@/lib/work/travel-planner";
+import { preparationCopy } from "@/lib/work/travel-planner";
 import { Section } from "@/components/section";
 import { EmptyState } from "@/components/empty-state";
+import type { ClarityEmphasis } from "@/components/clarity-block";
 
 type PlanSlice = Pick<
   TravelPlan,
@@ -32,112 +30,326 @@ type PlanSlice = Pick<
   | "alternativeConnection"
 >;
 
-function legLine(leg: TravelLeg): string {
-  if (leg.type === "WALK") {
-    const dur = leg.durationMinutes != null ? ` (${leg.durationMinutes} Min.)` : "";
-    return `Zu Fuß${dur}: ${leg.from ?? "?"} → ${leg.to ?? "?"}`;
-  }
-  if (leg.type === "TRANSFER") {
-    return "Umstieg";
-  }
-  const delay =
-    leg.delayMinutes && leg.delayMinutes > 0
-      ? ` · +${leg.delayMinutes} Min.`
-      : "";
-  const rt = leg.isRealtime ? " · Live" : "";
-  return `Linie ${leg.line ?? "?"} ${leg.direction ? `→ ${leg.direction}` : ""}${rt}${delay}`;
+function firstTransit(legs: TravelLeg[] | null | undefined): TravelLeg | null {
+  if (!legs?.length) return null;
+  return legs.find((leg) => leg.type === "TRANSIT") ?? null;
 }
 
-function ConnectionCard({
-  connection,
-  index,
-  endLabel,
+/** Plain German: "Bus 1 Richtung Bruck" from existing leg/connection fields only. */
+function busLineCopy(
+  plan: PlanSlice,
+  connection?: TravelConnection | null,
+): string | null {
+  const legs = connection?.legs ?? plan.legs;
+  const transit = firstTransit(legs);
+  const line =
+    transit?.line?.trim() ||
+    connection?.lineSummary?.replace(/^Linie\s+/i, "").trim() ||
+    null;
+  const direction =
+    transit?.direction?.trim() ||
+    connection?.direction?.trim() ||
+    plan.transitDestinationLabel?.trim() ||
+    plan.endDestinationLabel?.trim() ||
+    plan.destinationLabel?.trim() ||
+    null;
+  if (!line && !direction) return null;
+  if (line && direction) return `Bus ${line} Richtung ${direction}`;
+  if (line) return `Bus ${line}`;
+  return direction ? `Richtung ${direction}` : null;
+}
+
+function workHoursCopy(start: string | null, end: string | null): string | null {
+  if (!start && !end) return null;
+  if (start && end) return `${start} – ${end} Uhr`;
+  if (start) return `ab ${start} Uhr`;
+  return `bis ${end} Uhr`;
+}
+
+function HeuteBlock({
+  plan,
+  workLabel,
+  emphasis = "secondary",
+  focusTomorrow = false,
 }: {
-  connection: TravelConnection;
-  index: number;
-  endLabel?: string | null;
+  plan: PlanSlice;
+  workLabel?: string | null;
+  emphasis?: ClarityEmphasis;
+  focusTomorrow?: boolean;
 }) {
+  const title = focusTomorrow ? "Morgen" : "Heute";
+  const lead = focusTomorrow
+    ? "Du arbeitest morgen"
+    : "Du arbeitest heute";
+  const hours = workHoursCopy(plan.workStart, plan.workEnd);
+  if (!hours && !workLabel) {
+    return (
+      <Section title={title} emphasis={emphasis}>
+        <EmptyState
+          title={
+            focusTomorrow
+              ? "Morgen sind keine Arbeitszeiten eingetragen."
+              : "Heute sind keine Arbeitszeiten eingetragen."
+          }
+          description="Sobald Schichtzeiten da sind, siehst du sie hier."
+        />
+      </Section>
+    );
+  }
+
   return (
-    <div className="rounded-2xl bg-[color:var(--bg)] px-4 py-3">
-      <p className="text-sm text-[color:var(--quiet)]">
-        Verbindung {index + 1}
-        {connection.isDirect ? " · direkt" : ` · ${connection.transfers} Umstieg`}
-        {connection.realtime ? " · Live" : ""}
-      </p>
-      <p className="mt-1 font-display text-3xl tabular-nums tracking-tight">
-        {connection.departure}
-        {connection.arrival ? ` → ${connection.arrival}` : ""}
-      </p>
-      {connection.leaveHome ? (
-        <p className="mt-1 text-base text-[color:var(--ink)]">
-          Losgehen {connection.leaveHome}
+    <Section title={title} emphasis={emphasis}>
+      <p className="text-lg text-[color:var(--ink)]">{lead}</p>
+      {hours ? (
+        <p className="mt-2 font-display text-4xl tabular-nums tracking-tight sm:text-5xl">
+          {hours}
         </p>
       ) : null}
-      {endLabel ? (
-        <p className="mt-1 text-sm text-[color:var(--quiet)]">Ziel: {endLabel}</p>
+      {workLabel ? (
+        <p className="mt-2 text-base text-[color:var(--quiet)]">{workLabel}</p>
       ) : null}
-      <ul className="mt-2 space-y-1 text-sm text-[color:var(--ink)]">
-        {connection.legs.map((leg, i) => (
-          <li key={`${leg.type}-${i}`}>{legLine(leg)}</li>
-        ))}
-      </ul>
-    </div>
+    </Section>
+  );
+}
+
+function LosfahrenBus({
+  plan,
+  emphasis = "hero",
+  quietNoBus = false,
+}: {
+  plan: PlanSlice;
+  emphasis?: ClarityEmphasis;
+  quietNoBus?: boolean;
+}) {
+  const primary = plan.connections?.[0] ?? null;
+  const leave = primary?.leaveHome || plan.leaveHome;
+  const arrival =
+    primary?.arrival || plan.arrivalAtWork || plan.arrivalAtDestination;
+  const busLine = busLineCopy(plan, primary);
+  const departure = primary?.departure || plan.busDeparture;
+  const prep = preparationCopy(plan.preparationStart);
+
+  if (!leave && !departure) {
+    if (quietNoBus) {
+      return (
+        <Section title="Losfahren" emphasis="tertiary">
+          <p className="text-lg text-[color:var(--quiet)]">
+            Du musst heute keinen Bus nehmen.
+          </p>
+        </Section>
+      );
+    }
+    return (
+      <Section title="Losfahren" emphasis={emphasis}>
+        <EmptyState
+          title="Du musst heute keinen Bus nehmen."
+          description="Es steht keine Verbindung für den Morgen an."
+        />
+      </Section>
+    );
+  }
+
+  // Prefer known leave time as a full sentence — never invent one.
+  if (!leave) {
+    return (
+      <Section title="Losfahren" emphasis={emphasis}>
+        {busLine ? (
+          <p className="text-xl font-medium text-[color:var(--ink)]">{busLine}</p>
+        ) : null}
+        {departure ? (
+          <p className="mt-2 text-lg text-[color:var(--ink)]">
+            Bus um <span className="tabular-nums font-medium">{departure}</span>
+          </p>
+        ) : null}
+        {arrival ? (
+          <p className="mt-2 text-lg text-[color:var(--quiet)]">
+            Ankunft ca.{" "}
+            <span className="tabular-nums text-[color:var(--ink)]">{arrival}</span>
+          </p>
+        ) : null}
+      </Section>
+    );
+  }
+
+  return (
+    <Section title="Losfahren" emphasis={emphasis}>
+      <p className="text-xl text-[color:var(--ink)] sm:text-2xl">
+        Du musst um{" "}
+        <span className="font-display text-5xl tabular-nums tracking-tight sm:text-6xl">
+          {leave}
+        </span>{" "}
+        los.
+      </p>
+      {busLine ? (
+        <p className="mt-4 text-xl font-medium text-[color:var(--ink)]">
+          {busLine}
+        </p>
+      ) : departure ? (
+        <p className="mt-4 text-xl text-[color:var(--ink)]">
+          Bus um <span className="tabular-nums font-medium">{departure}</span>
+        </p>
+      ) : null}
+      {arrival ? (
+        <p className="mt-2 text-lg text-[color:var(--quiet)]">
+          Ankunft ca.{" "}
+          <span className="tabular-nums text-[color:var(--ink)]">{arrival}</span>
+        </p>
+      ) : null}
+      {prep ? (
+        <p className="mt-3 text-base text-[color:var(--quiet)]">{prep}</p>
+      ) : null}
+    </Section>
+  );
+}
+
+function NextBusBlock({
+  plan,
+  emphasis = "secondary",
+}: {
+  plan: PlanSlice;
+  emphasis?: ClarityEmphasis;
+}) {
+  // Primary connection is already in Losfahren — show the next one only.
+  const next = plan.connections?.[1] ?? null;
+  if (!next) return null;
+
+  const line = busLineCopy(plan, next);
+  const time = next.departure || next.leaveHome;
+
+  return (
+    <Section title="Nächster Bus" emphasis={emphasis}>
+      {time ? (
+        <p className="font-display text-4xl tabular-nums tracking-tight sm:text-5xl">
+          {time}
+        </p>
+      ) : null}
+      {line ? (
+        <p className="mt-3 text-xl font-medium text-[color:var(--ink)]">{line}</p>
+      ) : (
+        <p className="mt-3 text-xl text-[color:var(--ink)]">Bus</p>
+      )}
+      {next.arrival ? (
+        <p className="mt-2 text-lg text-[color:var(--quiet)]">
+          Ankunft ca.{" "}
+          <span className="tabular-nums text-[color:var(--ink)]">
+            {next.arrival}
+          </span>
+        </p>
+      ) : null}
+    </Section>
+  );
+}
+
+function WalkingLeave({
+  plan,
+  emphasis = "hero",
+}: {
+  plan: PlanSlice;
+  emphasis?: ClarityEmphasis;
+}) {
+  const destination =
+    plan.endDestinationLabel || plan.destinationLabel || "Schule";
+  const walkMinutes = plan.travelMinutes || plan.walkToStopMinutes;
+  const prep = preparationCopy(plan.preparationStart);
+  const arrival = plan.arrivalAtDestination || plan.arrivalTarget;
+
+  return (
+    <Section title="Losfahren" emphasis={emphasis}>
+      <p className="text-lg text-[color:var(--ink)]">
+        Du musst um{" "}
+        <span className="font-medium tabular-nums">{plan.leaveHome}</span> los
+      </p>
+      <p className="mt-3 font-display text-5xl tabular-nums tracking-tight sm:text-6xl">
+        {plan.leaveHome}
+      </p>
+      <p className="mt-4 text-xl text-[color:var(--ink)]">
+        Zu Fuß → {destination}
+        {walkMinutes > 0 ? (
+          <span className="text-[color:var(--quiet)]">
+            {" "}
+            · ca. {walkMinutes} Min.
+          </span>
+        ) : null}
+      </p>
+      {arrival ? (
+        <p className="mt-2 text-lg text-[color:var(--quiet)]">
+          Ankunft ca.{" "}
+          <span className="tabular-nums text-[color:var(--ink)]">{arrival}</span>
+        </p>
+      ) : null}
+      {prep ? (
+        <p className="mt-3 text-base text-[color:var(--quiet)]">{prep}</p>
+      ) : null}
+    </Section>
   );
 }
 
 /**
- * Shared morning travel result for walking (Levi) and bus (Birgit/Heidi).
- * No provider / API jargon.
+ * Clarity-first travel for walking (Levi) and bus (Birgit/Heidi).
+ * Plain German only — no provider / API jargon.
  */
 export function WorkTravelSection({
   plan,
   workLabel,
+  leaveEmphasis = "hero",
+  workEmphasis = "secondary",
+  includeLeave = true,
+  quietNoBus = false,
+  focusTomorrow = false,
 }: {
   plan: PlanSlice | null;
   workLabel?: string | null;
+  leaveEmphasis?: ClarityEmphasis;
+  workEmphasis?: ClarityEmphasis;
+  /** When false, only show Arbeit/Heute — never promote Losfahren. */
+  includeLeave?: boolean;
+  /** Soft no-bus copy instead of EmptyState boxes. */
+  quietNoBus?: boolean;
+  /** Evening tomorrow focus — Morgen wording, no “heute” leftovers. */
+  focusTomorrow?: boolean;
 }) {
   if (!plan) return null;
 
   const isWalking = plan.mode === "walking";
-  const arrival =
-    arrivalWindowCopy(
-      plan.arrivalTarget ?? plan.workStart,
-      plan.arrivalTargetEnd,
-    ) ?? null;
-  const destination =
-    plan.endDestinationLabel ||
-    plan.destinationLabel ||
-    (isWalking ? "Schule" : "Arbeit");
 
   if (plan.status === "no-connection" || plan.status === "cancelled") {
     return (
       <div className="space-y-5">
-        {(arrival || plan.workStart || plan.workEnd) && (
-          <Section title={isWalking ? destination : "Arbeit heute"}>
-            {isWalking ? (
-              <>
-                {arrival ? (
-                  <p className="mt-1 text-lg text-[color:var(--ink)]">
-                    Ankunft: {arrival}
-                  </p>
-                ) : null}
-              </>
-            ) : (
-              <p className="font-display text-3xl tabular-nums tracking-tight sm:text-4xl">
-                {plan.workStart}
-                {plan.workEnd ? `–${plan.workEnd}` : null}
-              </p>
-            )}
-            {workLabel ? (
-              <p className="mt-2 text-base text-[color:var(--quiet)]">{workLabel}</p>
-            ) : null}
-          </Section>
-        )}
         {!isWalking ? (
-          <Section title="Dein Bus">
+          <HeuteBlock
+            plan={plan}
+            workLabel={workLabel}
+            emphasis="hero"
+            focusTomorrow={focusTomorrow}
+          />
+        ) : null}
+        {includeLeave && !isWalking ? (
+          quietNoBus ? (
+            <Section title="Losfahren" emphasis="tertiary">
+              <p className="text-lg text-[color:var(--quiet)]">
+                {focusTomorrow
+                  ? "Du musst morgen keinen Bus nehmen."
+                  : "Du musst heute keinen Bus nehmen."}
+              </p>
+            </Section>
+          ) : (
+            <Section title="Losfahren" emphasis="secondary">
+              <EmptyState
+                title={
+                  focusTomorrow
+                    ? "Du musst morgen keinen Bus nehmen."
+                    : "Du musst heute keinen Bus nehmen."
+                }
+                description="Gerade ist keine passende Verbindung verfügbar."
+              />
+            </Section>
+          )
+        ) : null}
+        {includeLeave && isWalking ? (
+          <Section title="Losfahren" emphasis="hero">
             <EmptyState
-              title="Kein passender Bus"
-              description="Bitte prüfe die nächste Verbindung."
+              title="Kein Weg zur Schule geplant."
+              description="Sobald Zeiten da sind, siehst du hier wann du los musst."
             />
           </Section>
         ) : null}
@@ -146,120 +358,43 @@ export function WorkTravelSection({
   }
 
   if (plan.status !== "on-time" || !plan.leaveHome) {
+    if (!isWalking && (plan.workStart || plan.workEnd || workLabel)) {
+      return (
+        <HeuteBlock
+          plan={plan}
+          workLabel={workLabel}
+          emphasis={workEmphasis}
+          focusTomorrow={focusTomorrow}
+        />
+      );
+    }
     return null;
   }
 
-  const prep = preparationCopy(plan.preparationStart);
-  const walkMinutes = plan.travelMinutes || plan.walkToStopMinutes;
-  const connections = plan.connections?.length
-    ? plan.connections
-    : null;
-
   if (isWalking) {
-    return (
-      <Section title={destination}>
-        {arrival ? (
-          <p className="text-lg text-[color:var(--ink)]">Ankunft: {arrival}</p>
-        ) : null}
-        {walkMinutes > 0 ? (
-          <p className="mt-2 text-lg text-[color:var(--ink)]">
-            Zu Fuß: ca. {walkMinutes} Min.
-          </p>
-        ) : null}
-        <p className="mt-4 font-display text-4xl tabular-nums tracking-tight landscape-tablet:text-5xl">
-          {plan.leaveHome}
-        </p>
-        <p className="mt-1 text-base text-[color:var(--quiet)]">Losgehen</p>
-        {prep ? (
-          <p className="mt-3 text-base text-[color:var(--quiet)]">{prep}</p>
-        ) : null}
-        <p className="mt-3 text-base text-[color:var(--ink)]">{plan.message}</p>
-      </Section>
-    );
+    return includeLeave ? (
+      <WalkingLeave plan={plan} emphasis={leaveEmphasis} />
+    ) : null;
   }
 
   return (
     <div className="space-y-5">
-      {(plan.workStart || plan.workEnd) && (
-        <Section title="Arbeit heute">
-          <p className="font-display text-3xl tabular-nums tracking-tight sm:text-4xl">
-            {plan.workStart}
-            {plan.workEnd ? `–${plan.workEnd}` : null}
-          </p>
-          {workLabel ? (
-            <p className="mt-2 text-base text-[color:var(--quiet)]">{workLabel}</p>
-          ) : null}
-          <p className="mt-2 text-base text-[color:var(--quiet)]">
-            Ziel: {destination}
-            {plan.transitDestinationLabel &&
-            plan.transitDestinationLabel !== destination
-              ? ` · Halt ${plan.transitDestinationLabel}`
-              : null}
-          </p>
-        </Section>
-      )}
-
-      {connections && connections.length > 0 ? (
-        <Section title={connections.length > 1 ? "Nächste Verbindungen" : "Deine Verbindung"}>
-          <div className="space-y-3">
-            {connections.map((c, i) => (
-              <ConnectionCard
-                key={`${c.departure}-${c.arrival}-${i}`}
-                connection={c}
-                index={i}
-                endLabel={destination}
-              />
-            ))}
-          </div>
-          {plan.alternativeConnection &&
-          !connections.some(
-            (c) =>
-              c.departure === plan.alternativeConnection?.departure &&
-              c.arrival === plan.alternativeConnection?.arrival,
-          ) ? (
-            <div className="mt-3">
-              <p className="mb-2 text-sm text-[color:var(--quiet)]">Alternative</p>
-              <ConnectionCard
-                connection={plan.alternativeConnection}
-                index={0}
-                endLabel={destination}
-              />
-            </div>
-          ) : null}
-          {prep ? (
-            <p className="mt-3 text-base text-[color:var(--quiet)]">{prep}</p>
-          ) : null}
-          <p className="mt-2 text-base text-[color:var(--ink)]">{plan.message}</p>
-        </Section>
-      ) : (
-        <Section title="Dein Bus">
-          <p className="font-display text-4xl tabular-nums tracking-tight landscape-tablet:text-5xl">
-            {plan.busDeparture}
-          </p>
-          {(plan.arrivalAtWork || plan.arrivalAtDestination) && (
-            <p className="mt-3 text-lg text-[color:var(--ink)]">
-              Ankunft {destination}{" "}
-              {plan.arrivalAtWork || plan.arrivalAtDestination}
-            </p>
-          )}
-          {plan.leaveHome ? (
-            <p className="mt-2 text-lg text-[color:var(--ink)]">
-              Losgehen {plan.leaveHome}
-            </p>
-          ) : null}
-          {plan.legs && plan.legs.length > 0 ? (
-            <ul className="mt-3 space-y-1 text-sm text-[color:var(--ink)]">
-              {plan.legs.map((leg, i) => (
-                <li key={`${leg.type}-${i}`}>{legLine(leg)}</li>
-              ))}
-            </ul>
-          ) : null}
-          {prep ? (
-            <p className="mt-2 text-base text-[color:var(--quiet)]">{prep}</p>
-          ) : null}
-          <p className="mt-3 text-base text-[color:var(--ink)]">{plan.message}</p>
-        </Section>
-      )}
+      <HeuteBlock
+        plan={plan}
+        workLabel={workLabel}
+        emphasis={workEmphasis}
+        focusTomorrow={focusTomorrow}
+      />
+      {includeLeave ? (
+        <>
+          <LosfahrenBus
+            plan={plan}
+            emphasis={leaveEmphasis}
+            quietNoBus={quietNoBus}
+          />
+          <NextBusBlock plan={plan} emphasis="secondary" />
+        </>
+      ) : null}
     </div>
   );
 }
