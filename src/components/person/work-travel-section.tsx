@@ -70,17 +70,27 @@ function HeuteBlock({
   plan,
   workLabel,
   emphasis = "secondary",
+  focusTomorrow = false,
 }: {
   plan: PlanSlice;
   workLabel?: string | null;
   emphasis?: ClarityEmphasis;
+  focusTomorrow?: boolean;
 }) {
+  const title = focusTomorrow ? "Morgen" : "Heute";
+  const lead = focusTomorrow
+    ? "Du arbeitest morgen"
+    : "Du arbeitest heute";
   const hours = workHoursCopy(plan.workStart, plan.workEnd);
   if (!hours && !workLabel) {
     return (
-      <Section title="Heute" emphasis={emphasis}>
+      <Section title={title} emphasis={emphasis}>
         <EmptyState
-          title="Heute sind keine Arbeitszeiten eingetragen."
+          title={
+            focusTomorrow
+              ? "Morgen sind keine Arbeitszeiten eingetragen."
+              : "Heute sind keine Arbeitszeiten eingetragen."
+          }
           description="Sobald Schichtzeiten da sind, siehst du sie hier."
         />
       </Section>
@@ -88,8 +98,8 @@ function HeuteBlock({
   }
 
   return (
-    <Section title="Heute" emphasis={emphasis}>
-      <p className="text-lg text-[color:var(--ink)]">Du arbeitest heute</p>
+    <Section title={title} emphasis={emphasis}>
+      <p className="text-lg text-[color:var(--ink)]">{lead}</p>
       {hours ? (
         <p className="mt-2 font-display text-4xl tabular-nums tracking-tight sm:text-5xl">
           {hours}
@@ -285,6 +295,7 @@ export function WorkTravelSection({
   workEmphasis = "secondary",
   includeLeave = true,
   quietNoBus = false,
+  focusTomorrow = false,
 }: {
   plan: PlanSlice | null;
   workLabel?: string | null;
@@ -294,6 +305,8 @@ export function WorkTravelSection({
   includeLeave?: boolean;
   /** Soft no-bus copy instead of EmptyState boxes. */
   quietNoBus?: boolean;
+  /** Evening tomorrow focus — Morgen wording, no “heute” leftovers. */
+  focusTomorrow?: boolean;
 }) {
   if (!plan) return null;
 
@@ -303,19 +316,30 @@ export function WorkTravelSection({
     return (
       <div className="space-y-5">
         {!isWalking ? (
-          <HeuteBlock plan={plan} workLabel={workLabel} emphasis="hero" />
+          <HeuteBlock
+            plan={plan}
+            workLabel={workLabel}
+            emphasis="hero"
+            focusTomorrow={focusTomorrow}
+          />
         ) : null}
         {includeLeave && !isWalking ? (
           quietNoBus ? (
             <Section title="Losfahren" emphasis="tertiary">
               <p className="text-lg text-[color:var(--quiet)]">
-                Du musst heute keinen Bus nehmen.
+                {focusTomorrow
+                  ? "Du musst morgen keinen Bus nehmen."
+                  : "Du musst heute keinen Bus nehmen."}
               </p>
             </Section>
           ) : (
             <Section title="Losfahren" emphasis="secondary">
               <EmptyState
-                title="Du musst heute keinen Bus nehmen."
+                title={
+                  focusTomorrow
+                    ? "Du musst morgen keinen Bus nehmen."
+                    : "Du musst heute keinen Bus nehmen."
+                }
                 description="Gerade ist keine passende Verbindung verfügbar."
               />
             </Section>
@@ -336,7 +360,12 @@ export function WorkTravelSection({
   if (plan.status !== "on-time" || !plan.leaveHome) {
     if (!isWalking && (plan.workStart || plan.workEnd || workLabel)) {
       return (
-        <HeuteBlock plan={plan} workLabel={workLabel} emphasis={workEmphasis} />
+        <HeuteBlock
+          plan={plan}
+          workLabel={workLabel}
+          emphasis={workEmphasis}
+          focusTomorrow={focusTomorrow}
+        />
       );
     }
     return null;
@@ -350,7 +379,12 @@ export function WorkTravelSection({
 
   return (
     <div className="space-y-5">
-      <HeuteBlock plan={plan} workLabel={workLabel} emphasis={workEmphasis} />
+      <HeuteBlock
+        plan={plan}
+        workLabel={workLabel}
+        emphasis={workEmphasis}
+        focusTomorrow={focusTomorrow}
+      />
       {includeLeave ? (
         <>
           <LosfahrenBus

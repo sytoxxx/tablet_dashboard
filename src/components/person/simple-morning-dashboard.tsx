@@ -187,6 +187,7 @@ export function SimpleMorningDashboard({
                 workEmphasis="secondary"
                 includeLeave={leaveKnown && !eveningFocus}
                 quietNoBus
+                focusTomorrow={eveningFocus || overview.focusIsTomorrow}
               />
               {leaveReminderActive && leaveKnown && !eveningFocus ? (
                 <p className="px-1 text-base text-[color:var(--quiet)]">
@@ -199,6 +200,7 @@ export function SimpleMorningDashboard({
               shift={view.workShift}
               simple
               emphasis="hero"
+              focusTomorrow={eveningFocus || overview.focusIsTomorrow}
             />
           )}
 

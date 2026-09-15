@@ -7,20 +7,29 @@ export function WorkShiftSection({
   shift,
   simple = false,
   emphasis = "hero",
+  focusTomorrow = false,
 }: {
   shift: WorkShift | null;
   simple?: boolean;
   emphasis?: ClarityEmphasis;
+  focusTomorrow?: boolean;
 }) {
+  const title = focusTomorrow ? "Morgen" : "Heute";
   if (!shift) {
     return (
-      <Section title="Heute" emphasis={emphasis}>
+      <Section title={title} emphasis={emphasis}>
         <EmptyState
-          title="Heute sind keine Arbeitszeiten eingetragen."
+          title={
+            focusTomorrow
+              ? "Morgen sind keine Arbeitszeiten eingetragen."
+              : "Heute sind keine Arbeitszeiten eingetragen."
+          }
           description={
             simple
               ? "Sobald Schichtzeiten da sind, siehst du sie hier."
-              : "Heute steht keine Schicht an — ruhiger Tag."
+              : focusTomorrow
+                ? "Morgen steht keine Schicht an."
+                : "Heute steht keine Schicht an — ruhiger Tag."
           }
         />
       </Section>
@@ -28,8 +37,10 @@ export function WorkShiftSection({
   }
 
   return (
-    <Section title="Heute" emphasis={emphasis}>
-      <p className="text-lg text-[color:var(--ink)]">Du arbeitest heute</p>
+    <Section title={title} emphasis={emphasis}>
+      <p className="text-lg text-[color:var(--ink)]">
+        {focusTomorrow ? "Du arbeitest morgen" : "Du arbeitest heute"}
+      </p>
       <p className="mt-2 font-display text-4xl tabular-nums tracking-tight sm:text-5xl landscape-tablet:text-5xl">
         {shift.start} – {shift.end} Uhr
       </p>
