@@ -233,6 +233,67 @@ describe("HEIDI connections", () => {
     expect(leaveHome).toBe("12:00");
   });
 
+  it("extends arrival when trailing TRIAS walk leg lacks timestamps", () => {
+    const SAMPLE_TRAILING_WALK = `<?xml version="1.0"?>
+<trias:Trias xmlns:trias="http://www.vdv.de/trias">
+  <trias:TripResult>
+    <trias:Trip>
+      <trias:Interchanges>0</trias:Interchanges>
+      <trias:TripLeg>
+        <trias:TimedLeg>
+          <trias:LegBoard>
+            <trias:StopPointRef>at:46:6005</trias:StopPointRef>
+            <trias:StopPointName><trias:Text>Europaplatz</trias:Text></trias:StopPointName>
+            <trias:ServiceDeparture>
+              <trias:TimetabledTime>2026-09-15T12:00:00Z</trias:TimetabledTime>
+            </trias:ServiceDeparture>
+          </trias:LegBoard>
+          <trias:LegAlight>
+            <trias:StopPointRef>at:46:7893</trias:StopPointRef>
+            <trias:StopPointName><trias:Text>Viktor-Adler-Straße</trias:Text></trias:StopPointName>
+            <trias:ServiceArrival>
+              <trias:TimetabledTime>2026-09-15T12:12:00Z</trias:TimetabledTime>
+            </trias:ServiceArrival>
+          </trias:LegAlight>
+          <trias:Service>
+            <trias:PublishedLineName><trias:Text>180</trias:Text></trias:PublishedLineName>
+            <trias:DestinationText><trias:Text>Kindberg</trias:Text></trias:DestinationText>
+          </trias:Service>
+        </trias:TimedLeg>
+      </trias:TripLeg>
+      <trias:TripLeg>
+        <trias:ContinuousLeg>
+          <trias:LegStart>
+            <trias:StopPointRef>at:46:7893</trias:StopPointRef>
+            <trias:LocationName><trias:Text>Viktor-Adler-Straße</trias:Text></trias:LocationName>
+          </trias:LegStart>
+          <trias:LegEnd>
+            <trias:StopPointRef>at:46:30537</trias:StopPointRef>
+            <trias:LocationName><trias:Text>Einkaufszentrum</trias:Text></trias:LocationName>
+          </trias:LegEnd>
+          <trias:Duration>PT5M</trias:Duration>
+          <trias:ContinuousService>
+            <trias:IndividualTransport>
+              <trias:Mode>walk</trias:Mode>
+            </trias:IndividualTransport>
+          </trias:ContinuousService>
+        </trias:ContinuousLeg>
+      </trias:TripLeg>
+    </trias:Trip>
+  </trias:TripResult>
+</trias:Trias>`;
+    const trips = parseTriasTrips(SAMPLE_TRAILING_WALK);
+    const conn = connectionFromParsedTrip(trips[0], {
+      walkToStopMinutes: 8,
+      now: new Date("2026-09-15T11:50:00Z"),
+    });
+    expect(conn).not.toBeNull();
+    expect(conn!.arrival).toBe("12:17");
+    const walk = conn!.legs.find((l) => l.type === "WALK");
+    expect(walk?.arrival).toBe("12:17");
+    expect(walk?.durationMinutes).toBe(5);
+  });
+
   it("prioritizes direct line among same departure window", () => {
     const now = new Date("2026-09-15T11:50:00Z");
     const direct = parseTriasTrips(SAMPLE_DIRECT);

@@ -88,7 +88,6 @@ export function connectionFromParsedTrip(
   const depIso = tripDepartureIso(trip);
   const arrIso = tripArrivalIso(trip);
   const departure = hhmmFromIso(depIso);
-  const arrival = hhmmFromIso(arrIso);
 
   if (!departure) return null;
 
@@ -104,6 +103,26 @@ export function connectionFromParsedTrip(
     options.walkToStopMinutes,
   );
   const transit = firstTransit(legs);
+  let arrival = hhmmFromIso(arrIso);
+
+  // Trailing TRIAS walk legs often lack arrival timestamps — extend from last known time.
+  let cursor = arrival ? parseTimeToMinutes(arrival) : null;
+  for (const leg of legs) {
+    if (leg.type !== "WALK") {
+      if (leg.arrival) cursor = parseTimeToMinutes(leg.arrival);
+      continue;
+    }
+    if (!leg.arrival && cursor !== null && leg.durationMinutes != null) {
+      cursor = cursor + leg.durationMinutes;
+      leg.arrival = minutesToHHmm(cursor);
+      if (!leg.departure && arrival) leg.departure = arrival;
+      arrival = leg.arrival;
+    } else if (leg.arrival) {
+      cursor = parseTimeToMinutes(leg.arrival);
+      arrival = leg.arrival;
+    }
+  }
+
   const duration =
     durationIsoToMinutes(trip.durationIso) ??
     (departure && arrival
