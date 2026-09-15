@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { Coffee, Home, Settings } from "lucide-react";
+import { Coffee, Home, Music2, Settings } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 const ITEMS = [
@@ -19,6 +19,12 @@ const ITEMS = [
     match: (p: string) => p.startsWith("/kaffee"),
   },
   {
+    href: "/musik",
+    label: "Musik",
+    icon: Music2,
+    match: (p: string) => p.startsWith("/musik"),
+  },
+  {
     href: "/einstellungen",
     label: "Einstellungen",
     icon: Settings,
@@ -27,7 +33,7 @@ const ITEMS = [
 ] as const;
 
 /**
- * Few-item tablet nav: Morgen · Kaffee · Einstellungen.
+ * Few-item tablet nav: Morgen · Kaffee · Musik · Einstellungen.
  */
 export function PrimaryNav({ className }: { className?: string }) {
   const pathname = usePathname();
@@ -35,7 +41,7 @@ export function PrimaryNav({ className }: { className?: string }) {
   return (
     <nav
       className={cn(
-        "flex items-center justify-center gap-1 sm:justify-start sm:gap-2",
+        "flex flex-wrap items-center justify-center gap-1 sm:justify-start sm:gap-2",
         className,
       )}
       aria-label="Hauptnavigation"
@@ -47,7 +53,7 @@ export function PrimaryNav({ className }: { className?: string }) {
             key={href}
             href={href}
             className={cn(
-              "inline-flex min-h-12 min-w-[7.5rem] items-center justify-center gap-2 rounded-2xl px-4 text-base font-medium transition-[transform,background-color,color] duration-150 active:scale-[0.97]",
+              "inline-flex min-h-12 min-w-[6.5rem] items-center justify-center gap-2 rounded-2xl px-3 text-base font-medium transition-[transform,background-color,color] duration-150 active:scale-[0.97] sm:min-w-[7.5rem] sm:px-4",
               active
                 ? "bg-[color:var(--ink)] text-[color:var(--surface)]"
                 : "bg-[color:var(--surface)] text-[color:var(--ink)] hover:bg-[color:var(--surface-strong)]",

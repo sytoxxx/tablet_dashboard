@@ -10,11 +10,13 @@ import { cn } from "@/lib/utils";
 type MorningNavProps = {
   /** @deprecated Coffee is reached via PrimaryNav */
   showCoffee?: boolean;
+  /** @deprecated Music is reached via PrimaryNav */
+  showMusic?: boolean;
   /** Extra-quiet chrome for work mornings. */
   quiet?: boolean;
   className?: string;
   showProfileSwitcher?: boolean;
-  /** Show primary Morgen / Kaffee / Einstellungen row. */
+  /** Show primary Morgen / Kaffee / Musik / Einstellungen row. */
   showPrimary?: boolean;
 };
 

@@ -1,9 +1,10 @@
 import Link from "next/link";
-import { ArrowLeft, Coffee, Home, Settings } from "lucide-react";
+import { ArrowLeft, Coffee, Home, Music2, Settings } from "lucide-react";
 import { Button } from "@/components/ui/button";
 
 type AppNavProps = {
   showCoffee?: boolean;
+  showMusic?: boolean;
   showSettings?: boolean;
   backLabel?: string;
   backHref?: string;
@@ -12,6 +13,7 @@ type AppNavProps = {
 /** Simple ← Zurück / Home — no menu complexity. */
 export function AppNav({
   showCoffee = true,
+  showMusic = true,
   showSettings = true,
   backLabel = "Zurück",
   backHref = "/",
@@ -52,6 +54,19 @@ export function AppNav({
           >
             <Link href="/einstellungen" aria-label="Einstellungen">
               <Settings className="size-5" />
+            </Link>
+          </Button>
+        ) : null}
+        {showMusic ? (
+          <Button
+            asChild
+            variant="secondary"
+            size="lg"
+            className="h-12 gap-2 rounded-2xl bg-[color:var(--surface)] px-5 text-base text-[color:var(--ink)] hover:bg-[color:var(--surface-strong)] active:scale-[0.97]"
+          >
+            <Link href="/musik">
+              <Music2 className="size-5" aria-hidden />
+              Musik
             </Link>
           </Button>
         ) : null}
