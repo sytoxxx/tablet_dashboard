@@ -33,6 +33,15 @@ Vercel-Vorbereitung: siehe [`docs/vercel-deployment.md`](docs/vercel-deployment.
 
 `/einstellungen` — Personen, Pläne (Wocheneditor), Aufgaben, Bus, Kalender, Kaffee, Import/Export, KI, System. Getrennt vom Morning-Home.
 
+## Kaffee Command Center
+
+- `/kaffee` — Dashboard (heute / Woche)
+- `/kaffee/bruehen` — Bohne → Methode → Stoppuhr → Speichern
+- `/kaffee/bohnen` (+ `/scannen`) — Bohnen & Etikett-Scan
+- `/kaffee/statistik`, `/kaffee/verlauf`, `/kaffee/empfehlungen`
+- Persistenz: LocalStorage `coffee-morning-command-v1` (Beans/Brews, getrennt von AppData)
+- Bohne scannen: `POST /api/coffee/scan-bean` (ohne `OPENAI_API_KEY` → Mock ohne erfundene Felder)
+
 ## KI
 
 - Route: `/api/plan/analyze` (Keys nur Backend/env)
