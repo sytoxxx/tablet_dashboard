@@ -28,10 +28,11 @@ export function WorkWeekSection({
 
   return (
     <Section title="Meine Woche" emphasis="tertiary">
-      <ul
-        className="grid grid-cols-7 gap-1 sm:gap-1.5"
-        aria-label="Wochenübersicht"
-      >
+      <div className="w-full overflow-x-auto overscroll-x-contain [-ms-overflow-style:none] [scrollbar-width:thin]">
+        <ul
+          className="grid min-w-[18rem] grid-cols-7 gap-1 sm:min-w-0 sm:gap-1.5"
+          aria-label="Wochenübersicht"
+        >
         {days.map((d) => (
           <li
             key={d.day}
@@ -69,7 +70,8 @@ export function WorkWeekSection({
             ) : null}
           </li>
         ))}
-      </ul>
+        </ul>
+      </div>
     </Section>
   );
 }

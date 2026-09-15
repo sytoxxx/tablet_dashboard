@@ -137,6 +137,12 @@ export function WorkBusSection({
               </span>
             </p>
           ) : null}
+
+          {glance.isTestData ? (
+            <p className="mt-3 text-sm text-[color:var(--quiet)]">
+              Fahrplan-Testdaten — keine Live-Abfahrt
+            </p>
+          ) : null}
         </>
       )}
     </Section>

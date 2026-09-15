@@ -1,7 +1,7 @@
 "use client";
 
 import { Speaker } from "lucide-react";
-import { MusicCommandProvider, useMusic } from "@/components/music/music-command-provider";
+import { useMusic } from "@/components/music/music-command-provider";
 import { MorningNav } from "@/components/shared/morning-nav";
 
 function MusicHeader() {
@@ -27,16 +27,15 @@ function MusicHeader() {
   );
 }
 
+/** Shell chrome only — MusicCommandProvider lives in root layout for mini-player. */
 export function MusicShell({ children }: { children: React.ReactNode }) {
   return (
-    <MusicCommandProvider>
-      <div className="morning-shell mx-auto flex w-full max-w-5xl flex-col gap-6 px-5 py-6 sm:gap-8 sm:px-8 sm:py-8 landscape-tablet:gap-5 landscape-tablet:py-5">
-        <MorningNav showCoffee showMusic={false} />
-        <MusicHeader />
-        <div className="animate-rise" style={{ animationDelay: "60ms" }}>
-          {children}
-        </div>
+    <div className="morning-shell mx-auto flex w-full max-w-5xl flex-col gap-6 px-5 py-6 sm:gap-8 sm:px-8 sm:py-8 landscape-tablet:gap-5 landscape-tablet:py-5">
+      <MorningNav showCoffee showMusic={false} />
+      <MusicHeader />
+      <div className="animate-rise" style={{ animationDelay: "60ms" }}>
+        {children}
       </div>
-    </MusicCommandProvider>
+    </div>
   );
 }

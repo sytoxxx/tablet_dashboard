@@ -151,6 +151,7 @@ export function LeviMorningDashboard({
     <div
       className={cn(
         "morning-shell mx-auto flex w-full max-w-3xl flex-col gap-5 px-5 py-5 sm:gap-6 sm:px-8 sm:py-6 lg:max-w-4xl lg:px-10 landscape-tablet:max-w-5xl landscape-tablet:gap-5 landscape-tablet:py-5",
+        "pb-24",
         daypartShellClass(greetingBucket),
         eveningFocus ? "daypart-evening" : "",
       )}

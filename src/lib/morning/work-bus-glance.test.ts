@@ -177,4 +177,93 @@ describe("resolveWorkBusGlance", () => {
     });
     expect(g.visible).toBe(false);
   });
+
+  it("surfaces cancelled primary with next usable connection", () => {
+    const g = resolveWorkBusGlance({
+      isWorking: true,
+      plan: {
+        mode: "bus",
+        status: "cancelled",
+        isTestData: false,
+        connections: [
+          {
+            departure: "05:48",
+            arrival: "06:12",
+            leaveHome: "05:36",
+            durationMinutes: 36,
+            realtime: true,
+            cancelled: true,
+            transfers: 0,
+            isDirect: true,
+            legs: [
+              {
+                type: "TRANSIT",
+                departure: "05:48",
+                arrival: "06:12",
+                from: "Europaplatz",
+                to: "Altersheimgasse",
+                line: "1",
+                direction: "Bruck",
+                delayMinutes: null,
+                cancelled: true,
+              },
+            ],
+            lineSummary: "Linie 1",
+            direction: "Bruck",
+            delayMinutes: null,
+            walkToStopMinutes: 12,
+            walkTimeConfigured: true,
+          },
+        ],
+        alternativeConnection: {
+          departure: "06:10",
+          arrival: "06:34",
+          leaveHome: "05:58",
+          durationMinutes: 36,
+          realtime: true,
+          cancelled: false,
+          transfers: 0,
+          isDirect: true,
+          legs: [
+            {
+              type: "TRANSIT",
+              departure: "06:10",
+              arrival: "06:34",
+              from: "Europaplatz",
+              to: "Altersheimgasse",
+              line: "1",
+              direction: "Bruck",
+              delayMinutes: 0,
+              cancelled: false,
+            },
+          ],
+          lineSummary: "Linie 1",
+          direction: "Bruck",
+          delayMinutes: 0,
+          walkToStopMinutes: 12,
+          walkTimeConfigured: true,
+        },
+      },
+    });
+    expect(g.visible).toBe(true);
+    expect(g.kind).toBe("cancelled");
+    expect(g.alertTitle).toMatch(/fällt aus/);
+    expect(g.nextTime).toBe("06:10");
+    expect(g.nextLineTarget).toMatch(/Linie 1/);
+  });
+
+  it("flags Testdaten when plan.isTestData", () => {
+    const g = resolveWorkBusGlance({
+      isWorking: true,
+      plan: {
+        mode: "bus",
+        status: "on-time",
+        isTestData: true,
+        busDeparture: "05:48",
+        bus: { departure: "05:48", line: "1", destination: "Bruck", isTestData: true },
+      },
+    });
+    expect(g.visible).toBe(true);
+    expect(g.isTestData).toBe(true);
+  });
 });

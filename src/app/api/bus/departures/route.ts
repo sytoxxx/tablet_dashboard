@@ -195,6 +195,7 @@ async function respondForPerson(
       work?.start || prefs.desiredArrivalHHmm || schoolStart || null;
 
     // ——— Heidi / Birgit: TRIAS TripRequest when configured ———
+    let tripFallbackWarning: string | null = null;
     if (personUsesTripTravel(person.id) && isTriasTripConfigured()) {
       const tripResult =
         person.id === "heidi"
@@ -237,7 +238,10 @@ async function respondForPerson(
           emptyTitle: null,
         });
       }
-      // Fall through to StopEvent / local if TripRequest empty
+      // Fall through to StopEvent / local — never pretend TripRequest succeeded.
+      tripFallbackWarning =
+        tripResult.warning?.trim() ||
+        "Keine TripRequest-Verbindung — Fallback-Fahrplan.";
     }
 
     const local = departuresFromLocalStop(person.busStop);
@@ -332,11 +336,20 @@ async function respondForPerson(
       departures: result.departures,
       upcoming,
       next: nextWithMeta,
-      workTravel: workTravel ? serializeWorkTravel(workTravel) : null,
+      workTravel: workTravel
+        ? serializeWorkTravel({
+            ...workTravel,
+            isTestData:
+              Boolean(workTravel.isTestData) || result.source === "local",
+          })
+        : null,
       source: result.source,
       provider: result.provider,
-      warning: result.warning,
-      isTestData: Boolean(result.isTestData) || result.source === "local",
+      warning: [tripFallbackWarning, result.warning].filter(Boolean).join(" · ") || null,
+      isTestData:
+        Boolean(result.isTestData) ||
+        result.source === "local" ||
+        Boolean(tripFallbackWarning),
       enabled: true,
       targetStart,
       leadTimeMinutes: prefs.leadTimeMinutes,

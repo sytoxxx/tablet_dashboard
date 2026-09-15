@@ -9,6 +9,7 @@ import {
   appendConfiguredFinalWalk,
   computeLeaveHome,
   connectionFromParsedTrip,
+  findEarliestCancelledConnection,
   selectUpcomingConnections,
 } from "@/lib/work/connections";
 import {
@@ -219,6 +220,28 @@ describe("HEIDI connections", () => {
     expect(selected[0]?.departure).toBe("12:22");
     expect(selected[0]?.realtime).toBe(true);
     expect(selected[0]?.delayMinutes).toBe(2);
+  });
+
+  it("findEarliestCancelledConnection surfaces TRIAS cancel without inventing", () => {
+    const now = new Date("2026-09-15T11:50:00Z");
+    const cancelledBundle = parseTriasTrips(SAMPLE_CANCELLED);
+    const found = findEarliestCancelledConnection(cancelledBundle, {
+      now,
+      walkToStopMinutes: 8,
+    });
+    expect(found).not.toBeNull();
+    expect(found?.cancelled).toBe(true);
+    expect(found?.departure).toBe("12:05");
+    expect(found?.lineSummary).toBe("1");
+  });
+
+  it("includeCancelled maps cancelled trip instead of dropping it", () => {
+    const trips = parseTriasTrips(SAMPLE_CANCELLED);
+    const dropped = connectionFromParsedTrip(trips[0], {});
+    expect(dropped).toBeNull();
+    const kept = connectionFromParsedTrip(trips[0], { includeCancelled: true });
+    expect(kept?.cancelled).toBe(true);
+    expect(kept?.departure).toBe("12:05");
   });
 
   it("computes leaveHome = departure − walk minutes", () => {

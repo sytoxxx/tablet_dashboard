@@ -134,7 +134,7 @@ function LosfahrenBus({
       return (
         <Section title="Losfahren" emphasis="tertiary">
           <p className="text-lg text-[color:var(--quiet)]">
-            Du musst heute keinen Bus nehmen.
+            Keine passende Verbindung gerade.
           </p>
         </Section>
       );
@@ -142,7 +142,7 @@ function LosfahrenBus({
     return (
       <Section title="Losfahren" emphasis={emphasis}>
         <EmptyState
-          title="Du musst heute keinen Bus nehmen."
+          title="Keine passende Verbindung"
           description="Es steht keine Verbindung für den Morgen an."
         />
       </Section>
@@ -327,20 +327,24 @@ export function WorkTravelSection({
           quietNoBus ? (
             <Section title="Losfahren" emphasis="tertiary">
               <p className="text-lg text-[color:var(--quiet)]">
-                {focusTomorrow
-                  ? "Du musst morgen keinen Bus nehmen."
-                  : "Du musst heute keinen Bus nehmen."}
+                {plan.status === "cancelled"
+                  ? "Diese Verbindung fällt aus."
+                  : focusTomorrow
+                    ? "Morgen steht keine passende Verbindung."
+                    : "Heute steht keine passende Verbindung."}
               </p>
             </Section>
           ) : (
             <Section title="Losfahren" emphasis="secondary">
               <EmptyState
                 title={
-                  focusTomorrow
-                    ? "Du musst morgen keinen Bus nehmen."
-                    : "Du musst heute keinen Bus nehmen."
+                  plan.status === "cancelled"
+                    ? "Diese Verbindung fällt aus."
+                    : focusTomorrow
+                      ? "Keine passende Verbindung für morgen"
+                      : "Keine passende Verbindung"
                 }
-                description="Gerade ist keine passende Verbindung verfügbar."
+                description="Bitte später erneut prüfen."
               />
             </Section>
           )

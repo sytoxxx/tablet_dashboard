@@ -59,11 +59,11 @@ export function BusSection({
     return (
       <Section title={title} emphasis={emphasis}>
         <EmptyState
-          title="Du musst heute keinen Bus nehmen."
+          title="Diese Verbindung fällt aus."
           description={
             simple
-              ? "Diese Verbindung fällt aus — bitte später erneut prüfen."
-              : arrivalMessage || "Diese Verbindung fällt aus."
+              ? "Bitte später erneut prüfen — oder nächste Verbindung abwarten."
+              : arrivalMessage || "Bitte später erneut prüfen."
           }
         />
       </Section>
@@ -168,7 +168,7 @@ export function BusSection({
         title={
           emptyTitle ||
           (simple
-            ? "Du musst heute keinen Bus nehmen."
+            ? fallback.title
             : fallback.title)
         }
         description={

@@ -80,9 +80,15 @@ function firstTransit(legs: TravelLeg[]): TravelLeg | null {
 
 export function connectionFromParsedTrip(
   trip: ParsedTrip,
-  options: { walkToStopMinutes?: number | null; now?: Date },
+  options: {
+    walkToStopMinutes?: number | null;
+    now?: Date;
+    /** When true, map cancelled trips instead of dropping them. */
+    includeCancelled?: boolean;
+  },
 ): TravelConnection | null {
-  if (tripHasCancelledLeg(trip)) return null;
+  const cancelled = tripHasCancelledLeg(trip);
+  if (cancelled && !options.includeCancelled) return null;
 
   const legs = trip.legs.map(legFromParsed);
   const depIso = tripDepartureIso(trip);
@@ -138,7 +144,7 @@ export function connectionFromParsedTrip(
     leaveHome,
     durationMinutes: duration,
     realtime: tripHasRealtime(trip),
-    cancelled: false,
+    cancelled,
     transfers: trip.interchanges,
     isDirect: tripIsDirect(trip),
     legs,
@@ -148,6 +154,36 @@ export function connectionFromParsedTrip(
     walkToStopMinutes: walkMinutes,
     walkTimeConfigured: walkConfigured,
   };
+}
+
+/**
+ * Earliest upcoming cancelled trip (if any), for honest cancel alerts.
+ * Does not invent — only surfaces TRIAS-cancelled legs.
+ */
+export function findEarliestCancelledConnection(
+  trips: ParsedTrip[],
+  options: {
+    walkToStopMinutes?: number | null;
+    now: Date;
+  },
+): TravelConnection | null {
+  const cancelled = trips
+    .map((t) =>
+      connectionFromParsedTrip(t, {
+        walkToStopMinutes: options.walkToStopMinutes,
+        now: options.now,
+        includeCancelled: true,
+      }),
+    )
+    .filter((c): c is TravelConnection => Boolean(c?.cancelled));
+
+  cancelled.sort((a, b) => {
+    const ta = parseTimeToMinutes(a.departure || "99:99");
+    const tb = parseTimeToMinutes(b.departure || "99:99");
+    return ta - tb;
+  });
+
+  return cancelled[0] ?? null;
 }
 
 /**

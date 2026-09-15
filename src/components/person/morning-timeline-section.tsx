@@ -26,10 +26,10 @@ export function MorningTimelineSection({
       return (
         <Section title="Heute" emphasis={emphasis}>
           <p className="text-lg text-[color:var(--ink)]">
-            Du musst heute keinen Bus nehmen.
+            Keine passende Verbindung gerade.
           </p>
           <p className="mt-1 text-base text-[color:var(--quiet)]">
-            Gerade ist keine passende Verbindung verfügbar.
+            Bitte später erneut prüfen.
           </p>
         </Section>
       );

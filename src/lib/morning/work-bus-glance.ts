@@ -28,6 +28,8 @@ export type WorkBusGlance = {
   nextTime: string | null;
   nextLineTarget: string | null;
   nextArrival: string | null;
+  /** Quiet label when timetable is seed/cache — never present as live. */
+  isTestData?: boolean;
 };
 
 type PlanLike = {
@@ -41,6 +43,7 @@ type PlanLike = {
   destinationLabel?: string | null;
   endDestinationLabel?: string | null;
   transitDestinationLabel?: string | null;
+  isTestData?: boolean | null;
   legs?: TravelLeg[] | null;
   connections?: TravelConnection[] | null;
   alternativeConnection?: TravelConnection | null;
@@ -54,6 +57,7 @@ type PlanLike = {
     cancelled?: boolean | null;
     estimatedArrivalHHmm?: string | null;
     status?: string | null;
+    isTestData?: boolean | null;
   } | null;
 };
 
@@ -170,6 +174,7 @@ export function resolveWorkBusGlance(input: {
     nextTime: null,
     nextLineTarget: null,
     nextArrival: null,
+    isTestData: false,
   };
 
   if (!input.isWorking || !input.plan) return empty;
@@ -215,6 +220,7 @@ export function resolveWorkBusGlance(input: {
       ...empty,
       visible: true,
       kind: "none",
+      isTestData: Boolean(plan.isTestData || plan.bus?.isTestData),
       alertTitle: null,
       alertDetail: input.focusTomorrow
         ? "Morgen steht keine passende Verbindung."
@@ -259,5 +265,6 @@ export function resolveWorkBusGlance(input: {
     nextTime,
     nextLineTarget,
     nextArrival,
+    isTestData: Boolean(plan.isTestData || plan.bus?.isTestData),
   };
 }

@@ -109,6 +109,8 @@ export function SimpleMorningDashboard({
     (overview.visibility.weather ||
       Boolean(overview.weather.weather ?? view.weather));
   const weather = overview.weather.weather ?? view.weather;
+  // Meine Woche must stay visible for Birgit/Heidi — never hide for daypart/space.
+  // Compact scroll lives in WorkWeekSection; gate only on having a work schedule.
   const showWeek = Boolean(workWeek) && mode === "work";
 
   const leaveKnown =
@@ -155,6 +157,8 @@ export function SimpleMorningDashboard({
     <div
       className={cn(
         "morning-shell mx-auto flex w-full max-w-3xl flex-col gap-5 px-5 py-5 sm:gap-6 sm:px-8 sm:py-6 lg:max-w-4xl lg:px-10 landscape-tablet:max-w-5xl landscape-tablet:gap-5 landscape-tablet:py-5",
+        // Room for bottom-right music mini-player — never covers Meine Woche/Bus.
+        "pb-24",
         daypartShellClass(greetingBucket),
       )}
     >
