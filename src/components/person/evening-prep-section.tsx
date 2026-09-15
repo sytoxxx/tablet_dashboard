@@ -88,16 +88,9 @@ function EveningPrepBody({
   const outfitLines = useMemo(() => {
     if (prep.pickedOutfit?.pieces.length) {
       return prep.pickedOutfit.pieces.map((p) => {
-        const emoji =
-          p.slot === "top"
-            ? "👕"
-            : p.slot === "bottom"
-              ? "👖"
-              : p.slot === "shoes"
-                ? "👟"
-                : "🧥";
-        if (p.item) return `${emoji} ${p.item.name}`;
-        return p.missingPrompt ?? `${emoji} ${p.label}`;
+        if (p.item) return p.item.name;
+        // Short glance label — never the long "füge dem Kleiderschrank hinzu" prompt.
+        return p.label;
       });
     }
     const outfitItem = prep.items.find((i) => i.kind === "outfit");
@@ -212,7 +205,7 @@ function EveningPrepBody({
             disabled={confirmed}
             onClick={confirmOutfit}
           >
-            {confirmed ? "✓ Vorbereitet" : "✓ Vorbereiten"}
+            {confirmed ? "Vorbereitet" : "Vorbereiten"}
           </Button>
           <Button
             size="lg"
@@ -220,7 +213,7 @@ function EveningPrepBody({
             className="h-12 rounded-2xl"
             onClick={requestAlternative}
           >
-            🔄 Anderes Outfit
+            Anderes Outfit
           </Button>
           {digitalWardrobe ? (
             <Button
@@ -242,7 +235,6 @@ function EveningPrepBody({
           >
             Kleiderschrank einrichten
           </Link>
-          , damit echte Outfits vorgeschlagen werden.
         </p>
       )}
 

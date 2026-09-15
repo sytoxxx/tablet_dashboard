@@ -155,6 +155,7 @@ export function LeviMorningDashboard({
           {showEveningPrep ? (
             <EveningPrepSection
               prep={overview.eveningPrep}
+              simple
               digitalWardrobe={digitalWardrobe}
               onExcludeCombination={onExcludeCombination}
               onWardrobeChange={onWardrobeChange}

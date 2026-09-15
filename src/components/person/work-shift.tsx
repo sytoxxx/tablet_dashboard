@@ -36,7 +36,7 @@ export function WorkShiftSection({
       {shift.label ? (
         <p className="mt-3 text-base text-[color:var(--quiet)]">{shift.label}</p>
       ) : null}
-      {shift.location ? (
+      {!simple && shift.location ? (
         <p className="mt-1 text-lg">{shift.location}</p>
       ) : null}
       {!simple && shift.notes ? (
