@@ -257,13 +257,25 @@ export function SimpleMorningDashboard({
         ) : null}
 
         {showWeek && workWeek ? (
-          <div className="landscape-tablet:col-span-2">
+          <div
+            className={cn(
+              "landscape-tablet:col-span-2",
+              showWeather &&
+                "landscape-tablet:grid landscape-tablet:grid-cols-2 landscape-tablet:items-start landscape-tablet:gap-5",
+            )}
+          >
             <WorkWeekSection week={workWeek} today={wallNow} compact />
+            {showWeather ? (
+              <WeatherSection
+                weather={weather}
+                showCurrent={false}
+                showWeekStrip
+                focusTomorrow={eveningFocus}
+                now={wallNow}
+              />
+            ) : null}
           </div>
-        ) : null}
-
-        {/* Secondary — may scroll below first viewport */}
-        {showWeather ? (
+        ) : showWeather ? (
           <div className="landscape-tablet:col-span-2">
             <WeatherSection
               weather={weather}

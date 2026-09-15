@@ -162,6 +162,8 @@ export type WeatherDayGlance = {
   /** Mo–So short label derived client-side if needed */
   weekdayKey?: WeekdayKey;
   tempMaxC?: number;
+  /** Daily low when provider supplies it — never invent. */
+  tempMinC?: number;
   weatherCode?: number;
   /** 0–100 when known from forecast */
   rainProbPct?: number;

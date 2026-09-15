@@ -29,6 +29,7 @@ function weekdayFromIso(dateIso: string): WeekdayKey | undefined {
 function buildWeekGlance(daily: {
   time?: string[];
   temperature_2m_max?: Array<number | null>;
+  temperature_2m_min?: Array<number | null>;
   weather_code?: Array<number | null>;
   precipitation_probability_max?: Array<number | null>;
 }): WeatherDayGlance[] | undefined {
@@ -38,13 +39,15 @@ function buildWeekGlance(daily: {
   for (let i = 0; i < Math.min(times.length, 7); i++) {
     const dateIso = times[i];
     if (!dateIso) continue;
-    const temp = daily.temperature_2m_max?.[i];
+    const tempMax = daily.temperature_2m_max?.[i];
+    const tempMin = daily.temperature_2m_min?.[i];
     const code = daily.weather_code?.[i];
     const rain = daily.precipitation_probability_max?.[i];
     out.push({
       dateIso,
       weekdayKey: weekdayFromIso(dateIso),
-      tempMaxC: isValidTempC(temp) ? Math.round(temp) : undefined,
+      tempMaxC: isValidTempC(tempMax) ? Math.round(tempMax) : undefined,
+      tempMinC: isValidTempC(tempMin) ? Math.round(tempMin) : undefined,
       weatherCode:
         typeof code === "number" && Number.isFinite(code) ? code : undefined,
       rainProbPct: clampRainProbPct(rain),

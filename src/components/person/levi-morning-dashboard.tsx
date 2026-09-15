@@ -284,9 +284,32 @@ export function LeviMorningDashboard({
           </div>
         )}
 
+        {/* Calm week list — early enough to stay near school blocks */}
+        {showWeather ? (
+          <div
+            className={cn(
+              showTimeline || showAnfahrt
+                ? undefined
+                : "landscape-tablet:col-span-2",
+            )}
+          >
+            <WeatherSection
+              weather={weather}
+              showCurrent={false}
+              showWeekStrip
+              focusTomorrow={eveningFocus}
+              now={wallNow}
+            />
+          </div>
+        ) : null}
+
         {/* Anfahrt — walk / timeline only when relevant; never invent bus */}
         {showTimeline ? (
-          <div className="landscape-tablet:col-span-2">
+          <div
+            className={
+              showWeather ? undefined : "landscape-tablet:col-span-2"
+            }
+          >
             <MorningTimelineSection
               timeline={overview.timeline}
               reminderActive={leaveReminderActive}
@@ -297,7 +320,11 @@ export function LeviMorningDashboard({
         ) : null}
 
         {showAnfahrt ? (
-          <div className="landscape-tablet:col-span-2">
+          <div
+            className={
+              showWeather ? undefined : "landscape-tablet:col-span-2"
+            }
+          >
             <WorkTravelSection
               plan={overview.travelPlan}
               leaveEmphasis="secondary"
@@ -321,19 +348,6 @@ export function LeviMorningDashboard({
             className={showTasks ? undefined : "landscape-tablet:col-span-2"}
           >
             <CalendarSection events={overview.appointments} compact />
-          </div>
-        ) : null}
-
-        {/* Wochenwetter */}
-        {showWeather ? (
-          <div className="landscape-tablet:col-span-2">
-            <WeatherSection
-              weather={weather}
-              showCurrent={false}
-              showWeekStrip
-              focusTomorrow={eveningFocus}
-              now={wallNow}
-            />
           </div>
         ) : null}
       </div>
