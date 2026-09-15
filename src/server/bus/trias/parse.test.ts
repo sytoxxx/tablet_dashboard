@@ -205,6 +205,26 @@ describe("TRIAS location search parser", () => {
     expect(hits[0].provider).toBe("verbund-steiermark");
   });
 
+  it("parses Steiermark namespaced LocationName as locality", () => {
+    const xml = `<?xml version="1.0"?>
+      <trias:Trias xmlns:trias="http://www.vdv.de/trias">
+        <trias:LocationResult>
+          <trias:Location>
+            <trias:StopPoint>
+              <trias:StopPointRef>at:46:30537</trias:StopPointRef>
+              <trias:StopPointName><trias:Text>Einkaufszentrum</trias:Text></trias:StopPointName>
+            </trias:StopPoint>
+            <trias:LocationName><trias:Text>Apfelmoar</trias:Text></trias:LocationName>
+          </trias:Location>
+        </trias:LocationResult>
+      </trias:Trias>`;
+    const hits = parseTriasLocationResults(xml);
+    expect(hits).toHaveLength(1);
+    expect(hits[0].id).toBe("at:46:30537");
+    expect(hits[0].name).toBe("Einkaufszentrum");
+    expect(hits[0].locality).toBe("Apfelmoar");
+  });
+
   it("skips results without StopPointRef (never invents ids)", () => {
     const xml = `<?xml version="1.0"?><Trias>
       <LocationResult>

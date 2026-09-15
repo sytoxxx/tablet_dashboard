@@ -1,17 +1,29 @@
 /**
  * Minimal TRIAS/XML helpers — no invented schema fields.
  * Based on VDV 431 / Verbund Linie FAQ (Param, not StopEventParam).
+ *
+ * Steiermark OGD responses use prefixed tags (`trias:StopPointRef`); requests
+ * often omit prefixes. Match both.
  */
 
+/** Local-name match with optional XML namespace prefix. */
+function nsTag(tag: string): string {
+  return `(?:\\w+:)?${tag}`;
+}
+
 export function matchTag(xml: string, tag: string): string | null {
-  const re = new RegExp(`<${tag}[^>]*>([^<]*)</${tag}>`, "i");
+  const t = nsTag(tag);
+  const re = new RegExp(`<${t}(?:\\s[^>]*)?>([^<]*)</${t}>`, "i");
   const m = xml.match(re);
   return m?.[1]?.trim() || null;
 }
 
 /** Prefer direct text, else nested `<Text>` (common in TRIAS name elements). */
 export function matchTagOrText(xml: string, tag: string): string | null {
-  const block = xml.match(new RegExp(`<${tag}[^>]*>([\\s\\S]*?)</${tag}>`, "i"));
+  const t = nsTag(tag);
+  const block = xml.match(
+    new RegExp(`<${t}(?:\\s[^>]*)?>([\\s\\S]*?)</${t}>`, "i"),
+  );
   if (!block) return null;
   const inner = block[1];
   if (!inner.includes("<")) return inner.trim() || null;

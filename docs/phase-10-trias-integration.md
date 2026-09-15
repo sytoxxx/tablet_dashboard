@@ -53,7 +53,9 @@ Status-Normalisierung: `PLANNED | REALTIME | DELAYED | CANCELLED | UNKNOWN`
 
 `GET /api/bus/stops?q=…`
 
-Wenn TRIAS konfiguriert: `LocationInformationRequest` →
+Bei `BUS_PROVIDER=auto` und gesetzter `VERBUND_STEIERMARK_TRIAS_URL`: zuerst TRIAS `LocationInformationRequest`.
+
+Steiermark-Antworten nutzen oft `trias:`-Namespaces und `LocationName` als Ort (ohne `LocalityName`). Der Parser akzeptiert beides und erfindet keine IDs.
 
 ```json
 {
@@ -65,6 +67,8 @@ Wenn TRIAS konfiguriert: `LocationInformationRequest` →
   "provider": "verbund-steiermark"
 }
 ```
+
+Admin: Einstellungen → Bus (`StopSearchField`) oder `node scripts/probe-trias-stops.mjs` (nur strukturiertes JSON).
 
 Ohne Zugang: keine erfundenen Treffer, manuelle Admin-Eingabe.
 

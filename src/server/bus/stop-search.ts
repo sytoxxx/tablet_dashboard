@@ -15,14 +15,43 @@ export type StopSearchResponse = {
 
 /**
  * Search stops via the first configured regional provider (no fan-out).
+ * With BUS_PROVIDER=auto (default): Steiermark TRIAS first when URL is set, then VAO.
  * Without TRIAS/VAO credentials → manual Admin entry only.
+ * Never invents StopPointRefs; never logs full XML or secrets.
  */
+function busProviderEnv(): string {
+  return (process.env.BUS_PROVIDER || "auto").toLowerCase();
+}
+
+function allowSteiermarkSearch(): boolean {
+  const mode = busProviderEnv();
+  if (mode === "vao" || mode === "wienerlinien" || mode === "local" || mode === "mock") {
+    return false;
+  }
+  // auto | verbund-steiermark
+  return isSteiermarkConfigured();
+}
+
+function allowVaoSearch(): boolean {
+  const mode = busProviderEnv();
+  if (
+    mode === "verbund-steiermark" ||
+    mode === "wienerlinien" ||
+    mode === "local" ||
+    mode === "mock"
+  ) {
+    return false;
+  }
+  // auto | vao
+  return isVaoConfigured();
+}
+
 export async function searchTransitStops(query: string): Promise<StopSearchResponse> {
   const q = query.trim();
   if (q.length < 2) {
     return {
       ok: true,
-      searchable: isSteiermarkConfigured() || isVaoConfigured(),
+      searchable: allowSteiermarkSearch() || allowVaoSearch(),
       stops: [],
       provider: null,
       message: "Mindestens 2 Zeichen eingeben.",
@@ -30,7 +59,8 @@ export async function searchTransitStops(query: string): Promise<StopSearchRespo
     };
   }
 
-  if (isSteiermarkConfigured()) {
+  // auto / verbund-steiermark: TRIAS first when URL configured
+  if (allowSteiermarkSearch()) {
     try {
       const stops = await searchSteiermarkStops(q);
       return {
@@ -50,13 +80,14 @@ export async function searchTransitStops(query: string): Promise<StopSearchRespo
         searchable: true,
         stops: [],
         provider: "verbund-steiermark",
-        message: "Haltestellen-Suche gerade nicht erreichbar — bitte manuell eintragen.",
+        message:
+          "Haltestellen-Suche gerade nicht erreichbar — bitte manuell eintragen.",
         isTestData: false,
       };
     }
   }
 
-  if (isVaoConfigured()) {
+  if (allowVaoSearch()) {
     try {
       const stops = await searchVaoStops(q);
       return {
@@ -76,7 +107,8 @@ export async function searchTransitStops(query: string): Promise<StopSearchRespo
         searchable: true,
         stops: [],
         provider: "vao",
-        message: "Haltestellen-Suche gerade nicht erreichbar — bitte manuell eintragen.",
+        message:
+          "Haltestellen-Suche gerade nicht erreichbar — bitte manuell eintragen.",
         isTestData: false,
       };
     }
@@ -97,10 +129,10 @@ export function getStopSearchCapability(): {
   searchable: boolean;
   provider: string | null;
 } {
-  if (isSteiermarkConfigured()) {
+  if (allowSteiermarkSearch()) {
     return { searchable: true, provider: "verbund-steiermark" };
   }
-  if (isVaoConfigured()) {
+  if (allowVaoSearch()) {
     return { searchable: true, provider: "vao" };
   }
   return { searchable: false, provider: null };

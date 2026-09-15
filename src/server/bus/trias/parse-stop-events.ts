@@ -24,13 +24,17 @@ import {
  */
 export function parseTriasStopEvents(xml: string): LiveDeparture[] {
   const out: LiveDeparture[] = [];
-  const results = xml.split(/<StopEventResult[\s>]/i).slice(1);
+  const results = xml.split(/<(?:\w+:)?StopEventResult[\s>]/i).slice(1);
 
   for (const chunk of results) {
     const thisCall =
-      chunk.match(/<ThisCall[\s>]([\s\S]*?)<\/ThisCall>/i)?.[1] ?? chunk;
+      chunk.match(
+        /<(?:\w+:)?ThisCall[\s>]([\s\S]*?)<\/(?:\w+:)?ThisCall>/i,
+      )?.[1] ?? chunk;
     const service =
-      chunk.match(/<Service[\s>]([\s\S]*?)<\/Service>/i)?.[1] ?? chunk;
+      chunk.match(
+        /<(?:\w+:)?Service[\s>]([\s\S]*?)<\/(?:\w+:)?Service>/i,
+      )?.[1] ?? chunk;
 
     const cancelled =
       matchBooleanTag(service, "Cancelled") ||

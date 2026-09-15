@@ -92,7 +92,13 @@ export function StopSearchField({
       const res = await fetch(`/api/bus/stops?q=${encodeURIComponent(q)}`);
       const json = (await res.json()) as {
         searchable?: boolean;
-        stops?: Array<{ id: string; name: string; place?: string }>;
+        stops?: Array<{
+          id: string;
+          name: string;
+          place?: string;
+          locality?: string;
+          provider?: string;
+        }>;
         message?: string;
         provider?: string | null;
         isTestData?: boolean;
@@ -104,9 +110,19 @@ export function StopSearchField({
         hits: (json.stops ?? []).map((h) => ({
           id: h.id,
           name: h.name,
-          place: h.place,
+          place: h.place ?? h.locality,
         })),
-        message: json.message ?? null,
+        message: [
+          json.message,
+          json.provider ? `Provider: ${json.provider}` : null,
+          json.isTestData === false
+            ? "Live-TRIAS"
+            : json.isTestData
+              ? "Testdaten"
+              : null,
+        ]
+          .filter(Boolean)
+          .join(" · "),
         provider: json.provider ?? null,
         isTestData: Boolean(json.isTestData),
       }));

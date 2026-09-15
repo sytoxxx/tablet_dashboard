@@ -8,11 +8,13 @@ import {
 /**
  * Parse TRIAS LocationInformationResponse.
  * Documented: StopPointRef, StopPointName/Text, LocalityName, GeoPosition Latitude/Longitude.
+ * Steiermark OGD often omits LocalityName and puts the place in LocationName
+ * (e.g. StopPointName=Einkaufszentrum, LocationName=Apfelmoar).
  * Never invents IDs — skips results without a provider StopPointRef/StopPlaceRef.
  */
 export function parseTriasLocationResults(xml: string): StopSearchHit[] {
   const out: StopSearchHit[] = [];
-  const chunks = xml.split(/<LocationResult[\s>]/i).slice(1);
+  const chunks = xml.split(/<(?:\w+:)?LocationResult[\s>]/i).slice(1);
 
   for (const chunk of chunks) {
     const id =
@@ -29,7 +31,10 @@ export function parseTriasLocationResults(xml: string): StopSearchHit[] {
       matchTagOrText(chunk, "LocalityName") ||
       matchTagOrText(chunk, "MunicipalityName") ||
       matchTagOrText(chunk, "ParentLocationName") ||
-      undefined;
+      // Steiermark: LocationName is the place when StopPointName is the stop label
+      (matchTagOrText(chunk, "StopPointName")
+        ? matchTagOrText(chunk, "LocationName") || undefined
+        : undefined);
 
     const latRaw = matchTag(chunk, "Latitude");
     const lonRaw = matchTag(chunk, "Longitude");
