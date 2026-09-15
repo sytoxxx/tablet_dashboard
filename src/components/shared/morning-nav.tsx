@@ -32,13 +32,13 @@ export function MorningNav({
   return (
     <nav
       className={cn(
-        "flex flex-col gap-3",
+        "flex flex-col gap-3 landscape-tablet:gap-1.5",
         quiet && "opacity-95",
         className,
       )}
       aria-label="Navigation"
     >
-      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between landscape-tablet:gap-2">
         <div className="flex items-center gap-2">
           <Button
             asChild

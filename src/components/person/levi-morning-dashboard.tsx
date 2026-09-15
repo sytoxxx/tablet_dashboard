@@ -170,26 +170,26 @@ export function LeviMorningDashboard({
     <div
       className={cn(
         "morning-shell mx-auto flex w-full max-w-3xl flex-col gap-4 px-5 py-4 sm:gap-5 sm:px-8 sm:py-5 lg:max-w-5xl lg:px-10",
-        "landscape-tablet:max-w-[74rem] landscape-tablet:gap-3 landscape-tablet:px-6 landscape-tablet:py-3",
-        "pb-20 landscape-tablet:pb-14",
+        "landscape-tablet:max-w-[74rem] landscape-tablet:gap-2.5 landscape-tablet:px-6 landscape-tablet:py-2.5",
+        "pb-20 landscape-tablet:pb-12",
         daypartShellClass(greetingBucket),
         eveningFocus ? "daypart-evening" : "",
       )}
     >
       <MorningNav />
 
-      <header className="animate-rise flex items-start justify-between gap-4 sm:gap-6">
+      <header className="animate-rise flex items-start justify-between gap-4 sm:gap-6 landscape-tablet:gap-5">
         <div className="min-w-0 flex-1 space-y-0.5">
           <p className="text-sm tracking-[0.14em] text-[color:var(--quiet)] uppercase landscape-tablet:text-xs">
             {WEEKDAY_LABELS[view.weekdayKey]} · {dayLabel} · Schule
           </p>
           <DaypartGreeting
             name={overview.displayName}
-            className="font-display text-3xl leading-tight tracking-tight sm:text-4xl landscape-tablet:text-[2.5rem]"
+            className="font-display text-3xl leading-tight tracking-tight sm:text-4xl landscape-tablet:text-[2.35rem]"
             style={{ color: view.accent }}
           />
         </div>
-        <div className="flex shrink-0 flex-col items-end gap-2 sm:gap-3">
+        <div className="flex shrink-0 flex-col items-end gap-1.5 sm:gap-2">
           {showWeather ? (
             <WeatherHeaderGlance
               weather={weather}
@@ -197,16 +197,13 @@ export function LeviMorningDashboard({
               now={wallNow}
             />
           ) : null}
-          <LiveClock
-            stacked={false}
-            className="text-right [&_p:last-child]:font-display [&_p:last-child]:text-3xl [&_p:last-child]:tabular-nums landscape-tablet:[&_p:last-child]:text-2xl"
-          />
+          <LiveClock compact className="text-right" />
         </div>
       </header>
 
       <div
         className={cn(
-          "animate-rise flex flex-col gap-4 landscape-tablet:gap-3",
+          "animate-rise flex flex-col gap-4 landscape-tablet:gap-2.5",
           "landscape-tablet:grid landscape-tablet:grid-cols-2 landscape-tablet:items-start",
         )}
         style={{ animationDelay: "60ms" }}
