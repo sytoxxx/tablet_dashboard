@@ -64,6 +64,67 @@ export function getMinutesSinceMidnight(date: Date = new Date()): number {
   return date.getHours() * 60 + date.getMinutes();
 }
 
+/** Wall-clock minutes since midnight in Europe/Vienna (tablet locale). */
+export function getViennaMinutesSinceMidnight(date: Date = new Date()): number {
+  const parts = new Intl.DateTimeFormat("de-AT", {
+    timeZone: "Europe/Vienna",
+    hour: "2-digit",
+    minute: "2-digit",
+    hourCycle: "h23",
+  }).formatToParts(date);
+  const h = Number(parts.find((p) => p.type === "hour")?.value ?? 0);
+  const m = Number(parts.find((p) => p.type === "minute")?.value ?? 0);
+  return h * 60 + m;
+}
+
+/**
+ * Build an absolute ISO timestamp for a Vienna wall-clock HH:MM on the
+ * calendar day of `day` (Vienna). Used for TRIAS DepArrTime aiming.
+ */
+export function viennaWallClockToUtcIso(day: Date, hhmm: string): string {
+  const dateParts = new Intl.DateTimeFormat("en-CA", {
+    timeZone: "Europe/Vienna",
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+  }).formatToParts(day);
+  const y = dateParts.find((p) => p.type === "year")?.value;
+  const mo = dateParts.find((p) => p.type === "month")?.value;
+  const d = dateParts.find((p) => p.type === "day")?.value;
+  const [hh, mm] = hhmm.split(":").map(Number);
+  // Interpret as Vienna offset via iterative format (handles DST).
+  // Start from a UTC guess and adjust.
+  let guess = Date.parse(
+    `${y}-${mo}-${d}T${String(hh).padStart(2, "0")}:${String(mm).padStart(2, "0")}:00Z`,
+  );
+  for (let i = 0; i < 3; i++) {
+    const shown = new Intl.DateTimeFormat("de-AT", {
+      timeZone: "Europe/Vienna",
+      hour: "2-digit",
+      minute: "2-digit",
+      hourCycle: "h23",
+      year: "numeric",
+      month: "2-digit",
+      day: "2-digit",
+    }).formatToParts(new Date(guess));
+    const sh = Number(shown.find((p) => p.type === "hour")?.value ?? 0);
+    const sm = Number(shown.find((p) => p.type === "minute")?.value ?? 0);
+    const sy = shown.find((p) => p.type === "year")?.value;
+    const smo = shown.find((p) => p.type === "month")?.value;
+    const sd = shown.find((p) => p.type === "day")?.value;
+    const deltaMin =
+      (hh * 60 + mm - (sh * 60 + sm)) +
+      (y === sy && mo === smo && d === sd
+        ? 0
+        : y! + mo! + d! > sy! + smo! + sd!
+          ? 24 * 60
+          : -24 * 60);
+    if (deltaMin === 0) break;
+    guess += deltaMin * 60_000;
+  }
+  return new Date(guess).toISOString().replace(/\.\d{3}Z$/, "Z");
+}
+
 const JS_DAY_TO_KEY: WeekdayKey[] = ["sun", "mon", "tue", "wed", "thu", "fri", "sat"];
 
 export function getWeekdayKey(date: Date = new Date()): WeekdayKey {

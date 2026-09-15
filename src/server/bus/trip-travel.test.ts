@@ -48,3 +48,22 @@ describe("trip-travel fitness honesty", () => {
     expect(minutesUntilDeparture("05:45", now)).toBe(-15);
   });
 });
+
+describe("commuteDepArrTimeIso", () => {
+  it("aims before work start on the same Vienna day", async () => {
+    const { commuteDepArrTimeIso } = await import("@/server/bus/trip-travel");
+    // 2026-09-15 05:00 UTC = 07:00 Vienna (CEST)
+    const now = new Date("2026-09-15T05:00:00Z");
+    const iso = commuteDepArrTimeIso(now, "08:00");
+    // Aim 08:00-90m = 06:30 Vienna → 04:30Z
+    expect(iso).toBe("2026-09-15T04:30:00Z");
+  });
+
+  it("rolls to next day when work start already passed", async () => {
+    const { commuteDepArrTimeIso } = await import("@/server/bus/trip-travel");
+    // 15:00 Vienna-ish
+    const now = new Date("2026-09-15T13:00:00Z");
+    const iso = commuteDepArrTimeIso(now, "06:00");
+    expect(iso).toBe("2026-09-16T02:30:00Z");
+  });
+});

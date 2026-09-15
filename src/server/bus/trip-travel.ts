@@ -4,6 +4,7 @@
  *
  * Honesty rules:
  * - Never invent punctuality — compute against work start when known.
+ * - Aim DepArrTime at the Vienna commute window (not “next overnight bus”).
  * - Surface cancelled primaries when TRIAS says so; usable next as alternative.
  * - Propagate isTestData from the fetch meta.
  */
@@ -19,9 +20,10 @@ import type {
 } from "@/lib/work/travel-planner";
 import { DEFAULT_TRANSIT_PREFS } from "@/lib/data/defaults";
 import {
-  getMinutesSinceMidnight,
+  getViennaMinutesSinceMidnight,
   minutesToHHmm,
   parseTimeToMinutes,
+  viennaWallClockToUtcIso,
 } from "@/lib/format";
 import type { PersonId, PersonProfile } from "@/lib/types";
 import { fetchTriasTrips } from "@/server/bus/trias/trip-service";
@@ -34,16 +36,59 @@ export const BIRGIT_TRANSIT_DEST_REF = "at:46:6056";
 export const BIRGIT_END_DESTINATION_LABEL = "Pflegeverband Bruck/Mur";
 export const BIRGIT_TRANSIT_STOP_LABEL = "Altersheimgasse";
 
+/** Lead window before work start when aiming TripRequest DepArrTime. */
+const COMMUTE_AIM_LEAD_MINUTES = 90;
+
 function minutesUntilDeparture(
   departureHHmm: string | null,
   now: Date,
 ): number {
   if (!departureHHmm) return 0;
-  return parseTimeToMinutes(departureHHmm) - getMinutesSinceMidnight(now);
+  return (
+    parseTimeToMinutes(departureHHmm) - getViennaMinutesSinceMidnight(now)
+  );
+}
+
+/**
+ * Aim TRIAS DepArrTime at the commute window for workStart (Vienna wall).
+ * If today's work start already passed, aim next calendar day.
+ * Returns both the ISO aim and whether the window rolled to the next day.
+ */
+export function commuteDepArrTimeIso(
+  now: Date,
+  workStart: string | null,
+): string {
+  return resolveCommuteAim(now, workStart).depArrTimeIso;
+}
+
+export function resolveCommuteAim(
+  now: Date,
+  workStart: string | null,
+): { depArrTimeIso: string; rolledToNextDay: boolean } {
+  if (!workStart) {
+    return {
+      depArrTimeIso: now.toISOString().replace(/\.\d{3}Z$/, "Z"),
+      rolledToNextDay: false,
+    };
+  }
+  const workMin = parseTimeToMinutes(workStart);
+  const nowMin = getViennaMinutesSinceMidnight(now);
+  let day = now;
+  let rolled = false;
+  if (nowMin > workMin + 45) {
+    day = new Date(now.getTime() + 24 * 60 * 60 * 1000);
+    rolled = true;
+  }
+  const aimMin = Math.max(0, workMin - COMMUTE_AIM_LEAD_MINUTES);
+  return {
+    depArrTimeIso: viennaWallClockToUtcIso(day, minutesToHHmm(aimMin)),
+    rolledToNextDay: rolled,
+  };
 }
 
 /**
  * Proven fit vs work start when arrival is known; otherwise null (unknown).
+ * When the connection already appended a config final walk, arrival is at work.
  */
 function computeArrivesInTime(
   connection: TravelConnection,
@@ -53,11 +98,48 @@ function computeArrivesInTime(
 ): boolean | null {
   if (!workStart || !connection.arrival) return null;
   const target = parseTimeToMinutes(workStart);
+  const last = connection.legs[connection.legs.length - 1];
+  const arrivalAlreadyAtWork = last?.timingSource === "config";
+  const extraWalk = arrivalAlreadyAtWork
+    ? 0
+    : Math.max(0, stopToWorkMinutes);
   const arrival =
     parseTimeToMinutes(connection.arrival) +
-    Math.max(0, stopToWorkMinutes) +
+    extraWalk +
     Math.max(0, safetyBufferMinutes);
   return arrival <= target;
+}
+
+function pickBestWorkConnection(
+  connections: TravelConnection[],
+  workStart: string | null,
+  stopToWorkMinutes: number,
+  safetyBufferMinutes: number,
+): { primary: TravelConnection; alternative: TravelConnection | null } | null {
+  if (!connections.length) return null;
+  if (!workStart) {
+    return {
+      primary: connections[0]!,
+      alternative: connections[1] ?? null,
+    };
+  }
+  const fitting = connections.filter(
+    (c) =>
+      !c.cancelled &&
+      computeArrivesInTime(
+        c,
+        workStart,
+        stopToWorkMinutes,
+        safetyBufferMinutes,
+      ) === true,
+  );
+  if (!fitting.length) return null;
+  const primary = fitting[fitting.length - 1]!;
+  const alternative =
+    fitting.find((c) => c !== primary) ??
+    connections.find((c) => c !== primary && !c.cancelled) ??
+    null;
+  return { primary, alternative };
 }
 
 function busInfoFromConnection(
@@ -114,7 +196,6 @@ function messageForPlan(input: {
       ? "Verspätet, aber du kommst noch rechtzeitig."
       : "Du bist rechtzeitig";
   }
-  // Unknown fit — do not invent punctuality.
   if (!input.walkConfigured) {
     return "Gehzeit zur Haltestelle nicht konfiguriert — Losgehzeit = Abfahrt.";
   }
@@ -171,8 +252,7 @@ function planFromConnection(
   let status: TravelPlanStatus = "on-time";
   if (cancelled) status = "cancelled";
   else if (arrivesInTime === false) status = "no-connection";
-  else if (arrivesInTime === true) status = "on-time";
-  else status = "on-time"; // usable connection without proven fit — still show facts
+  else status = "on-time";
 
   const matched = arrivesInTime === true;
 
@@ -250,7 +330,6 @@ function cancelledPlanShell(meta: {
       alternative: alt,
       now: meta.now,
     });
-    // Keep cancelled status so UI can alert; usable next lives in alternative.
     return {
       ...plan,
       status: "cancelled",
@@ -309,11 +388,13 @@ export async function planHeidiTripTravel(
     person.busStop?.externalId?.trim() || HEIDI_ORIGIN_REF;
   const dest =
     person.transitPrefs?.destinationStop?.externalId?.trim() || HEIDI_DEST_REF;
+  const workStart = prefs.desiredArrivalHHmm ?? null;
 
   const result = await fetchTriasTrips({
     originRef: origin,
     destRef: dest,
     numberOfResults: 10,
+    depArrTime: commuteDepArrTimeIso(now, workStart),
   });
 
   const walk =
@@ -324,7 +405,7 @@ export async function planHeidiTripTravel(
   const connections = selectUpcomingConnections(result.trips, {
     walkToStopMinutes: walk,
     now,
-    limit: 3,
+    limit: 6,
     preferDirect: true,
   });
 
@@ -340,7 +421,7 @@ export async function planHeidiTripTravel(
           prefs.destinationLabel ||
           prefs.destinationStop?.name ||
           "Apfelmoar Einkaufszentrum",
-        workStart: prefs.desiredArrivalHHmm ?? null,
+        workStart,
         workEnd: null,
         walkToStopMinutes: earliestCancelled.walkToStopMinutes,
         stopToWorkMinutes: prefs.stopToWorkMinutes ?? 0,
@@ -368,8 +449,14 @@ export async function planHeidiTripTravel(
     };
   }
 
-  const primary = connections[0];
-  // Cancelled earlier than the first usable → alert + alternative.
+  const picked = pickBestWorkConnection(
+    connections,
+    workStart,
+    prefs.stopToWorkMinutes ?? 0,
+    prefs.safetyBufferMinutes ?? 5,
+  );
+
+  const primary = picked?.primary ?? connections[0]!;
   if (
     earliestCancelled?.departure &&
     primary.departure &&
@@ -381,7 +468,7 @@ export async function planHeidiTripTravel(
         prefs.destinationLabel ||
         prefs.destinationStop?.name ||
         "Apfelmoar Einkaufszentrum",
-      workStart: prefs.desiredArrivalHHmm ?? null,
+      workStart,
       workEnd: null,
       walkToStopMinutes: earliestCancelled.walkToStopMinutes,
       stopToWorkMinutes: prefs.stopToWorkMinutes ?? 0,
@@ -407,7 +494,7 @@ export async function planHeidiTripTravel(
       prefs.destinationLabel ||
       prefs.destinationStop?.name ||
       "Apfelmoar Einkaufszentrum",
-    workStart: prefs.desiredArrivalHHmm ?? null,
+    workStart,
     workEnd: null,
     walkToStopMinutes: primary.walkToStopMinutes,
     stopToWorkMinutes: prefs.stopToWorkMinutes ?? 0,
@@ -415,6 +502,7 @@ export async function planHeidiTripTravel(
     safetyBufferMinutes: prefs.safetyBufferMinutes ?? 5,
     isTestData: result.isTestData,
     connections,
+    alternative: picked?.alternative ?? null,
     now,
   });
 
@@ -442,7 +530,6 @@ export async function planBirgitTripTravel(
   const prefs = { ...DEFAULT_TRANSIT_PREFS, ...person.transitPrefs };
   const origin =
     person.busStop?.externalId?.trim() || BIRGIT_ORIGIN_REF;
-  // Transit stop (Altersheimgasse) — never treat as end destination label.
   const transitRef =
     person.transitPrefs?.destinationStop?.externalId?.trim() ||
     BIRGIT_TRANSIT_DEST_REF;
@@ -454,7 +541,8 @@ export async function planBirgitTripTravel(
   const result = await fetchTriasTrips({
     originRef: origin,
     destRef: transitRef,
-    numberOfResults: 8,
+    numberOfResults: 10,
+    depArrTime: commuteDepArrTimeIso(now, workStart),
   });
 
   const walk =
@@ -465,7 +553,7 @@ export async function planBirgitTripTravel(
   let connections = selectUpcomingConnections(result.trips, {
     walkToStopMinutes: walk,
     now,
-    limit: 4,
+    limit: 8,
     preferDirect: false,
   });
 
@@ -524,14 +612,51 @@ export async function planBirgitTripTravel(
     };
   }
 
-  const primary = connections[0];
-  const alternative =
-    connections.find(
-      (c) =>
-        c.departure !== primary.departure ||
-        c.lineSummary !== primary.lineSummary ||
-        c.transfers !== primary.transfers,
-    ) ?? null;
+  const safety = prefs.safetyBufferMinutes ?? 5;
+  const picked = pickBestWorkConnection(
+    connections,
+    workStart,
+    stopToWork,
+    safety,
+  );
+
+  if (!picked && workStart) {
+    const late = connections[0]!;
+    const plan = planFromConnection(late, {
+      personId: "birgit",
+      destinationLabel: endLabel,
+      endDestinationLabel: endLabel,
+      transitDestinationLabel: transitLabel,
+      workStart,
+      workEnd,
+      walkToStopMinutes: late.walkToStopMinutes,
+      stopToWorkMinutes: stopToWork,
+      preparationMinutes: prefs.preparationMinutes ?? 0,
+      safetyBufferMinutes: safety,
+      isTestData: result.isTestData,
+      connections,
+      now,
+    });
+    return {
+      plan: {
+        ...plan,
+        status: "no-connection",
+        matched: false,
+        message: "Kein passender Bus für die Arbeitszeit.",
+        leaveHome: null,
+        busDeparture: null,
+        arrivalAtDestination: null,
+        arrivalAtWork: null,
+      },
+      connections,
+      warning: result.warning,
+      isTestData: result.isTestData,
+      fetchedAt: result.fetchedAt,
+    };
+  }
+
+  const primary = picked?.primary ?? connections[0]!;
+  const alternative = picked?.alternative ?? null;
 
   if (
     earliestCancelled?.departure &&
@@ -548,7 +673,7 @@ export async function planBirgitTripTravel(
       walkToStopMinutes: earliestCancelled.walkToStopMinutes,
       stopToWorkMinutes: stopToWork,
       preparationMinutes: prefs.preparationMinutes ?? 0,
-      safetyBufferMinutes: prefs.safetyBufferMinutes ?? 5,
+      safetyBufferMinutes: safety,
       isTestData: result.isTestData,
       cancelled: earliestCancelled,
       alternative: primary,
@@ -556,7 +681,11 @@ export async function planBirgitTripTravel(
     });
     return {
       plan,
-      connections: [earliestCancelled, primary, ...(alternative ? [alternative] : [])],
+      connections: [
+        earliestCancelled,
+        primary,
+        ...(alternative ? [alternative] : []),
+      ],
       warning: result.warning,
       isTestData: result.isTestData,
       fetchedAt: result.fetchedAt,
@@ -573,7 +702,7 @@ export async function planBirgitTripTravel(
     walkToStopMinutes: primary.walkToStopMinutes,
     stopToWorkMinutes: stopToWork,
     preparationMinutes: prefs.preparationMinutes ?? 0,
-    safetyBufferMinutes: prefs.safetyBufferMinutes ?? 5,
+    safetyBufferMinutes: safety,
     isTestData: result.isTestData,
     connections: [primary, ...(alternative ? [alternative] : [])],
     alternative,

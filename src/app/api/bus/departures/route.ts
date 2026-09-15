@@ -182,7 +182,16 @@ async function respondForPerson(
     }
 
     const now = new Date();
-    const work = getWorkShiftForDate(person, now);
+    let work = getWorkShiftForDate(person, now);
+    // If today's start already passed (Vienna), plan against tomorrow's shift.
+    if (work?.start) {
+      const { resolveCommuteAim } = await import("@/server/bus/trip-travel");
+      const aim = resolveCommuteAim(now, work.start);
+      if (aim.rolledToNextDay) {
+        const tomorrow = new Date(now.getTime() + 24 * 60 * 60 * 1000);
+        work = getWorkShiftForDate(person, tomorrow) ?? work;
+      }
+    }
     const schoolStart =
       person.schedule.type === "school"
         ? person.schedule.week[

@@ -180,6 +180,22 @@ export function preferIsoTime(
 
 export function isoToHHmm(iso: string | null): string | null {
   if (!iso) return null;
+  const ms = Date.parse(iso);
+  if (Number.isFinite(ms)) {
+    // TRIAS timestamps are absolute — show Europe/Vienna wall clock for the tablet.
+    const parts = new Intl.DateTimeFormat("de-AT", {
+      timeZone: "Europe/Vienna",
+      hour: "2-digit",
+      minute: "2-digit",
+      hourCycle: "h23",
+    }).formatToParts(new Date(ms));
+    const hour = parts.find((p) => p.type === "hour")?.value;
+    const minute = parts.find((p) => p.type === "minute")?.value;
+    if (hour != null && minute != null) {
+      return `${hour.padStart(2, "0")}:${minute.padStart(2, "0")}`;
+    }
+  }
+  // Fallback for bare HH:MM fragments (no timezone).
   return extractHHMM(iso);
 }
 

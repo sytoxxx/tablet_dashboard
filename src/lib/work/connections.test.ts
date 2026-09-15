@@ -216,8 +216,8 @@ describe("HEIDI connections", () => {
     expect(selected.every((c) => !c.cancelled)).toBe(true);
     // past 10:00 filtered
     expect(selected.every((c) => c.departure !== "10:00")).toBe(true);
-    // cancelled 12:05 skipped — next is realtime 12:22
-    expect(selected[0]?.departure).toBe("12:22");
+    // cancelled 12:05Z → 14:05 Vienna skipped — next realtime 12:22Z → 14:22
+    expect(selected[0]?.departure).toBe("14:22");
     expect(selected[0]?.realtime).toBe(true);
     expect(selected[0]?.delayMinutes).toBe(2);
   });
@@ -231,7 +231,7 @@ describe("HEIDI connections", () => {
     });
     expect(found).not.toBeNull();
     expect(found?.cancelled).toBe(true);
-    expect(found?.departure).toBe("12:05");
+    expect(found?.departure).toBe("14:05");
     expect(found?.lineSummary).toBe("1");
   });
 
@@ -241,7 +241,7 @@ describe("HEIDI connections", () => {
     expect(dropped).toBeNull();
     const kept = connectionFromParsedTrip(trips[0], { includeCancelled: true });
     expect(kept?.cancelled).toBe(true);
-    expect(kept?.departure).toBe("12:05");
+    expect(kept?.departure).toBe("14:05");
   });
 
   it("computes leaveHome = departure − walk minutes", () => {
@@ -311,9 +311,9 @@ describe("HEIDI connections", () => {
       now: new Date("2026-09-15T11:50:00Z"),
     });
     expect(conn).not.toBeNull();
-    expect(conn!.arrival).toBe("12:17");
+    expect(conn!.arrival).toBe("14:17");
     const walk = conn!.legs.find((l) => l.type === "WALK");
-    expect(walk?.arrival).toBe("12:17");
+    expect(walk?.arrival).toBe("14:17");
     expect(walk?.durationMinutes).toBe(5);
   });
 
