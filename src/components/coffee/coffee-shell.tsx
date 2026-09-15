@@ -36,11 +36,11 @@ export function CoffeeShell({
   return (
     <CoffeeCommandProvider>
       <div className="morning-shell mx-auto flex w-full max-w-5xl flex-col gap-6 px-5 py-6 sm:gap-8 sm:px-8 sm:py-8 landscape-tablet:gap-5 landscape-tablet:py-5">
-        <MorningNav showCoffee={false} />
+        <MorningNav showCoffee={false} showPrimary />
 
         <header className="animate-rise space-y-2">
           <p className="text-sm tracking-[0.16em] text-[color:var(--quiet)] uppercase">
-            ☕ Kaffee
+            Kaffee
           </p>
           <h1 className="font-display text-4xl tracking-tight sm:text-5xl landscape-tablet:text-4xl">
             {title}

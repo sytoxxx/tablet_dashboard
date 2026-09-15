@@ -14,14 +14,13 @@ import { EveningPrepSection } from "@/components/person/evening-prep-section";
 import { WeatherSection } from "@/components/person/weather-section";
 import { CalendarSection } from "@/components/person/calendar-section";
 import { TasksSection } from "@/components/person/tasks-section";
-import { CoffeeMorningStrip } from "@/components/person/coffee-morning-strip";
-import { SchoolJarvisSection } from "@/components/person/school-jarvis-section";
 import { Section } from "@/components/section";
 import { WEEKDAY_LABELS } from "@/lib/format";
 import type { SchoolJarvisDailySummary } from "@/lib/integrations/school-jarvis/types";
 
 /**
- * Levi: Timeline + school walk + School Jarvis. No bus for school commute.
+ * Levi: Schule, Losfahren, Stundenplan, Mitnehmen, Wetter+Kleidung,
+ * Termine/Aufgaben. Clothing tip only here (render gate).
  */
 export function LeviMorningDashboard({
   view,
@@ -36,8 +35,9 @@ export function LeviMorningDashboard({
   busUnavailable,
   busDataAgeLabel,
   weatherPlace,
-  schoolJarvisSummary = null,
-  schoolJarvisHandoffUrl = null,
+  // Jarvis kept for call-site compatibility — not shown on morning glance.
+  schoolJarvisSummary: _schoolJarvisSummary = null,
+  schoolJarvisHandoffUrl: _schoolJarvisHandoffUrl = null,
   leaveReminderActive = false,
   leaveReminderLabel = null,
   digitalWardrobe = null,
@@ -64,15 +64,21 @@ export function LeviMorningDashboard({
   onExcludeCombination?: (combinationKey: string) => void;
   onWardrobeChange?: (catalog: WardrobeCatalog) => void;
 }) {
+  void _schoolJarvisSummary;
+  void _schoolJarvisHandoffUrl;
+
   const dayLabel = overview.focusIsTomorrow ? "Morgen" : "Heute";
   const headline = overview.greeting;
 
   const showMitnehmen = overview.visibility.itemsToTake;
   const showCalendar =
-    view.displayPrefs.showCalendar && overview.visibility.appointments;
+    view.displayPrefs.showCalendar &&
+    overview.visibility.appointments &&
+    overview.appointments.length > 0;
   const showTasks =
-    view.displayPrefs.showTasks && overview.visibility.importantTasks;
-  const showCoffee = overview.visibility.coffee;
+    view.displayPrefs.showTasks &&
+    overview.visibility.importantTasks &&
+    overview.importantTasks.length > 0;
   const showTimeline = overview.visibility.timeline;
   const showEveningPrep = overview.visibility.eveningPrep;
   const showWalkTravel =
@@ -81,11 +87,18 @@ export function LeviMorningDashboard({
     overview.travelPlan.status === "on-time";
   const showBus =
     !showWalkTravel &&
+    !showTimeline &&
     view.displayPrefs.showBus &&
     overview.visibility.bus;
   const showWeather =
     view.displayPrefs.showWeather && overview.visibility.weather;
   const showNext = overview.visibility.nextActivity;
+
+  const leaveIsUrgent =
+    overview.timeline?.state === "leave_soon" ||
+    overview.timeline?.state === "leave_now" ||
+    overview.timeline?.state === "late" ||
+    overview.timeline?.state === "en_route";
 
   const mitnehmenEmpty = useMemo(
     () => overview.itemsToTake.length === 0,
@@ -93,16 +106,10 @@ export function LeviMorningDashboard({
   );
 
   return (
-    <div className={`morning-shell mx-auto flex w-full max-w-6xl flex-col gap-3 px-5 py-4 sm:gap-4 sm:px-8 sm:py-5 lg:px-10 landscape-tablet:gap-3 landscape-tablet:py-3${overview.focusIsTomorrow ? " daypart-evening" : ""}`}>
+    <div
+      className={`morning-shell mx-auto flex w-full max-w-6xl flex-col gap-4 px-5 py-4 sm:gap-5 sm:px-8 sm:py-5 lg:px-10 landscape-tablet:gap-3 landscape-tablet:py-3${overview.focusIsTomorrow ? " daypart-evening" : ""}`}
+    >
       <MorningNav />
-      <div className="flex justify-end">
-        <a
-          href={`/person/${overview.personId}/kleiderschrank`}
-          className="text-base text-[color:var(--quiet)] underline-offset-2 hover:underline"
-        >
-          👕 Kleiderschrank
-        </a>
-      </div>
 
       <header className="flex flex-col gap-2 sm:flex-row sm:items-end sm:justify-between">
         <div className="min-w-0 space-y-1">
@@ -120,14 +127,31 @@ export function LeviMorningDashboard({
       </header>
 
       <div className="grid gap-4 landscape-tablet:grid-cols-[1.4fr_1fr] landscape-tablet:gap-4 lg:grid-cols-[1.4fr_1fr]">
-        <div className="space-y-4 landscape-tablet:space-y-3">
+        <div className="space-y-4">
           {showTimeline ? (
             <MorningTimelineSection
               timeline={overview.timeline}
               reminderActive={leaveReminderActive}
               reminderLabel={leaveReminderLabel}
+              emphasis={leaveIsUrgent || !showNext ? "hero" : "secondary"}
             />
           ) : null}
+
+          {showNext ? (
+            <DayFlowHero
+              flow={view.dayFlow}
+              dominant={!showTimeline || !leaveIsUrgent}
+              title="Stundenplan"
+            />
+          ) : null}
+
+          {showWalkTravel && !showTimeline ? (
+            <WorkTravelSection
+              plan={overview.travelPlan}
+              leaveEmphasis="hero"
+            />
+          ) : null}
+
           {showEveningPrep ? (
             <EveningPrepSection
               prep={overview.eveningPrep}
@@ -136,20 +160,20 @@ export function LeviMorningDashboard({
               onWardrobeChange={onWardrobeChange}
             />
           ) : null}
-          {showNext ? <DayFlowHero flow={view.dayFlow} dominant={!showTimeline} /> : null}
 
           {showMitnehmen ? (
-            <Section title="Mitnehmen">
+            <Section title="Mitnehmen" emphasis="secondary">
               {mitnehmenEmpty ? (
                 <p className="text-base text-[color:var(--quiet)]">
-                  {overview.itemsToTakeEmptyMessage}
+                  {overview.itemsToTakeEmptyMessage ||
+                    "Heute nichts Besonderes mitnehmen."}
                 </p>
               ) : (
-                <ul className="flex flex-wrap gap-x-4 gap-y-2 text-xl font-medium">
+                <ul className="flex flex-wrap gap-x-3 gap-y-2 text-xl font-medium">
                   {overview.itemsToTake.map((item) => (
                     <li
                       key={item}
-                      className="rounded-2xl bg-[color:var(--surface)] px-4 py-2"
+                      className="rounded-2xl bg-[color:var(--bg)]/70 px-4 py-2"
                     >
                       {item}
                     </li>
@@ -164,10 +188,21 @@ export function LeviMorningDashboard({
           ) : null}
         </div>
 
-        <aside className="grid gap-3 sm:grid-cols-2 landscape-tablet:grid-cols-1">
-          {showWalkTravel && !showTimeline ? (
-            <WorkTravelSection plan={overview.travelPlan} />
+        <aside className="grid gap-3 content-start sm:grid-cols-2 landscape-tablet:grid-cols-1">
+          {/* Clothing tip: render gate — Levi only (this dashboard). */}
+          {showWeather ? (
+            <WeatherSection
+              weather={overview.weather.weather ?? view.weather}
+              place={weatherPlace}
+              showClothingTip
+              emphasis="secondary"
+            />
           ) : null}
+
+          {showTasks ? (
+            <TasksSection tasks={overview.importantTasks} morningOnly />
+          ) : null}
+
           {showBus ? (
             <BusSection
               bus={view.nextBus}
@@ -177,7 +212,7 @@ export function LeviMorningDashboard({
               message={busMessage}
               emptyTitle={
                 overview.bus.status === "none"
-                  ? "Kein passender Bus"
+                  ? "Du musst heute keinen Bus nehmen."
                   : busEmptyTitle
               }
               upcoming={busUpcoming}
@@ -189,24 +224,9 @@ export function LeviMorningDashboard({
               arrivalStatus={overview.bus.status}
               arrivalMessage={overview.bus.message || null}
               scheduleNote={overview.bus.scheduleNote}
+              emphasis="tertiary"
             />
           ) : null}
-          {showWeather ? (
-            <WeatherSection
-              weather={overview.weather.weather ?? view.weather}
-              place={weatherPlace}
-            />
-          ) : null}
-          {showTasks ? (
-            <TasksSection tasks={overview.importantTasks} morningOnly />
-          ) : null}
-          {schoolJarvisSummary?.available ? (
-            <SchoolJarvisSection
-              summary={schoolJarvisSummary}
-              handoffUrl={schoolJarvisHandoffUrl}
-            />
-          ) : null}
-          {showCoffee ? <CoffeeMorningStrip coffee={overview.coffee} /> : null}
         </aside>
       </div>
     </div>

@@ -6,10 +6,7 @@ import { CoffeeHome } from "@/components/coffee/coffee-home";
 export default function KaffeePage() {
   return (
     <main>
-      <CoffeeShell
-        title="Dein Kaffee-Dashboard"
-        subtitle="Heute und diese Woche auf einen Blick — ruhig, ohne Tabellen."
-      >
+      <CoffeeShell title="Kaffee">
         <CoffeeHome />
       </CoffeeShell>
     </main>

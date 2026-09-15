@@ -31,11 +31,11 @@ export function ProfileTile({
         if (personId) setActivePersonId(personId);
       }}
       className={cn(
-        "group relative flex min-h-44 flex-col justify-between rounded-[1.75rem] px-7 py-7 sm:min-h-48",
+        "group relative flex min-h-48 flex-col justify-between rounded-[1.75rem] border border-[color:var(--hairline)] px-7 py-8 sm:min-h-56",
         "bg-[color:var(--surface)] text-[color:var(--ink)]",
         "transition-[transform,box-shadow,background-color] duration-200 ease-out",
-        "hover:-translate-y-0.5 hover:shadow-[0_18px_40px_-28px_rgba(28,36,48,0.45)]",
-        "active:scale-[0.96] active:translate-y-0",
+        "hover:-translate-y-0.5 hover:shadow-[0_1px_0_var(--hairline),0_12px_32px_-24px_rgba(28,36,48,0.35)]",
+        "active:scale-[0.97] active:translate-y-0",
         "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[color:var(--brand)] focus-visible:ring-offset-4 focus-visible:ring-offset-[color:var(--bg)]",
         "animate-rise",
       )}
@@ -47,7 +47,7 @@ export function ProfileTile({
         aria-hidden
       />
       <div className="flex items-start justify-between gap-3">
-        <span className="font-display text-3xl tracking-tight sm:text-4xl landscape-tablet:text-[2.75rem]">
+        <span className="font-display text-4xl tracking-tight sm:text-5xl landscape-tablet:text-[3rem]">
           {name}
         </span>
         {avatar ? (
@@ -60,7 +60,7 @@ export function ProfileTile({
           </span>
         ) : null}
       </div>
-      <span className="text-sm text-[color:var(--quiet)] sm:text-base">{hint}</span>
+      <span className="text-base text-[color:var(--quiet)] sm:text-lg">{hint}</span>
     </Link>
   );
 }

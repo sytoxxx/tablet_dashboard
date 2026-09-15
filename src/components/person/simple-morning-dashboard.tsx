@@ -6,21 +6,17 @@ import type { WardrobeCatalog } from "@/lib/wardrobe/model";
 import type { WorkTravelLive } from "@/hooks/use-bus-live";
 import { MorningNav } from "@/components/shared/morning-nav";
 import { LiveClock } from "@/components/shared/live-clock";
-import { DayFlowHero } from "@/components/person/day-flow-hero";
 import { WorkShiftSection } from "@/components/person/work-shift";
 import { WorkTravelSection } from "@/components/person/work-travel-section";
-import { MorningTimelineSection } from "@/components/person/morning-timeline-section";
-import { EveningPrepSection } from "@/components/person/evening-prep-section";
 import { BusSection } from "@/components/person/bus-section";
 import { WeatherSection } from "@/components/person/weather-section";
-import { CalendarSection } from "@/components/person/calendar-section";
-import { Section } from "@/components/section";
 import { formatGermanDate, WEEKDAY_LABELS } from "@/lib/format";
 import { cn } from "@/lib/utils";
 
 /**
- * Extremely simple morning layout for Birgit (and Heidi).
- * Timeline + work travel — no provider jargon.
+ * Extreme reduction for Birgit & Heidi:
+ * Greeting → Heute → Losfahren → Nächster Bus → Wetter.
+ * No clothing, no calendar, no wardrobe, no evening prep chrome.
  */
 export function SimpleMorningDashboard({
   view,
@@ -40,9 +36,10 @@ export function SimpleMorningDashboard({
   workTravel,
   leaveReminderActive = false,
   leaveReminderLabel = null,
-  digitalWardrobe = null,
-  onExcludeCombination,
-  onWardrobeChange,
+  // Wardrobe props kept for call-site compatibility — never rendered here.
+  digitalWardrobe: _digitalWardrobe = null,
+  onExcludeCombination: _onExcludeCombination,
+  onWardrobeChange: _onWardrobeChange,
 }: {
   view: DayIntelligenceView;
   overview: MorningOverview;
@@ -65,20 +62,14 @@ export function SimpleMorningDashboard({
   onExcludeCombination?: (combinationKey: string) => void;
   onWardrobeChange?: (catalog: WardrobeCatalog) => void;
 }) {
+  void _digitalWardrobe;
+  void _onExcludeCombination;
+  void _onWardrobeChange;
+
   const headline = overview.greeting;
-  const isBirgit = mode === "work";
-  const showMitnehmen = false;
-  const showCalendar =
-    !isBirgit &&
-    view.displayPrefs.showCalendar &&
-    overview.visibility.appointments;
-  const showBus = view.displayPrefs.showBus && overview.visibility.bus;
   const showWeather =
     view.displayPrefs.showWeather && overview.visibility.weather;
-  const showHint =
-    overview.visibility.hint && Boolean(overview.importantHint);
-  const showTimeline = overview.visibility.timeline;
-  const showEveningPrep = overview.visibility.eveningPrep;
+  const showBus = view.displayPrefs.showBus && overview.visibility.bus;
 
   const useWorkTravel =
     mode === "work" &&
@@ -90,25 +81,17 @@ export function SimpleMorningDashboard({
   return (
     <div
       className={cn(
-        "morning-shell mx-auto flex w-full max-w-6xl flex-col gap-5 px-5 py-5 sm:gap-6 sm:px-8 sm:py-6 lg:px-10 landscape-tablet:gap-4 landscape-tablet:py-4",
+        "morning-shell mx-auto flex w-full max-w-5xl flex-col gap-5 px-5 py-5 sm:gap-6 sm:px-8 sm:py-6 lg:px-10 landscape-tablet:gap-4 landscape-tablet:py-4",
         overview.focusIsTomorrow && "daypart-evening",
       )}
     >
-      <MorningNav quiet={mode === "work"} />
-      <div className="flex justify-end">
-        <a
-          href={`/person/${overview.personId}/kleiderschrank`}
-          className="text-base text-[color:var(--quiet)] underline-offset-2 hover:underline"
-        >
-          👕 Kleiderschrank
-        </a>
-      </div>
+      <MorningNav quiet />
 
       <header className="animate-rise flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
         <div className="space-y-1">
           <p className="text-sm tracking-[0.14em] text-[color:var(--quiet)] uppercase">
             {WEEKDAY_LABELS[view.weekdayKey]}
-            {overview.focusIsTomorrow ? " · Morgen" : ""}
+            {overview.focusIsTomorrow ? " · Morgen" : " · Heute"}
           </p>
           <h1
             className="font-display text-4xl leading-tight tracking-tight sm:text-5xl landscape-tablet:text-5xl"
@@ -116,7 +99,10 @@ export function SimpleMorningDashboard({
           >
             {headline}
           </h1>
-          <p className="text-base text-[color:var(--quiet)] sm:text-lg" suppressHydrationWarning>
+          <p
+            className="text-base text-[color:var(--quiet)] sm:text-lg"
+            suppressHydrationWarning
+          >
             {formatGermanDate(wallNow)}
           </p>
         </div>
@@ -125,91 +111,49 @@ export function SimpleMorningDashboard({
 
       <div
         className={cn(
-          "animate-rise grid gap-6",
-          "landscape-tablet:grid-cols-[1.35fr_1fr] landscape-tablet:gap-5 landscape-tablet:items-start",
-          "lg:grid-cols-[1.35fr_1fr]",
+          "animate-rise grid gap-5",
+          "landscape-tablet:grid-cols-[1.5fr_0.85fr] landscape-tablet:gap-5 landscape-tablet:items-start",
+          "lg:grid-cols-[1.5fr_0.85fr]",
         )}
         style={{ animationDelay: "60ms" }}
       >
-        <div className="space-y-6 landscape-tablet:space-y-5">
-          {showTimeline ? (
-            <MorningTimelineSection
-              timeline={overview.timeline}
-              simple
-              reminderActive={leaveReminderActive}
-              reminderLabel={leaveReminderLabel}
-            />
-          ) : null}
-          {mode === "work" && useWorkTravel ? (
-            <WorkTravelSection
-              plan={workTravel}
-              workLabel={view.workShift?.label}
-            />
-          ) : null}
-          {showEveningPrep ? (
-            <EveningPrepSection
-              prep={overview.eveningPrep}
-              simple
-              digitalWardrobe={digitalWardrobe}
-              onExcludeCombination={onExcludeCombination}
-              onWardrobeChange={onWardrobeChange}
-            />
-          ) : null}
-
-          {mode === "work" ? (
-            !useWorkTravel && !showTimeline && !showEveningPrep ? (
-              <WorkShiftSection shift={view.workShift} simple />
-            ) : null
-          ) : (
+        <div className="space-y-5">
+          {useWorkTravel ? (
             <>
-              <DayFlowHero flow={view.dayFlow} />
-              {view.timetable.length > 0 ? (
-                <Section title="Heute">
-                  <ul className="space-y-3">
-                    {view.timetable.slice(0, 4).map((entry) => (
-                      <li
-                        key={`${entry.time}-${entry.subject}`}
-                        className="flex gap-4 text-lg"
-                      >
-                        <span className="w-16 shrink-0 tabular-nums text-[color:var(--quiet)]">
-                          {entry.time}
-                        </span>
-                        <span>
-                          {entry.subject}
-                          {entry.room ? (
-                            <span className="text-[color:var(--quiet)]">
-                              {" "}
-                              · {entry.room}
-                            </span>
-                          ) : null}
-                        </span>
-                      </li>
-                    ))}
-                  </ul>
-                </Section>
+              <WorkTravelSection
+                plan={workTravel}
+                workLabel={view.workShift?.label}
+                leaveEmphasis="hero"
+                workEmphasis="secondary"
+              />
+              {leaveReminderActive ? (
+                <p className="px-1 text-base text-[color:var(--quiet)]">
+                  Erinnerung: {leaveReminderLabel?.trim() || "Bald losfahren"}
+                </p>
               ) : null}
             </>
+          ) : (
+            <WorkShiftSection
+              shift={view.workShift}
+              simple
+              emphasis="hero"
+            />
           )}
-
-          {showMitnehmen ? (
-            <Section title="Mitnehmen">
-              <ul className="flex flex-wrap gap-x-5 gap-y-2 text-lg">
-                {overview.itemsToTake.map((item) => (
-                  <li key={item}>{item}</li>
-                ))}
-              </ul>
-            </Section>
-          ) : null}
-
-          {showHint ? (
-            <p className="text-base text-[color:var(--quiet)]">
-              {overview.importantHint}
-            </p>
-          ) : null}
         </div>
 
-        <aside className="space-y-5 landscape-tablet:space-y-4">
-          {showBus && !useWorkTravel && !showTimeline ? (
+        <aside className="space-y-4">
+          {showWeather ? (
+            <WeatherSection
+              weather={overview.weather.weather ?? view.weather}
+              simple
+              place={weatherPlace}
+              showClothingTip={false}
+              emphasis="secondary"
+            />
+          ) : null}
+
+          {/* Standalone bus only when work-travel did not already cover it */}
+          {showBus && !useWorkTravel ? (
             <BusSection
               bus={view.nextBus}
               stopName={view.busStopName}
@@ -217,13 +161,10 @@ export function SimpleMorningDashboard({
               busEnabled={busEnabled}
               message={busMessage}
               emptyTitle={
-                overview.bus.status === "cancelled"
-                  ? isBirgit
-                    ? "Kein passender Bus"
-                    : "Bus fällt aus"
-                  : overview.bus.status === "none"
-                    ? "Kein passender Bus"
-                    : busEmptyTitle
+                overview.bus.status === "cancelled" ||
+                overview.bus.status === "none"
+                  ? "Du musst heute keinen Bus nehmen."
+                  : busEmptyTitle
               }
               upcoming={busUpcoming}
               simple={simple || mode === "work"}
@@ -233,29 +174,14 @@ export function SimpleMorningDashboard({
               dataAgeLabel={busDataAgeLabel}
               arrivalStatus={overview.bus.status}
               arrivalMessage={
-                isBirgit &&
-                (overview.bus.status === "on_time" ||
-                  overview.bus.status === "too_late" ||
-                  overview.bus.status === "delayed" ||
-                  overview.bus.status === "cancelled")
-                  ? overview.bus.status === "delayed"
-                    ? "Bus hat Verspätung"
-                    : overview.bus.status === "cancelled"
-                      ? null
-                      : overview.bus.message || null
-                  : overview.bus.message || null
+                overview.bus.status === "delayed"
+                  ? "Bus hat Verspätung"
+                  : overview.bus.status === "cancelled"
+                    ? null
+                    : overview.bus.message || null
               }
+              emphasis="secondary"
             />
-          ) : null}
-          {showWeather ? (
-            <WeatherSection
-              weather={overview.weather.weather ?? view.weather}
-              simple={simple || mode === "work"}
-              place={weatherPlace}
-            />
-          ) : null}
-          {showCalendar ? (
-            <CalendarSection events={overview.appointments} />
           ) : null}
         </aside>
       </div>
