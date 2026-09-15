@@ -7,6 +7,12 @@ import { getWeekdayKey } from "@/lib/format";
 import { buildWorkWeekGlance } from "@/lib/work/schedule";
 import { cn } from "@/lib/utils";
 
+/** Display-only: "08:00–16:00" → "08–16" for landscape density. */
+function compactHourRange(hours: string | null): string | null {
+  if (!hours) return null;
+  return hours.replace(/(\d{1,2}):\d{2}/g, "$1");
+}
+
 /**
  * Compact Mon→Sun work glance for Birgit/Heidi only.
  * Mount only from SimpleMorningDashboard — never for Levi.
@@ -14,9 +20,12 @@ import { cn } from "@/lib/utils";
 export function WorkWeekSection({
   week,
   today,
+  compact = false,
 }: {
   week: Partial<Record<WeekdayKey, WorkShiftDay>>;
   today: Date;
+  /** Landscape tablet: hours like 08–16 / Frei — no status + hours stack. */
+  compact?: boolean;
 }) {
   const todayKey = getWeekdayKey(today);
   const days = useMemo(
@@ -30,46 +39,71 @@ export function WorkWeekSection({
     <Section title="Meine Woche" emphasis="tertiary">
       <div className="w-full overflow-x-auto overscroll-x-contain [-ms-overflow-style:none] [scrollbar-width:thin]">
         <ul
-          className="grid min-w-[18rem] grid-cols-7 gap-1 sm:min-w-0 sm:gap-1.5"
+          className={cn(
+            "grid min-w-[18rem] grid-cols-7 gap-1 sm:min-w-0 sm:gap-1.5",
+            compact && "min-w-0 gap-1",
+          )}
           aria-label="Wochenübersicht"
         >
-        {days.map((d) => (
-          <li
-            key={d.day}
-            className={cn(
-              "min-w-0 rounded-xl border px-1 py-2 text-center sm:px-1.5 sm:py-2.5",
-              d.isToday
-                ? "border-[color:var(--ink)]/25 bg-[color:var(--surface)]"
-                : "border-[color:var(--hairline)] bg-transparent",
-            )}
-          >
-            <p
-              className={cn(
-                "text-[0.7rem] font-semibold tracking-[0.08em] uppercase sm:text-xs",
-                d.isToday
-                  ? "text-[color:var(--ink)]"
-                  : "text-[color:var(--quiet)]",
-              )}
-            >
-              {d.shortLabel}
-            </p>
-            <p
-              className={cn(
-                "mt-1 text-[0.7rem] leading-tight sm:text-xs",
-                d.status === "unknown"
-                  ? "text-[color:var(--quiet)]"
-                  : "text-[color:var(--ink)]",
-              )}
-            >
-              {d.statusLabel}
-            </p>
-            {d.hours ? (
-              <p className="mt-0.5 text-[0.65rem] tabular-nums leading-tight text-[color:var(--quiet)] sm:text-[0.7rem]">
-                {d.hours}
-              </p>
-            ) : null}
-          </li>
-        ))}
+          {days.map((d) => {
+            const hourLine =
+              d.status === "work"
+                ? compact
+                  ? compactHourRange(d.hours) ?? d.statusLabel
+                  : d.hours
+                : null;
+            const primaryLine =
+              d.status === "free"
+                ? "Frei"
+                : d.status === "unknown"
+                  ? compact
+                    ? "—"
+                    : d.statusLabel
+                  : compact
+                    ? hourLine
+                    : d.statusLabel;
+
+            return (
+              <li
+                key={d.day}
+                className={cn(
+                  "min-w-0 rounded-xl border px-1 py-2 text-center sm:px-1.5 sm:py-2.5",
+                  compact && "rounded-lg px-0.5 py-1.5 sm:px-1 sm:py-1.5",
+                  d.isToday
+                    ? "border-[color:var(--ink)]/25 bg-[color:var(--surface)]"
+                    : "border-[color:var(--hairline)] bg-transparent",
+                )}
+              >
+                <p
+                  className={cn(
+                    "text-[0.7rem] font-semibold tracking-[0.08em] uppercase sm:text-xs",
+                    compact && "text-[0.65rem] sm:text-[0.7rem]",
+                    d.isToday
+                      ? "text-[color:var(--ink)]"
+                      : "text-[color:var(--quiet)]",
+                  )}
+                >
+                  {d.shortLabel}
+                </p>
+                <p
+                  className={cn(
+                    "mt-1 text-[0.7rem] leading-tight sm:text-xs",
+                    compact && "mt-0.5 text-[0.7rem] tabular-nums sm:text-[0.75rem]",
+                    d.status === "unknown"
+                      ? "text-[color:var(--quiet)]"
+                      : "text-[color:var(--ink)]",
+                  )}
+                >
+                  {primaryLine}
+                </p>
+                {!compact && hourLine ? (
+                  <p className="mt-0.5 text-[0.65rem] tabular-nums leading-tight text-[color:var(--quiet)] sm:text-[0.7rem]">
+                    {hourLine}
+                  </p>
+                ) : null}
+              </li>
+            );
+          })}
         </ul>
       </div>
     </Section>

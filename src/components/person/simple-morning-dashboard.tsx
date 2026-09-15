@@ -15,6 +15,7 @@ import {
 import { WorkShiftSection } from "@/components/person/work-shift";
 import { WorkBusSection } from "@/components/person/work-bus-section";
 import { WeatherSection } from "@/components/person/weather-section";
+import { WeatherHeaderGlance } from "@/components/person/weather-header-glance";
 import { WorkWeekSection } from "@/components/person/work-week-section";
 import { NextUpSection } from "@/components/person/next-up-section";
 import { CalendarSection } from "@/components/person/calendar-section";
@@ -28,10 +29,11 @@ import { formatGermanDate, WEEKDAY_LABELS } from "@/lib/format";
 import { cn } from "@/lib/utils";
 
 /**
- * Birgit & Heidi — shared Apple-like block stack, work-commute priority.
+ * Birgit & Heidi — landscape control-center + shared Apple-like blocks.
  *
- * Order: Als Nächstes → Arbeit → Bus/Arbeitsweg → Wetter → Meine Woche
- * → Wochenwetter → Termine. Mount only when relevant. No detailed clothing.
+ * Landscape (10″ tablet): greeting | weather+clock · Next · Arbeit|Bus · Meine Woche.
+ * Portrait / phone: same priority stack, weather stays in header (not a mid card).
+ * No detailed clothing. Data gates unchanged.
  */
 export function SimpleMorningDashboard({
   view,
@@ -150,59 +152,86 @@ export function SimpleMorningDashboard({
     overview.visibility.appointments &&
     overview.appointments.length > 0;
 
+  const showBusBlock = priority.isWorking;
   const heuteTitle = overview.focusIsTomorrow ? "Morgen" : "Heute";
 
   return (
     <div
       className={cn(
-        "morning-shell mx-auto flex w-full max-w-3xl flex-col gap-5 px-5 py-5 sm:gap-6 sm:px-8 sm:py-6 lg:max-w-4xl lg:px-10 landscape-tablet:max-w-5xl landscape-tablet:gap-5 landscape-tablet:py-5",
-        // Room for bottom-right music mini-player — never covers Meine Woche/Bus.
-        "pb-24",
+        "morning-shell mx-auto flex w-full max-w-3xl flex-col gap-4 px-5 py-4 sm:gap-5 sm:px-8 sm:py-5 lg:max-w-5xl lg:px-10",
+        "landscape-tablet:max-w-[74rem] landscape-tablet:gap-3 landscape-tablet:px-6 landscape-tablet:py-3",
+        // Mini-player sits bottom-left on landscape tablet — keep a thin pad.
+        "pb-20 landscape-tablet:pb-14",
         daypartShellClass(greetingBucket),
       )}
     >
       <MorningNav quiet />
 
-      <header className="animate-rise flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
-        <div className="space-y-1">
-          <p className="text-sm tracking-[0.14em] text-[color:var(--quiet)] uppercase">
+      <header className="animate-rise flex items-start justify-between gap-4 sm:gap-6">
+        <div className="min-w-0 flex-1 space-y-0.5">
+          <p className="text-sm tracking-[0.14em] text-[color:var(--quiet)] uppercase landscape-tablet:text-xs">
             {WEEKDAY_LABELS[view.weekdayKey]}
             {overview.focusIsTomorrow ? " · Morgen" : " · Heute"}
           </p>
           <DaypartGreeting
             name={overview.displayName}
-            className="font-display text-4xl leading-tight tracking-tight sm:text-5xl landscape-tablet:text-5xl"
+            className="font-display text-4xl leading-tight tracking-tight sm:text-5xl landscape-tablet:text-[2.75rem]"
             style={{ color: view.accent }}
           />
           <p
-            className="text-base text-[color:var(--quiet)] sm:text-lg"
+            className="text-base text-[color:var(--quiet)] sm:text-lg landscape-tablet:hidden"
             suppressHydrationWarning
           >
             {formatGermanDate(wallNow)}
           </p>
         </div>
-        <LiveClock className="hidden sm:block landscape-tablet:block" />
+        <div className="flex shrink-0 flex-col items-end gap-2 sm:gap-3">
+          {showWeather ? (
+            <WeatherHeaderGlance
+              weather={weather}
+              focusTomorrow={eveningFocus}
+              now={wallNow}
+            />
+          ) : null}
+          <LiveClock
+            stacked={false}
+            className="hidden text-right sm:block landscape-tablet:block [&_p:last-child]:font-display [&_p:last-child]:text-3xl [&_p:last-child]:tabular-nums landscape-tablet:[&_p:last-child]:text-2xl"
+          />
+        </div>
       </header>
 
-      {/* Single-column block order — Bus sits directly under Arbeit */}
-      <div className="animate-rise flex flex-col gap-5" style={{ animationDelay: "60ms" }}>
+      {/*
+        Landscape control center: Next · Arbeit|Bus · Meine Woche (always on-screen).
+        Phone keeps the same priority, single column — not a stretched mobile page.
+      */}
+      <div
+        className={cn(
+          "animate-rise flex flex-col gap-4 landscape-tablet:gap-3",
+          "landscape-tablet:grid landscape-tablet:grid-cols-2 landscape-tablet:items-start",
+        )}
+        style={{ animationDelay: "60ms" }}
+      >
         {showNextUp ? (
-          <NextUpSection
-            next={nextUp}
-            emphasis={
-              nextUp.title.includes("nichts Dringendes")
-                ? "tertiary"
-                : "hero"
-            }
-          />
+          <div className="landscape-tablet:col-span-2">
+            <NextUpSection
+              next={nextUp}
+              emphasis={
+                nextUp.title.includes("nichts Dringendes")
+                  ? "tertiary"
+                  : "secondary"
+              }
+            />
+          </div>
         ) : null}
 
         {priority.isFree ? (
-          <Section title={heuteTitle} emphasis="hero">
-            <p className="font-display text-4xl tracking-tight sm:text-5xl">
-              {priority.freeDayCopy}
-            </p>
-          </Section>
+          <div className={showBusBlock ? undefined : "landscape-tablet:col-span-2"}>
+            <Section title={heuteTitle} emphasis="hero">
+              <p className="font-display text-4xl tracking-tight sm:text-5xl landscape-tablet:text-4xl">
+                {priority.freeDayCopy}
+              </p>
+            </Section>
+          </div>
         ) : (
           <WorkShiftSection
             shift={view.workShift ?? overview.workShift}
@@ -212,7 +241,7 @@ export function SimpleMorningDashboard({
           />
         )}
 
-        {priority.isWorking ? (
+        {showBusBlock ? (
           <WorkBusSection
             glance={busGlance}
             emphasis={
@@ -222,38 +251,34 @@ export function SimpleMorningDashboard({
         ) : null}
 
         {leaveReminderActive && leaveKnown && !eveningFocus ? (
-          <p className="px-1 text-base text-[color:var(--quiet)]">
+          <p className="px-1 text-base text-[color:var(--quiet)] landscape-tablet:col-span-2 landscape-tablet:text-sm">
             Erinnerung: {leaveReminderLabel?.trim() || "Bald losfahren"}
           </p>
         ) : null}
 
-        {showWeather ? (
-          <WeatherSection
-            weather={weather}
-            emphasis="secondary"
-            showCurrent
-            showWeekStrip={false}
-            focusTomorrow={eveningFocus}
-            now={wallNow}
-          />
-        ) : null}
-
         {showWeek && workWeek ? (
-          <WorkWeekSection week={workWeek} today={wallNow} />
+          <div className="landscape-tablet:col-span-2">
+            <WorkWeekSection week={workWeek} today={wallNow} compact />
+          </div>
         ) : null}
 
+        {/* Secondary — may scroll below first viewport */}
         {showWeather ? (
-          <WeatherSection
-            weather={weather}
-            showCurrent={false}
-            showWeekStrip
-            focusTomorrow={eveningFocus}
-            now={wallNow}
-          />
+          <div className="landscape-tablet:col-span-2">
+            <WeatherSection
+              weather={weather}
+              showCurrent={false}
+              showWeekStrip
+              focusTomorrow={eveningFocus}
+              now={wallNow}
+            />
+          </div>
         ) : null}
 
         {showCalendar ? (
-          <CalendarSection events={overview.appointments} compact />
+          <div className="landscape-tablet:col-span-2">
+            <CalendarSection events={overview.appointments} compact />
+          </div>
         ) : null}
       </div>
     </div>

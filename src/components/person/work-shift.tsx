@@ -38,14 +38,16 @@ export function WorkShiftSection({
 
   return (
     <Section title={title} emphasis={emphasis}>
-      <p className="text-lg text-[color:var(--ink)]">
+      <p className="text-lg text-[color:var(--ink)] landscape-tablet:text-base">
         {focusTomorrow ? "Du arbeitest morgen" : "Du arbeitest heute"}
       </p>
-      <p className="mt-2 font-display text-4xl tabular-nums tracking-tight sm:text-5xl landscape-tablet:text-5xl">
+      <p className="mt-2 font-display text-4xl tabular-nums tracking-tight sm:text-5xl landscape-tablet:mt-1 landscape-tablet:text-4xl">
         {shift.start} – {shift.end} Uhr
       </p>
       {shift.label ? (
-        <p className="mt-3 text-base text-[color:var(--quiet)]">{shift.label}</p>
+        <p className="mt-3 text-base text-[color:var(--quiet)] landscape-tablet:mt-2 landscape-tablet:text-sm">
+          {shift.label}
+        </p>
       ) : null}
       {!simple && shift.location ? (
         <p className="mt-1 text-lg">{shift.location}</p>

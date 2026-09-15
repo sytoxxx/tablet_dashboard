@@ -12,11 +12,13 @@ export function NextUpSection({
 }) {
   return (
     <Section title="Als Nächstes" emphasis={emphasis}>
-      <p className="text-xl font-medium text-[color:var(--ink)] sm:text-2xl">
+      <p className="text-xl font-medium text-[color:var(--ink)] sm:text-2xl landscape-tablet:text-xl">
         {next.title}
       </p>
       {next.detail ? (
-        <p className="mt-1 text-base text-[color:var(--quiet)]">{next.detail}</p>
+        <p className="mt-1 text-base text-[color:var(--quiet)] landscape-tablet:text-sm">
+          {next.detail}
+        </p>
       ) : null}
     </Section>
   );

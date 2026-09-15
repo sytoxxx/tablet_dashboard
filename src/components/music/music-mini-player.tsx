@@ -8,9 +8,10 @@ import { useMusic } from "@/components/music/music-command-provider";
 import { cn } from "@/lib/utils";
 
 /**
- * Tiny Apple-like mini player — bottom-right, landscape tablet friendly.
- * Hidden on /musik itself and when nothing is selected. Never full-width
- * so it does not cover Meine Woche / Bus / Arbeit on the left stack.
+ * Tiny Apple-like mini player.
+ * Default: bottom-right. On landscape tablet morning dashboards (/person/*):
+ * bottom-left so it never covers Meine Woche / Bus / Arbeit / weather.
+ * Hidden on /musik and when nothing is selected.
  */
 export function MusicMiniPlayer({ className }: { className?: string }) {
   const pathname = usePathname();
@@ -21,6 +22,7 @@ export function MusicMiniPlayer({ className }: { className?: string }) {
   // Access / login surfaces — no chrome noise.
   if (pathname?.startsWith("/login") || pathname?.startsWith("/api")) return null;
 
+  const onPersonDash = Boolean(pathname?.startsWith("/person/"));
   const title = currentTrack.title;
   const artist = currentTrack.artist;
   const shortTitle =
@@ -30,8 +32,12 @@ export function MusicMiniPlayer({ className }: { className?: string }) {
     <div
       className={cn(
         "pointer-events-none fixed z-40",
-        "right-[max(0.75rem,env(safe-area-inset-right))]",
         "bottom-[max(0.75rem,env(safe-area-inset-bottom))]",
+        // Person morning: landscape tablet → bottom-left (clears Meine Woche).
+        // All other surfaces → bottom-right.
+        onPersonDash
+          ? "right-[max(0.75rem,env(safe-area-inset-right))] landscape-tablet:right-auto landscape-tablet:left-[max(0.75rem,env(safe-area-inset-left))]"
+          : "right-[max(0.75rem,env(safe-area-inset-right))]",
         className,
       )}
     >

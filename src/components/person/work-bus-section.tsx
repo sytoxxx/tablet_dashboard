@@ -56,7 +56,7 @@ export function WorkBusSection({
               <p className="text-base text-[color:var(--quiet)]">
                 Nächste Verbindung
               </p>
-              <p className="mt-1 font-display text-5xl tabular-nums tracking-tight sm:text-6xl">
+              <p className="mt-1 font-display text-5xl tabular-nums tracking-tight sm:text-6xl landscape-tablet:text-4xl">
                 {glance.nextTime}
               </p>
               {glance.nextLineTarget ? (
@@ -88,17 +88,14 @@ export function WorkBusSection({
           {glance.time ? (
             <p
               className={cn(
-                "font-display tabular-nums tracking-tight",
-                isDelay
-                  ? "text-5xl sm:text-6xl"
-                  : "text-5xl sm:text-6xl",
+                "font-display tabular-nums tracking-tight text-5xl sm:text-6xl landscape-tablet:text-4xl",
               )}
             >
               {isDelay ? <span aria-hidden>🚌 </span> : null}
               {glance.time}
             </p>
           ) : glance.leaveHome ? (
-            <p className="font-display text-5xl tabular-nums tracking-tight sm:text-6xl">
+            <p className="font-display text-5xl tabular-nums tracking-tight sm:text-6xl landscape-tablet:text-4xl">
               {glance.leaveHome}
             </p>
           ) : null}
