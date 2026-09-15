@@ -147,6 +147,13 @@
     --surface: #eef1f6;
     --quiet: #546274;
   }
+
+  .morning-shell.daypart-night {
+    --bg: #cfd6e2;
+    --bg-deep: #b8c1d0;
+    --surface: #e8ecf3;
+    --quiet: #4a586a;
+  }
 }
 
 @keyframes rise {

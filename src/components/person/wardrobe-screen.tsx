@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useMemo, useRef, useState, useTransition } from "react";
+import { useEffect, useMemo, useRef, useState, useTransition } from "react";
 import type { PersonId } from "@/lib/types";
 import {
   emptyImportDraft,
@@ -50,6 +50,12 @@ export function WardrobeScreen({
   const [pending, startTransition] = useTransition();
   const fileRef = useRef<HTMLInputElement>(null);
 
+  useEffect(() => {
+    return () => {
+      if (previewUrl) URL.revokeObjectURL(previewUrl);
+    };
+  }, [previewUrl]);
+
   const counts = useMemo(() => countActiveBySlot(catalog), [catalog]);
   const tops = catalog.items.filter((i) => i.active && i.slot === "top");
   const bottoms = catalog.items.filter((i) => i.active && i.slot === "bottom");
@@ -60,7 +66,6 @@ export function WardrobeScreen({
   );
 
   function resetImport() {
-    if (previewUrl) URL.revokeObjectURL(previewUrl);
     setPreviewUrl(null);
     setDraft(null);
     setNote(null);
@@ -79,8 +84,7 @@ export function WardrobeScreen({
   function onPhotoSelected(file: File | null) {
     if (!file) return;
     setError(null);
-    const url = URL.createObjectURL(file);
-    setPreviewUrl(url);
+    setPreviewUrl(URL.createObjectURL(file));
 
     startTransition(async () => {
       try {

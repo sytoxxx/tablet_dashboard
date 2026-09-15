@@ -43,8 +43,8 @@ export function SchoolJarvisSection({
   const canHandoff = Boolean(handoffUrl && summary.action?.target);
 
   return (
-    <Section title="School Jarvis">
-      <div className="space-y-3 rounded-2xl bg-[color:var(--surface)] px-4 py-3">
+    <Section title="School Jarvis" emphasis="tertiary">
+      <div className="space-y-3 rounded-2xl bg-[color:var(--surface)]/80 px-4 py-3">
         <div className="flex items-start gap-3">
           <GraduationCap
             className="mt-0.5 size-5 shrink-0 text-[color:var(--quiet)]"

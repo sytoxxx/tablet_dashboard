@@ -12,10 +12,10 @@ export function CoffeeMorningStrip({ coffee }: { coffee: CoffeeMorning }) {
   if (!coffee.enabled) return null;
 
   return (
-    <Section title="Kaffee">
+    <Section title="Kaffee" emphasis="tertiary">
       <Link
         href="/kaffee"
-        className="flex items-center gap-3 rounded-2xl bg-[color:var(--surface)] px-4 py-3 transition-colors hover:bg-[color:var(--surface-strong)]"
+        className="flex items-center gap-3 rounded-2xl bg-[color:var(--surface)]/80 px-4 py-3 transition-colors hover:bg-[color:var(--surface-strong)]"
       >
         <Coffee className="size-5 shrink-0 text-[color:var(--quiet)]" aria-hidden />
         <div className="min-w-0">

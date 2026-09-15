@@ -5,21 +5,26 @@ import type { ScheduleBlock } from "@/lib/day/schedule-flow";
 import { Section } from "@/components/section";
 import { EmptyState } from "@/components/empty-state";
 import { cn } from "@/lib/utils";
+import type { ClarityEmphasis } from "@/components/clarity-block";
 
 export function DayFlowHero({
   flow,
   dominant = false,
+  title = "Stundenplan",
 }: {
   flow: DayFlowState;
-  /** Levi: largest visual weight for “Als Nächstes”. */
+  /** Levi: largest visual weight for the next lesson. */
   dominant?: boolean;
+  title?: string;
 }) {
+  const emphasis: ClarityEmphasis = dominant ? "hero" : "secondary";
+
   if (flow.status === "free") {
     return (
-      <Section title="Dein Tag">
+      <Section title={title} emphasis={emphasis}>
         <EmptyState
           title="Heute nichts geplant"
-          description={flow.message || "Heute nichts geplant"}
+          description={flow.message || "Im Stundenplan steht gerade nichts."}
         />
       </Section>
     );
@@ -27,7 +32,11 @@ export function DayFlowHero({
 
   if (flow.status === "done") {
     return (
-      <Section title="Status" aside={<RelativeChip label={flow.relativeLabel} tone="quiet" />}>
+      <Section
+        title={title}
+        emphasis={emphasis}
+        aside={<RelativeChip label={flow.relativeLabel} tone="quiet" />}
+      >
         <p
           className={cn(
             "font-display tracking-tight",
@@ -47,27 +56,35 @@ export function DayFlowHero({
   }
 
   const block = flow.block as ScheduleBlock;
-  const title = flow.status === "current" ? "Jetzt" : "Als Nächstes";
+  const sectionTitle = flow.status === "current" ? "Jetzt" : title;
 
   return (
     <Section
-      title={title}
-      aside={<RelativeChip label={flow.relativeLabel} tone={flow.status === "current" ? "brand" : "quiet"} />}
+      title={sectionTitle}
+      emphasis={emphasis}
+      aside={
+        <RelativeChip
+          label={flow.relativeLabel}
+          tone={flow.status === "current" ? "brand" : "quiet"}
+        />
+      }
     >
       <p
         className={cn(
           "font-display tracking-tight animate-soft-in",
           dominant
-            ? "text-5xl leading-[1.05] sm:text-6xl lg:text-7xl"
-            : "text-4xl sm:text-5xl",
+            ? "text-5xl leading-[1.05] sm:text-6xl lg:text-7xl landscape-tablet:text-4xl landscape-tablet:leading-tight"
+            : "text-4xl sm:text-5xl landscape-tablet:text-3xl",
         )}
       >
         {block.title}
       </p>
       <p
         className={cn(
-          "mt-3 text-[color:var(--quiet)]",
-          dominant ? "text-2xl" : "text-xl",
+          "mt-3 text-[color:var(--quiet)] landscape-tablet:mt-1.5",
+          dominant
+            ? "text-2xl landscape-tablet:text-lg"
+            : "text-xl landscape-tablet:text-base",
         )}
       >
         <span className="tabular-nums text-[color:var(--ink)]">{block.start}</span>
@@ -75,6 +92,7 @@ export function DayFlowHero({
           <>
             {" – "}
             <span className="tabular-nums text-[color:var(--ink)]">{block.end}</span>
+            {" Uhr"}
           </>
         ) : null}
         {block.place ? ` · ${block.place}` : null}

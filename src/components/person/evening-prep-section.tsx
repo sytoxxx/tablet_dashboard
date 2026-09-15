@@ -88,16 +88,9 @@ function EveningPrepBody({
   const outfitLines = useMemo(() => {
     if (prep.pickedOutfit?.pieces.length) {
       return prep.pickedOutfit.pieces.map((p) => {
-        const emoji =
-          p.slot === "top"
-            ? "👕"
-            : p.slot === "bottom"
-              ? "👖"
-              : p.slot === "shoes"
-                ? "👟"
-                : "🧥";
-        if (p.item) return `${emoji} ${p.item.name}`;
-        return p.missingPrompt ?? `${emoji} ${p.label}`;
+        if (p.item) return p.item.name;
+        // Short glance label — never the long "füge dem Kleiderschrank hinzu" prompt.
+        return p.label;
       });
     }
     const outfitItem = prep.items.find((i) => i.kind === "outfit");
@@ -154,7 +147,7 @@ function EveningPrepBody({
   }
 
   return (
-    <Section title={prep.title}>
+    <Section title={prep.title} emphasis="secondary">
       {prep.banner ? (
         <p
           className={cn(
@@ -167,7 +160,12 @@ function EveningPrepBody({
       ) : null}
 
       <ul className={simple ? "space-y-4" : "space-y-4 sm:space-y-5"}>
-        {prep.items.map((item) => (
+        {prep.items.map((item) => {
+          const detail =
+            item.detail && item.detail.includes("Kleiderschrank")
+              ? item.label
+              : item.detail;
+          return (
           <li key={item.kind} className="min-w-0">
             <p className="text-base text-[color:var(--quiet)]">{item.label}</p>
             {item.kind === "outfit" && outfitLines.length > 0 ? (
@@ -190,10 +188,13 @@ function EveningPrepBody({
                     : "mt-0.5 text-lg sm:text-xl text-[color:var(--ink)]"
                 }
               >
-                {item.detail}
+                {detail}
               </p>
             )}
-            {item.kind !== "outfit" && item.items && item.items.length > 1 ? (
+            {item.kind !== "outfit" &&
+            item.items &&
+            item.items.length > 1 &&
+            !item.items.some((line) => line.includes("Kleiderschrank")) ? (
               <ul className="mt-1 space-y-0.5 text-base text-[color:var(--quiet)]">
                 {item.items.map((line) => (
                   <li key={line}>{line}</li>
@@ -201,7 +202,8 @@ function EveningPrepBody({
               </ul>
             ) : null}
           </li>
-        ))}
+          );
+        })}
       </ul>
 
       {prep.pickedOutfit ? (
@@ -212,7 +214,7 @@ function EveningPrepBody({
             disabled={confirmed}
             onClick={confirmOutfit}
           >
-            {confirmed ? "✓ Vorbereitet" : "✓ Vorbereiten"}
+            {confirmed ? "Vorbereitet" : "Vorbereiten"}
           </Button>
           <Button
             size="lg"
@@ -220,7 +222,7 @@ function EveningPrepBody({
             className="h-12 rounded-2xl"
             onClick={requestAlternative}
           >
-            🔄 Anderes Outfit
+            Anderes Outfit
           </Button>
           {digitalWardrobe ? (
             <Button
@@ -242,7 +244,6 @@ function EveningPrepBody({
           >
             Kleiderschrank einrichten
           </Link>
-          , damit echte Outfits vorgeschlagen werden.
         </p>
       )}
 

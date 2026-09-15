@@ -5,6 +5,8 @@ import {
   DevTimePanel,
   DevTimeProvider,
 } from "@/components/providers/dev-time-provider";
+import { MusicCommandProvider } from "@/components/music/music-command-provider";
+import { MusicMiniPlayer } from "@/components/music/music-mini-player";
 import "./globals.css";
 
 const manrope = Manrope({
@@ -41,8 +43,11 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
       <body className="min-h-full flex flex-col font-sans">
         <DataProvider>
           <DevTimeProvider>
-            {children}
-            <DevTimePanel />
+            <MusicCommandProvider>
+              {children}
+              <MusicMiniPlayer />
+              <DevTimePanel />
+            </MusicCommandProvider>
           </DevTimeProvider>
         </DataProvider>
       </body>

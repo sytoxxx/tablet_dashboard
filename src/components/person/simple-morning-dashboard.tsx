@@ -3,24 +3,37 @@
 import type { DayIntelligenceView } from "@/lib/day/intelligence";
 import type { MorningOverview } from "@/lib/morning/types";
 import type { WardrobeCatalog } from "@/lib/wardrobe/model";
+import type { WeekdayKey, WorkShiftDay } from "@/lib/types";
 import type { WorkTravelLive } from "@/hooks/use-bus-live";
 import { MorningNav } from "@/components/shared/morning-nav";
 import { LiveClock } from "@/components/shared/live-clock";
-import { DayFlowHero } from "@/components/person/day-flow-hero";
+import {
+  DaypartGreeting,
+  useGreetingBucket,
+  daypartShellClass,
+} from "@/components/shared/daypart-greeting";
 import { WorkShiftSection } from "@/components/person/work-shift";
-import { WorkTravelSection } from "@/components/person/work-travel-section";
-import { MorningTimelineSection } from "@/components/person/morning-timeline-section";
-import { EveningPrepSection } from "@/components/person/evening-prep-section";
-import { BusSection } from "@/components/person/bus-section";
+import { WorkBusSection } from "@/components/person/work-bus-section";
 import { WeatherSection } from "@/components/person/weather-section";
+import { WeatherHeaderGlance } from "@/components/person/weather-header-glance";
+import { WorkWeekSection } from "@/components/person/work-week-section";
+import { NextUpSection } from "@/components/person/next-up-section";
 import { CalendarSection } from "@/components/person/calendar-section";
 import { Section } from "@/components/section";
+import {
+  resolveNextUpGlance,
+  resolveWorkMorningPriority,
+} from "@/lib/morning/work-priority";
+import { resolveWorkBusGlance } from "@/lib/morning/work-bus-glance";
 import { formatGermanDate, WEEKDAY_LABELS } from "@/lib/format";
 import { cn } from "@/lib/utils";
 
 /**
- * Extremely simple morning layout for Birgit (and Heidi).
- * Timeline + work travel — no provider jargon.
+ * Birgit & Heidi — landscape control-center + shared Apple-like blocks.
+ *
+ * Landscape (10″ tablet): greeting | weather+clock · Next · Arbeit|Bus · Meine Woche.
+ * Portrait / phone: same priority stack, weather stays in header (not a mid card).
+ * No detailed clothing. Data gates unchanged.
  */
 export function SimpleMorningDashboard({
   view,
@@ -28,21 +41,22 @@ export function SimpleMorningDashboard({
   wallNow,
   mode,
   simple = false,
-  busMessage,
-  busEmptyTitle,
-  busUpcoming,
-  busMatched,
+  busMessage: _busMessage,
+  busEmptyTitle: _busEmptyTitle,
+  busUpcoming: _busUpcoming,
+  busMatched: _busMatched,
   busEnabled = true,
-  busOffline,
-  busUnavailable,
-  busDataAgeLabel,
-  weatherPlace,
+  busOffline: _busOffline,
+  busUnavailable: _busUnavailable,
+  busDataAgeLabel: _busDataAgeLabel,
+  weatherPlace: _weatherPlace,
   workTravel,
+  workWeek = null,
   leaveReminderActive = false,
   leaveReminderLabel = null,
-  digitalWardrobe = null,
-  onExcludeCombination,
-  onWardrobeChange,
+  digitalWardrobe: _digitalWardrobe = null,
+  onExcludeCombination: _onExcludeCombination,
+  onWardrobeChange: _onWardrobeChange,
 }: {
   view: DayIntelligenceView;
   overview: MorningOverview;
@@ -59,205 +73,225 @@ export function SimpleMorningDashboard({
   busDataAgeLabel?: string | null;
   weatherPlace?: string | null;
   workTravel?: WorkTravelLive | null;
+  workWeek?: Partial<Record<WeekdayKey, WorkShiftDay>> | null;
   leaveReminderActive?: boolean;
   leaveReminderLabel?: string | null;
   digitalWardrobe?: WardrobeCatalog | null;
   onExcludeCombination?: (combinationKey: string) => void;
   onWardrobeChange?: (catalog: WardrobeCatalog) => void;
 }) {
-  const headline = overview.greeting;
-  const isBirgit = mode === "work";
-  const showMitnehmen = false;
-  const showCalendar =
-    !isBirgit &&
-    view.displayPrefs.showCalendar &&
-    overview.visibility.appointments;
-  const showBus = view.displayPrefs.showBus && overview.visibility.bus;
-  const showWeather =
-    view.displayPrefs.showWeather && overview.visibility.weather;
-  const showHint =
-    overview.visibility.hint && Boolean(overview.importantHint);
-  const showTimeline = overview.visibility.timeline;
-  const showEveningPrep = overview.visibility.eveningPrep;
+  void _digitalWardrobe;
+  void _onExcludeCombination;
+  void _onWardrobeChange;
+  void _weatherPlace;
+  void _busEmptyTitle;
+  void _busMessage;
+  void _busUpcoming;
+  void _busMatched;
+  void _busOffline;
+  void _busUnavailable;
+  void _busDataAgeLabel;
+  void simple;
 
-  const useWorkTravel =
+  const greetingBucket = useGreetingBucket();
+  // Wording “Morgen” must follow schedule focus — not greeting night (00–04).
+  // Night shell ambiance stays via daypartShellClass; bus quiet via nightQuiet.
+  const eveningFocus = overview.focusIsTomorrow;
+  const nightQuiet = greetingBucket === "night" && !overview.focusIsTomorrow;
+
+  const priority = resolveWorkMorningPriority({
+    workShift: view.workShift ?? overview.workShift,
+    appointments: overview.appointments,
+    focusIsTomorrow: overview.focusIsTomorrow,
+  });
+
+  const showWeather =
+    view.displayPrefs.showWeather &&
+    (overview.visibility.weather ||
+      Boolean(overview.weather.weather ?? view.weather));
+  const weather = overview.weather.weather ?? view.weather;
+  // Meine Woche must stay visible for Birgit/Heidi — never hide for daypart/space.
+  // Compact scroll lives in WorkWeekSection; gate only on having a work schedule.
+  const showWeek = Boolean(workWeek) && mode === "work";
+
+  const leaveKnown =
+    priority.isWorking &&
     mode === "work" &&
-    workTravel &&
-    (workTravel.status === "on-time" ||
-      workTravel.status === "no-connection" ||
-      workTravel.status === "cancelled");
+    workTravel?.status === "on-time" &&
+    Boolean(workTravel.leaveHome);
+
+  // Night: no senseless today’s bus. Evening: only when tomorrow leave known.
+  const hideTodayBus =
+    nightQuiet ||
+    (eveningFocus && !leaveKnown) ||
+    !busEnabled ||
+    view.displayPrefs.showBus === false;
+
+  const busGlance = resolveWorkBusGlance({
+    plan: workTravel,
+    isWorking: priority.isWorking && mode === "work",
+    hideTodayBus,
+    focusTomorrow: eveningFocus,
+  });
+
+  const nextUp = resolveNextUpGlance({
+    isWorking: priority.isWorking,
+    isFree: priority.isFree,
+    focusIsTomorrow: overview.focusIsTomorrow,
+    leaveHome: leaveKnown ? workTravel?.leaveHome : null,
+    workStart: view.workShift?.start ?? overview.workShift?.start,
+    appointment: priority.nextAppointment,
+  });
+
+  const showNextUp = !(
+    priority.isFree && nextUp.title.includes("nichts Dringendes")
+  );
+
+  const showCalendar =
+    view.displayPrefs.showCalendar &&
+    overview.visibility.appointments &&
+    overview.appointments.length > 0;
+
+  const showBusBlock = priority.isWorking;
+  const heuteTitle = overview.focusIsTomorrow ? "Morgen" : "Heute";
 
   return (
     <div
       className={cn(
-        "morning-shell mx-auto flex w-full max-w-6xl flex-col gap-5 px-5 py-5 sm:gap-6 sm:px-8 sm:py-6 lg:px-10 landscape-tablet:gap-4 landscape-tablet:py-4",
-        overview.focusIsTomorrow && "daypart-evening",
+        "morning-shell mx-auto flex w-full max-w-3xl flex-col gap-4 px-5 py-4 sm:gap-5 sm:px-8 sm:py-5 lg:max-w-5xl lg:px-10",
+        "landscape-tablet:max-w-[74rem] landscape-tablet:gap-2.5 landscape-tablet:px-6 landscape-tablet:py-2.5",
+        // Mini-player sits bottom-left on landscape tablet — keep a thin pad.
+        "pb-20 landscape-tablet:pb-12",
+        daypartShellClass(greetingBucket),
       )}
     >
-      <MorningNav quiet={mode === "work"} />
-      <div className="flex justify-end">
-        <a
-          href={`/person/${overview.personId}/kleiderschrank`}
-          className="text-base text-[color:var(--quiet)] underline-offset-2 hover:underline"
-        >
-          👕 Kleiderschrank
-        </a>
-      </div>
+      <MorningNav quiet />
 
-      <header className="animate-rise flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
-        <div className="space-y-1">
-          <p className="text-sm tracking-[0.14em] text-[color:var(--quiet)] uppercase">
+      <header className="animate-rise flex items-start justify-between gap-4 sm:gap-6 landscape-tablet:gap-5">
+        <div className="min-w-0 flex-1 space-y-0.5">
+          <p className="text-sm tracking-[0.14em] text-[color:var(--quiet)] uppercase landscape-tablet:text-xs">
             {WEEKDAY_LABELS[view.weekdayKey]}
-            {overview.focusIsTomorrow ? " · Morgen" : ""}
+            {overview.focusIsTomorrow ? " · Morgen" : " · Heute"}
           </p>
-          <h1
-            className="font-display text-4xl leading-tight tracking-tight sm:text-5xl landscape-tablet:text-5xl"
+          <DaypartGreeting
+            name={overview.displayName}
+            className="font-display text-4xl leading-tight tracking-tight sm:text-5xl landscape-tablet:text-[2.5rem]"
             style={{ color: view.accent }}
+          />
+          <p
+            className="text-base text-[color:var(--quiet)] sm:text-lg landscape-tablet:hidden"
+            suppressHydrationWarning
           >
-            {headline}
-          </h1>
-          <p className="text-base text-[color:var(--quiet)] sm:text-lg" suppressHydrationWarning>
             {formatGermanDate(wallNow)}
           </p>
         </div>
-        <LiveClock className="hidden sm:block landscape-tablet:block" />
+        <div className="flex shrink-0 flex-col items-end gap-1.5 sm:gap-2">
+          {showWeather ? (
+            <WeatherHeaderGlance
+              weather={weather}
+              focusTomorrow={eveningFocus}
+              now={wallNow}
+            />
+          ) : null}
+          <LiveClock
+            compact
+            className="hidden sm:block landscape-tablet:block"
+          />
+        </div>
       </header>
 
+      {/*
+        Landscape control center: Next · Arbeit|Bus · Meine Woche (always on-screen).
+        Phone keeps the same priority, single column — not a stretched mobile page.
+      */}
       <div
         className={cn(
-          "animate-rise grid gap-6",
-          "landscape-tablet:grid-cols-[1.35fr_1fr] landscape-tablet:gap-5 landscape-tablet:items-start",
-          "lg:grid-cols-[1.35fr_1fr]",
+          "animate-rise flex flex-col gap-4 landscape-tablet:gap-2.5",
+          "landscape-tablet:grid landscape-tablet:grid-cols-2 landscape-tablet:items-start",
         )}
         style={{ animationDelay: "60ms" }}
       >
-        <div className="space-y-6 landscape-tablet:space-y-5">
-          {showTimeline ? (
-            <MorningTimelineSection
-              timeline={overview.timeline}
-              simple
-              reminderActive={leaveReminderActive}
-              reminderLabel={leaveReminderLabel}
+        {showNextUp ? (
+          <div className="landscape-tablet:col-span-2">
+            <NextUpSection
+              next={nextUp}
+              emphasis={
+                nextUp.title.includes("nichts Dringendes")
+                  ? "tertiary"
+                  : "secondary"
+              }
             />
-          ) : null}
-          {mode === "work" && useWorkTravel ? (
-            <WorkTravelSection
-              plan={workTravel}
-              workLabel={view.workShift?.label}
-            />
-          ) : null}
-          {showEveningPrep ? (
-            <EveningPrepSection
-              prep={overview.eveningPrep}
-              simple
-              digitalWardrobe={digitalWardrobe}
-              onExcludeCombination={onExcludeCombination}
-              onWardrobeChange={onWardrobeChange}
-            />
-          ) : null}
+          </div>
+        ) : null}
 
-          {mode === "work" ? (
-            !useWorkTravel && !showTimeline && !showEveningPrep ? (
-              <WorkShiftSection shift={view.workShift} simple />
-            ) : null
-          ) : (
-            <>
-              <DayFlowHero flow={view.dayFlow} />
-              {view.timetable.length > 0 ? (
-                <Section title="Heute">
-                  <ul className="space-y-3">
-                    {view.timetable.slice(0, 4).map((entry) => (
-                      <li
-                        key={`${entry.time}-${entry.subject}`}
-                        className="flex gap-4 text-lg"
-                      >
-                        <span className="w-16 shrink-0 tabular-nums text-[color:var(--quiet)]">
-                          {entry.time}
-                        </span>
-                        <span>
-                          {entry.subject}
-                          {entry.room ? (
-                            <span className="text-[color:var(--quiet)]">
-                              {" "}
-                              · {entry.room}
-                            </span>
-                          ) : null}
-                        </span>
-                      </li>
-                    ))}
-                  </ul>
-                </Section>
-              ) : null}
-            </>
-          )}
-
-          {showMitnehmen ? (
-            <Section title="Mitnehmen">
-              <ul className="flex flex-wrap gap-x-5 gap-y-2 text-lg">
-                {overview.itemsToTake.map((item) => (
-                  <li key={item}>{item}</li>
-                ))}
-              </ul>
+        {priority.isFree ? (
+          <div className={showBusBlock ? undefined : "landscape-tablet:col-span-2"}>
+            <Section title={heuteTitle} emphasis="hero">
+              <p className="font-display text-4xl tracking-tight sm:text-5xl landscape-tablet:text-4xl">
+                {priority.freeDayCopy}
+              </p>
             </Section>
-          ) : null}
+          </div>
+        ) : (
+          <WorkShiftSection
+            shift={view.workShift ?? overview.workShift}
+            simple
+            emphasis="hero"
+            focusTomorrow={eveningFocus || overview.focusIsTomorrow}
+          />
+        )}
 
-          {showHint ? (
-            <p className="text-base text-[color:var(--quiet)]">
-              {overview.importantHint}
-            </p>
-          ) : null}
-        </div>
+        {showBusBlock ? (
+          <WorkBusSection
+            glance={busGlance}
+            emphasis={
+              busGlance.kind === "none" && !eveningFocus ? "hero" : "secondary"
+            }
+          />
+        ) : null}
 
-        <aside className="space-y-5 landscape-tablet:space-y-4">
-          {showBus && !useWorkTravel && !showTimeline ? (
-            <BusSection
-              bus={view.nextBus}
-              stopName={view.busStopName}
-              hasBusConfig={Boolean(view.busStopName) && busEnabled}
-              busEnabled={busEnabled}
-              message={busMessage}
-              emptyTitle={
-                overview.bus.status === "cancelled"
-                  ? isBirgit
-                    ? "Kein passender Bus"
-                    : "Bus fällt aus"
-                  : overview.bus.status === "none"
-                    ? "Kein passender Bus"
-                    : busEmptyTitle
-              }
-              upcoming={busUpcoming}
-              simple={simple || mode === "work"}
-              matchedToWork={busMatched || overview.bus.matchedToActivity}
-              offline={busOffline}
-              unavailable={busUnavailable}
-              dataAgeLabel={busDataAgeLabel}
-              arrivalStatus={overview.bus.status}
-              arrivalMessage={
-                isBirgit &&
-                (overview.bus.status === "on_time" ||
-                  overview.bus.status === "too_late" ||
-                  overview.bus.status === "delayed" ||
-                  overview.bus.status === "cancelled")
-                  ? overview.bus.status === "delayed"
-                    ? "Bus hat Verspätung"
-                    : overview.bus.status === "cancelled"
-                      ? null
-                      : overview.bus.message || null
-                  : overview.bus.message || null
-              }
-            />
-          ) : null}
-          {showWeather ? (
+        {leaveReminderActive && leaveKnown && !eveningFocus ? (
+          <p className="px-1 text-base text-[color:var(--quiet)] landscape-tablet:col-span-2 landscape-tablet:text-sm">
+            Erinnerung: {leaveReminderLabel?.trim() || "Bald losfahren"}
+          </p>
+        ) : null}
+
+        {showWeek && workWeek ? (
+          <div
+            className={cn(
+              "landscape-tablet:col-span-2",
+              showWeather &&
+                "landscape-tablet:grid landscape-tablet:grid-cols-2 landscape-tablet:items-start landscape-tablet:gap-5",
+            )}
+          >
+            <WorkWeekSection week={workWeek} today={wallNow} compact />
+            {showWeather ? (
+              <WeatherSection
+                weather={weather}
+                showCurrent={false}
+                showWeekStrip
+                focusTomorrow={eveningFocus}
+                now={wallNow}
+              />
+            ) : null}
+          </div>
+        ) : showWeather ? (
+          <div className="landscape-tablet:col-span-2">
             <WeatherSection
-              weather={overview.weather.weather ?? view.weather}
-              simple={simple || mode === "work"}
-              place={weatherPlace}
+              weather={weather}
+              showCurrent={false}
+              showWeekStrip
+              focusTomorrow={eveningFocus}
+              now={wallNow}
             />
-          ) : null}
-          {showCalendar ? (
-            <CalendarSection events={overview.appointments} />
-          ) : null}
-        </aside>
+          </div>
+        ) : null}
+
+        {showCalendar ? (
+          <div className="landscape-tablet:col-span-2">
+            <CalendarSection events={overview.appointments} compact />
+          </div>
+        ) : null}
       </div>
     </div>
   );

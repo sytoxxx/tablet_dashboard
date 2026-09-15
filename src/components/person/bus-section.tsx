@@ -4,6 +4,7 @@ import { formatMinutesUntil } from "@/lib/format";
 import { EmptyState } from "@/components/empty-state";
 import { Section } from "@/components/section";
 import { friendlyBusEmptyMessage } from "@/lib/bus/select";
+import type { ClarityEmphasis } from "@/components/clarity-block";
 
 type BusSectionProps = {
   bus: BusInfo | null;
@@ -12,7 +13,7 @@ type BusSectionProps = {
   busEnabled?: boolean;
   message?: string | null;
   emptyTitle?: string | null;
-  upcoming?: Array<{ time: string; line?: string }>;
+  upcoming?: Array<{ time: string; line?: string; destination?: string }>;
   simple?: boolean;
   matchedToWork?: boolean;
   fetchedAt?: string | null;
@@ -29,6 +30,7 @@ type BusSectionProps = {
   arrivalMessage?: string | null;
   /** Levi only: Echtzeit / Nach Fahrplan / Testdaten */
   scheduleNote?: string | null;
+  emphasis?: ClarityEmphasis;
 };
 
 export function BusSection({
@@ -49,18 +51,19 @@ export function BusSection({
   arrivalStatus = null,
   arrivalMessage = null,
   scheduleNote = null,
+  emphasis = "secondary",
 }: BusSectionProps) {
-  const title = simple ? "Dein Bus" : "Bus";
+  const title = "Nächster Bus";
 
   if (bus?.cancelled || arrivalStatus === "cancelled") {
     return (
-      <Section title={title}>
+      <Section title={title} emphasis={emphasis}>
         <EmptyState
-          title={simple ? "Kein passender Bus" : "Bus fällt aus"}
+          title="Diese Verbindung fällt aus."
           description={
             simple
-              ? "Bitte später erneut prüfen."
-              : arrivalMessage || "Diese Verbindung fällt aus."
+              ? "Bitte später erneut prüfen — oder nächste Verbindung abwarten."
+              : arrivalMessage || "Bitte später erneut prüfen."
           }
         />
       </Section>
@@ -84,34 +87,29 @@ export function BusSection({
         ? "Du kommst rechtzeitig an."
         : status === "too_late"
           ? simple
-            ? "Bus reicht nicht"
+            ? "Bus reicht nicht rechtzeitig."
             : "Möglicherweise zu spät für den Start."
           : status === "delayed" && bus.delayMinutes
             ? `ca. ${bus.delayMinutes} Min. Verspätung`
             : null);
 
     return (
-      <Section title={title}>
+      <Section title={title} emphasis={emphasis}>
         <div>
           <p className="font-display text-4xl tabular-nums tracking-tight landscape-tablet:text-5xl">
             {bus.realtimeDeparture || bus.departure}
           </p>
           <p className="mt-2 text-lg text-[color:var(--ink)]">
+            Bus {bus.line} → {bus.destination}
+          </p>
+          <p className="mt-1 text-base text-[color:var(--quiet)]">
             {formatMinutesUntil(bus.minutesUntil)}
           </p>
           {statusCopy &&
           (status === "on_time" ||
             status === "too_late" ||
             status === "delayed") ? (
-            <p
-              className={
-                simple || status === "on_time" || status === "delayed"
-                  ? "mt-2 text-base text-[color:var(--ink)]"
-                  : "mt-2 text-sm text-[color:var(--quiet)]"
-              }
-            >
-              {statusCopy}
-            </p>
+            <p className="mt-2 text-base text-[color:var(--ink)]">{statusCopy}</p>
           ) : null}
           {!simple &&
           bus.scheduledDeparture &&
@@ -123,13 +121,8 @@ export function BusSection({
           ) : null}
           {!simple ? (
             <p className="mt-1 text-[color:var(--quiet)]">
-              Linie {bus.line} → {bus.destination}
-            </p>
-          ) : null}
-          {!simple ? (
-            <p className="mt-1 text-[color:var(--quiet)]">
               {stopName ?? bus.stopName}
-              {matchedToWork ? " · passend zur Arbeit/Schule" : null}
+              {matchedToWork ? " · passend zur Schule" : null}
             </p>
           ) : null}
           {upcoming && upcoming.length > 1 && !simple ? (
@@ -152,7 +145,9 @@ export function BusSection({
             </p>
           ) : null}
           {fetchedAt && bus.source === "cache" && !dataAgeLabel ? (
-            <p className="mt-2 text-xs text-[color:var(--quiet)]">Zuletzt gespeichert</p>
+            <p className="mt-2 text-xs text-[color:var(--quiet)]">
+              Zuletzt gespeichert
+            </p>
           ) : null}
         </div>
       </Section>
@@ -168,9 +163,14 @@ export function BusSection({
   });
 
   return (
-    <Section title={simple ? "Dein Bus" : "Bus"}>
+    <Section title={title} emphasis={emphasis}>
       <EmptyState
-        title={emptyTitle || fallback.title}
+        title={
+          emptyTitle ||
+          (simple
+            ? fallback.title
+            : fallback.title)
+        }
         description={
           simple
             ? offline && dataAgeLabel

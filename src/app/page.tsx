@@ -1,15 +1,22 @@
 "use client";
 
-import { useCallback, useRef, useState } from "react";
-import Link from "next/link";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
-import { Coffee } from "lucide-react";
 import { ProfileTile } from "@/components/profile-tile";
+import { PrimaryNav } from "@/components/shared/primary-nav";
+import { DaypartGreeting } from "@/components/shared/daypart-greeting";
 import { useAppData } from "@/components/providers/data-provider";
 import { OfflineBanner } from "@/components/admin/offline-banner";
 import { Skeleton } from "@/components/shared/skeleton";
 
 const ADMIN_HOLD_MS = 2200;
+
+/** Friendly role label under each name — no jargon. */
+function roleHint(personId: string, fallback: string): string {
+  if (personId === "levi") return "Schule";
+  if (personId === "birgit" || personId === "heidi") return "Arbeit";
+  return fallback;
+}
 
 export default function HomePage() {
   const { data } = useAppData();
@@ -23,6 +30,8 @@ export default function HomePage() {
       holdTimer.current = null;
     }
   }, []);
+
+  useEffect(() => () => clearHold(), [clearHold]);
 
   const startHold = useCallback(() => {
     clearHold();
@@ -57,24 +66,21 @@ export default function HomePage() {
         <OfflineBanner />
       </div>
 
-      <div
-        className="pointer-events-none absolute top-10 right-8 size-28 rounded-full bg-[radial-gradient(circle,rgba(184,149,74,0.32),transparent_70%)] blur-2xl animate-soft-pulse sm:top-16 sm:right-16"
-        aria-hidden
-      />
+      <PrimaryNav className="absolute top-[max(1rem,env(safe-area-inset-top))] left-1/2 z-10 w-[calc(100%-2rem)] max-w-lg -translate-x-1/2 sm:left-8 sm:w-auto sm:max-w-none sm:translate-x-0" />
 
-      <header className="animate-rise max-w-2xl space-y-3 sm:space-y-4">
+      <header className="animate-rise max-w-2xl space-y-4 pt-14 sm:pt-16 landscape-tablet:pt-12">
         <p className="text-sm font-semibold tracking-[0.2em] text-[color:var(--brand)] uppercase">
           Coffee Morning
         </p>
-        <h1 className="font-display text-5xl leading-[1.05] tracking-tight sm:text-6xl lg:text-7xl landscape-tablet:text-6xl">
-          ☀️ Guten Morgen
-        </h1>
-        <p className="text-xl text-[color:var(--quiet)] sm:text-2xl">Wer bist du?</p>
+        <DaypartGreeting className="font-display text-5xl leading-[1.05] tracking-tight sm:text-6xl lg:text-7xl landscape-tablet:text-6xl" />
+        <p className="text-xl text-[color:var(--quiet)] sm:text-2xl">
+          Wer bist du?
+        </p>
       </header>
 
       <section
         className="grid gap-4 sm:grid-cols-3 sm:gap-5 landscape-tablet:gap-4"
-        aria-label="Profile"
+        aria-label="Personen"
       >
         {data.persons.map((person, index) => (
           <ProfileTile
@@ -82,7 +88,7 @@ export default function HomePage() {
             href={`/person/${person.id}`}
             personId={person.id}
             name={person.name}
-            hint={person.hint}
+            hint={roleHint(person.id, person.hint)}
             accent={person.accent}
             avatar={person.avatar}
             delayMs={80 + index * 70}
@@ -90,26 +96,7 @@ export default function HomePage() {
         ))}
       </section>
 
-      <div
-        className="animate-rise flex flex-wrap items-center gap-4"
-        style={{ animationDelay: "280ms" }}
-      >
-        <Link
-          href="/kaffee"
-          className="inline-flex min-h-14 items-center gap-3 rounded-2xl bg-[color:var(--ink)] px-6 text-lg text-[color:var(--surface)] transition-[opacity,transform] duration-200 ease-out hover:opacity-90 active:scale-[0.97] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[color:var(--brand)] focus-visible:ring-offset-4 focus-visible:ring-offset-[color:var(--bg)]"
-        >
-          <Coffee className="size-5" aria-hidden />
-          Zur Kaffeeecke
-        </Link>
-        <Link
-          href="/jarvis"
-          className="inline-flex min-h-14 items-center gap-3 rounded-2xl bg-[color:var(--surface)] px-6 text-lg text-[color:var(--ink)] transition-[opacity,transform] duration-200 ease-out hover:bg-[color:var(--surface-strong)] active:scale-[0.97] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[color:var(--brand)]"
-        >
-          Jarvis
-        </Link>
-      </div>
-
-      {/* Admin: long-press corner — not accidental for Birgit morning use */}
+      {/* Admin: long-press corner — not accidental for morning use */}
       <button
         type="button"
         className="fixed bottom-[max(1rem,env(safe-area-inset-bottom))] right-[max(1rem,env(safe-area-inset-right))] size-12 rounded-full opacity-[0.18] transition-opacity duration-200 hover:opacity-40 focus-visible:opacity-70 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[color:var(--brand)]"
