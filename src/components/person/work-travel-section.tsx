@@ -105,9 +105,11 @@ function HeuteBlock({
 function LosfahrenBus({
   plan,
   emphasis = "hero",
+  quietNoBus = false,
 }: {
   plan: PlanSlice;
   emphasis?: ClarityEmphasis;
+  quietNoBus?: boolean;
 }) {
   const primary = plan.connections?.[0] ?? null;
   const leave = primary?.leaveHome || plan.leaveHome;
@@ -118,6 +120,15 @@ function LosfahrenBus({
   const prep = preparationCopy(plan.preparationStart);
 
   if (!leave && !departure) {
+    if (quietNoBus) {
+      return (
+        <Section title="Losfahren" emphasis="tertiary">
+          <p className="text-lg text-[color:var(--quiet)]">
+            Du musst heute keinen Bus nehmen.
+          </p>
+        </Section>
+      );
+    }
     return (
       <Section title="Losfahren" emphasis={emphasis}>
         <EmptyState
@@ -128,19 +139,37 @@ function LosfahrenBus({
     );
   }
 
+  // Prefer known leave time as a full sentence — never invent one.
+  if (!leave) {
+    return (
+      <Section title="Losfahren" emphasis={emphasis}>
+        {busLine ? (
+          <p className="text-xl font-medium text-[color:var(--ink)]">{busLine}</p>
+        ) : null}
+        {departure ? (
+          <p className="mt-2 text-lg text-[color:var(--ink)]">
+            Bus um <span className="tabular-nums font-medium">{departure}</span>
+          </p>
+        ) : null}
+        {arrival ? (
+          <p className="mt-2 text-lg text-[color:var(--quiet)]">
+            Ankunft ca.{" "}
+            <span className="tabular-nums text-[color:var(--ink)]">{arrival}</span>
+          </p>
+        ) : null}
+      </Section>
+    );
+  }
+
   return (
     <Section title="Losfahren" emphasis={emphasis}>
-      {leave ? (
-        <>
-          <p className="text-lg text-[color:var(--ink)]">
-            Du musst um{" "}
-            <span className="font-medium tabular-nums">{leave}</span> los
-          </p>
-          <p className="mt-3 font-display text-5xl tabular-nums tracking-tight sm:text-6xl landscape-tablet:text-6xl">
-            {leave}
-          </p>
-        </>
-      ) : null}
+      <p className="text-xl text-[color:var(--ink)] sm:text-2xl">
+        Du musst um{" "}
+        <span className="font-display text-5xl tabular-nums tracking-tight sm:text-6xl">
+          {leave}
+        </span>{" "}
+        los.
+      </p>
       {busLine ? (
         <p className="mt-4 text-xl font-medium text-[color:var(--ink)]">
           {busLine}
@@ -152,7 +181,8 @@ function LosfahrenBus({
       ) : null}
       {arrival ? (
         <p className="mt-2 text-lg text-[color:var(--quiet)]">
-          Ankunft ca. <span className="tabular-nums text-[color:var(--ink)]">{arrival}</span>
+          Ankunft ca.{" "}
+          <span className="tabular-nums text-[color:var(--ink)]">{arrival}</span>
         </p>
       ) : null}
       {prep ? (
@@ -253,11 +283,17 @@ export function WorkTravelSection({
   workLabel,
   leaveEmphasis = "hero",
   workEmphasis = "secondary",
+  includeLeave = true,
+  quietNoBus = false,
 }: {
   plan: PlanSlice | null;
   workLabel?: string | null;
   leaveEmphasis?: ClarityEmphasis;
   workEmphasis?: ClarityEmphasis;
+  /** When false, only show Arbeit/Heute — never promote Losfahren. */
+  includeLeave?: boolean;
+  /** Soft no-bus copy instead of EmptyState boxes. */
+  quietNoBus?: boolean;
 }) {
   if (!plan) return null;
 
@@ -269,21 +305,30 @@ export function WorkTravelSection({
         {!isWalking ? (
           <HeuteBlock plan={plan} workLabel={workLabel} emphasis="hero" />
         ) : null}
-        {!isWalking ? (
-          <Section title="Losfahren" emphasis="secondary">
-            <EmptyState
-              title="Du musst heute keinen Bus nehmen."
-              description="Gerade ist keine passende Verbindung verfügbar."
-            />
-          </Section>
-        ) : (
+        {includeLeave && !isWalking ? (
+          quietNoBus ? (
+            <Section title="Losfahren" emphasis="tertiary">
+              <p className="text-lg text-[color:var(--quiet)]">
+                Du musst heute keinen Bus nehmen.
+              </p>
+            </Section>
+          ) : (
+            <Section title="Losfahren" emphasis="secondary">
+              <EmptyState
+                title="Du musst heute keinen Bus nehmen."
+                description="Gerade ist keine passende Verbindung verfügbar."
+              />
+            </Section>
+          )
+        ) : null}
+        {includeLeave && isWalking ? (
           <Section title="Losfahren" emphasis="hero">
             <EmptyState
               title="Kein Weg zur Schule geplant."
               description="Sobald Zeiten da sind, siehst du hier wann du los musst."
             />
           </Section>
-        )}
+        ) : null}
       </div>
     );
   }
@@ -298,14 +343,24 @@ export function WorkTravelSection({
   }
 
   if (isWalking) {
-    return <WalkingLeave plan={plan} emphasis={leaveEmphasis} />;
+    return includeLeave ? (
+      <WalkingLeave plan={plan} emphasis={leaveEmphasis} />
+    ) : null;
   }
 
   return (
     <div className="space-y-5">
       <HeuteBlock plan={plan} workLabel={workLabel} emphasis={workEmphasis} />
-      <LosfahrenBus plan={plan} emphasis={leaveEmphasis} />
-      <NextBusBlock plan={plan} emphasis="secondary" />
+      {includeLeave ? (
+        <>
+          <LosfahrenBus
+            plan={plan}
+            emphasis={leaveEmphasis}
+            quietNoBus={quietNoBus}
+          />
+          <NextBusBlock plan={plan} emphasis="secondary" />
+        </>
+      ) : null}
     </div>
   );
 }

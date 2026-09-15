@@ -4,6 +4,7 @@ import { useCallback, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { ProfileTile } from "@/components/profile-tile";
 import { PrimaryNav } from "@/components/shared/primary-nav";
+import { DaypartGreeting } from "@/components/shared/daypart-greeting";
 import { useAppData } from "@/components/providers/data-provider";
 import { OfflineBanner } from "@/components/admin/offline-banner";
 import { Skeleton } from "@/components/shared/skeleton";
@@ -69,9 +70,7 @@ export default function HomePage() {
         <p className="text-sm font-semibold tracking-[0.2em] text-[color:var(--brand)] uppercase">
           Coffee Morning
         </p>
-        <h1 className="font-display text-5xl leading-[1.05] tracking-tight sm:text-6xl lg:text-7xl landscape-tablet:text-6xl">
-          Guten Morgen
-        </h1>
+        <DaypartGreeting className="font-display text-5xl leading-[1.05] tracking-tight sm:text-6xl lg:text-7xl landscape-tablet:text-6xl" />
         <p className="text-xl text-[color:var(--quiet)] sm:text-2xl">
           Wer bist du?
         </p>

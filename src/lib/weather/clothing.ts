@@ -98,6 +98,62 @@ export function weatherCodeLabel(code: number): string {
   return "Wechselhaft";
 }
 
+/** One emoji per condition — ☀️🌤️☁️🌧️⛈️🌨️❄️🌫️ */
+export function weatherCodeEmoji(code: number | undefined | null): string {
+  if (code === null || code === undefined || !Number.isFinite(code)) {
+    return "🌤️";
+  }
+  if (code === 0) return "☀️";
+  if (code === 1 || code === 2) return "🌤️";
+  if (code === 3) return "☁️";
+  if (code === 45 || code === 48) return "🌫️";
+  if (code >= 71 && code <= 77) return "❄️";
+  if (code >= 85 && code <= 86) return "🌨️";
+  if (code >= 95) return "⛈️";
+  if (
+    (code >= 51 && code <= 67) ||
+    (code >= 80 && code <= 82) ||
+    code === 95
+  ) {
+    return "🌧️";
+  }
+  return "🌤️";
+}
+
+export function clampRainProbPct(value: unknown): number | undefined {
+  if (typeof value !== "number" || !Number.isFinite(value)) return undefined;
+  return Math.max(0, Math.min(100, Math.round(value)));
+}
+
+/**
+ * Pick hourly sample nearest to target hour. Returns index or -1.
+ */
+export function pickNearestHourIndex(
+  times: string[] | undefined,
+  targetHour = 14,
+  maxDistMinutes = 3 * 60,
+): number {
+  if (!times?.length) return -1;
+  let bestIdx = -1;
+  let bestDist = Number.POSITIVE_INFINITY;
+  for (let i = 0; i < times.length; i++) {
+    const time = times[i];
+    if (!time) continue;
+    const hourMatch = /T(\d{2}):(\d{2})/.exec(time);
+    if (!hourMatch) continue;
+    const hour = Number(hourMatch[1]);
+    const minute = Number(hourMatch[2]);
+    if (!Number.isFinite(hour) || !Number.isFinite(minute)) continue;
+    const dist = Math.abs(hour * 60 + minute - targetHour * 60);
+    if (dist < bestDist) {
+      bestDist = dist;
+      bestIdx = i;
+    }
+  }
+  if (bestIdx < 0 || bestDist > maxDistMinutes) return -1;
+  return bestIdx;
+}
+
 /** True when a temperature is safe to show (never 0-by-accident from null/NaN). */
 export function isValidTempC(value: unknown): value is number {
   return typeof value === "number" && Number.isFinite(value);
@@ -111,32 +167,28 @@ export function pickNearestAfternoonTemp(
   times: string[] | undefined,
   temps: Array<number | null | undefined> | undefined,
   targetHour = 14,
-): { tempC: number; label: string } | null {
+): { tempC: number; label: string; index: number } | null {
   if (!times?.length || !temps?.length) return null;
-
   let bestIdx = -1;
   let bestDist = Number.POSITIVE_INFINITY;
-
+  const maxDistMinutes = 3 * 60;
   for (let i = 0; i < times.length; i++) {
-    const raw = temps[i];
-    if (!isValidTempC(raw)) continue;
     const time = times[i];
     if (!time) continue;
-    // Open-Meteo: "2026-09-15T14:00" (local when timezone set)
+    const temp = temps[i];
+    if (!isValidTempC(temp)) continue;
     const hourMatch = /T(\d{2}):(\d{2})/.exec(time);
     if (!hourMatch) continue;
     const hour = Number(hourMatch[1]);
     const minute = Number(hourMatch[2]);
     if (!Number.isFinite(hour) || !Number.isFinite(minute)) continue;
     const dist = Math.abs(hour * 60 + minute - targetHour * 60);
-    if (dist < bestDist) {
+    if (dist < bestDist && dist <= maxDistMinutes) {
       bestDist = dist;
       bestIdx = i;
     }
   }
-
-  // Accept within ±3 hours of 14:00 so we still label the real sample hour.
-  if (bestIdx < 0 || bestDist > 3 * 60) return null;
+  if (bestIdx < 0) return null;
   const temp = temps[bestIdx];
   if (!isValidTempC(temp)) return null;
   const hourMatch = /T(\d{2}):(\d{2})/.exec(times[bestIdx]!);
@@ -144,17 +196,21 @@ export function pickNearestAfternoonTemp(
   return {
     tempC: Math.round(temp),
     label: `${hourMatch[1]}:${hourMatch[2]}`,
+    index: bestIdx,
   };
 }
 
 export function resolveShortClothingTip(
-  weather: Pick<WeatherSnapshot, "temperatureC" | "rainMm" | "clothingTip"> | null,
+  weather: Pick<
+    WeatherSnapshot,
+    "temperatureC" | "rainMm" | "clothingTip" | "weatherCode"
+  > | null,
 ): string | null {
   if (!weather || !isValidTempC(weather.temperatureC)) return null;
-  // Prefer freshly derived tip from live numbers; fall back to stored tip text.
   return shortWeatherClothingTip({
     temperatureC: weather.temperatureC,
     rainMm: weather.rainMm,
+    weatherCode: weather.weatherCode,
   });
 }
 
@@ -167,6 +223,11 @@ export function toWeatherSnapshot(partial: {
   tempMinC?: number;
   afternoonTempC?: number;
   afternoonLabel?: string;
+  weatherCode?: number;
+  rainProbPct?: number;
+  afternoonRainProbPct?: number;
+  afternoonWeatherCode?: number;
+  week?: WeatherSnapshot["week"];
   source?: WeatherSnapshot["source"];
 }): WeatherSnapshot {
   return {
@@ -182,6 +243,11 @@ export function toWeatherSnapshot(partial: {
       ? Math.round(partial.afternoonTempC)
       : undefined,
     afternoonLabel: partial.afternoonLabel,
+    weatherCode: partial.weatherCode,
+    rainProbPct: clampRainProbPct(partial.rainProbPct),
+    afternoonRainProbPct: clampRainProbPct(partial.afternoonRainProbPct),
+    afternoonWeatherCode: partial.afternoonWeatherCode,
+    week: partial.week,
     fetchedAt: new Date().toISOString(),
     source: partial.source ?? "live",
   };

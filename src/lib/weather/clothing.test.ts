@@ -57,7 +57,7 @@ describe("pickNearestAfternoonTemp", () => {
       [18, 23, 21],
       14,
     );
-    expect(r).toEqual({ tempC: 23, label: "14:00" });
+    expect(r).toEqual({ tempC: 23, label: "14:00", index: 1 });
   });
 
   it("labels nearest hour when 14:00 missing", () => {
@@ -68,6 +68,7 @@ describe("pickNearestAfternoonTemp", () => {
     );
     expect(r?.label).toBe("13:00");
     expect(r?.tempC).toBe(20);
+    expect(r?.index).toBe(0);
   });
 
   it("returns null when no samples", () => {
@@ -81,7 +82,7 @@ describe("pickNearestAfternoonTemp", () => {
       [null, 19],
       14,
     );
-    expect(r).toEqual({ tempC: 19, label: "15:00" });
+    expect(r).toEqual({ tempC: 19, label: "15:00", index: 1 });
   });
 });
 
