@@ -3,7 +3,7 @@
 import { useCallback, useRef, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { Coffee } from "lucide-react";
+import { Coffee, Music2 } from "lucide-react";
 import { ProfileTile } from "@/components/profile-tile";
 import { useAppData } from "@/components/providers/data-provider";
 import { OfflineBanner } from "@/components/admin/offline-banner";
@@ -100,6 +100,13 @@ export default function HomePage() {
         >
           <Coffee className="size-5" aria-hidden />
           Zur Kaffeeecke
+        </Link>
+        <Link
+          href="/musik"
+          className="inline-flex min-h-14 items-center gap-3 rounded-2xl bg-[color:var(--surface)] px-6 text-lg text-[color:var(--ink)] transition-[opacity,transform] duration-200 ease-out hover:bg-[color:var(--surface-strong)] active:scale-[0.97] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[color:var(--brand)]"
+        >
+          <Music2 className="size-5" aria-hidden />
+          Musik
         </Link>
         <Link
           href="/jarvis"
