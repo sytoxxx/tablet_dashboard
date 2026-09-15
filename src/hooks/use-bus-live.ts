@@ -8,6 +8,7 @@ import { DEFAULT_TRANSIT_PREFS } from "@/lib/data/defaults";
 import { useVisibleInterval } from "@/hooks/use-visible-interval";
 import { formatDataAge } from "@/lib/day/relative-day";
 import type { WorkTravelPlan } from "@/lib/work/travel-planner";
+import type { TravelConnection, TravelLeg } from "@/lib/work/travel-types";
 
 const BUS_POLL_MS = 60_000;
 
@@ -33,7 +34,13 @@ export type WorkTravelLive = Pick<
   | "stopToWorkMinutes"
   | "preparationMinutes"
   | "safetyBufferMinutes"
->;
+> & {
+  endDestinationLabel?: string | null;
+  transitDestinationLabel?: string | null;
+  legs?: TravelLeg[];
+  connections?: TravelConnection[];
+  alternativeConnection?: TravelConnection | null;
+};
 
 export type BusLiveState = {
   next: BusInfo | null;

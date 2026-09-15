@@ -80,6 +80,7 @@ export default function HomePage() {
           <ProfileTile
             key={person.id}
             href={`/person/${person.id}`}
+            personId={person.id}
             name={person.name}
             hint={person.hint}
             accent={person.accent}

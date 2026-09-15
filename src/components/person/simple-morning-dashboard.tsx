@@ -140,6 +140,12 @@ export function SimpleMorningDashboard({
               reminderLabel={leaveReminderLabel}
             />
           ) : null}
+          {mode === "work" && useWorkTravel ? (
+            <WorkTravelSection
+              plan={workTravel}
+              workLabel={view.workShift?.label}
+            />
+          ) : null}
           {showEveningPrep ? (
             <EveningPrepSection
               prep={overview.eveningPrep}
@@ -151,12 +157,7 @@ export function SimpleMorningDashboard({
           ) : null}
 
           {mode === "work" ? (
-            useWorkTravel && !showTimeline ? (
-              <WorkTravelSection
-                plan={workTravel}
-                workLabel={view.workShift?.label}
-              />
-            ) : !showTimeline && !showEveningPrep ? (
+            !useWorkTravel && !showTimeline && !showEveningPrep ? (
               <WorkShiftSection shift={view.workShift} simple />
             ) : null
           ) : (

@@ -1,6 +1,8 @@
 import Link from "next/link";
 import { cn } from "@/lib/utils";
 import { unlockLeaveReminderAudio } from "@/lib/morning/leave-reminder-audio";
+import { setActivePersonId } from "@/lib/profile/active-person";
+import type { PersonId } from "@/lib/types";
 
 type ProfileTileProps = {
   href: string;
@@ -9,6 +11,7 @@ type ProfileTileProps = {
   accent: string;
   avatar?: string;
   delayMs?: number;
+  personId?: PersonId;
 };
 
 export function ProfileTile({
@@ -18,12 +21,14 @@ export function ProfileTile({
   accent,
   avatar,
   delayMs = 0,
+  personId,
 }: ProfileTileProps) {
   return (
     <Link
       href={href}
       onClick={() => {
         void unlockLeaveReminderAudio();
+        if (personId) setActivePersonId(personId);
       }}
       className={cn(
         "group relative flex min-h-44 flex-col justify-between rounded-[1.75rem] px-7 py-7 sm:min-h-48",

@@ -11,13 +11,71 @@ import { getWorkShiftForDate } from "@/lib/work/schedule";
 import {
   isWorkTravelPerson,
   planWorkTravel,
+  type TravelPlan,
 } from "@/lib/work/travel-planner";
+import type { TravelConnection } from "@/lib/work/travel-types";
 import type { PersonId, PersonProfile } from "@/lib/types";
+import { isTriasTripConfigured } from "@/server/bus/trias/trip-service";
+import {
+  planBirgitTripTravel,
+  planHeidiTripTravel,
+  personUsesTripTravel,
+} from "@/server/bus/trip-travel";
 
 export const runtime = "nodejs";
 
 function isPersonId(value: string): value is PersonId {
   return value === "levi" || value === "birgit" || value === "heidi";
+}
+
+function serializeWorkTravel(plan: TravelPlan) {
+  return {
+    mode: plan.mode,
+    destinationLabel: plan.destinationLabel,
+    endDestinationLabel: plan.endDestinationLabel ?? plan.destinationLabel,
+    transitDestinationLabel: plan.transitDestinationLabel ?? null,
+    workStart: plan.workStart,
+    workEnd: plan.workEnd,
+    arrivalTarget: plan.arrivalTarget,
+    arrivalTargetEnd: plan.arrivalTargetEnd,
+    leaveHome: plan.leaveHome,
+    busDeparture: plan.busDeparture,
+    arrivalAtWork: plan.arrivalAtWork,
+    arrivalAtDestination: plan.arrivalAtDestination,
+    preparationStart: plan.preparationStart,
+    status: plan.status,
+    isTestData: plan.isTestData,
+    matched: plan.matched,
+    message: plan.message,
+    travelMinutes: plan.travelMinutes,
+    walkToStopMinutes: plan.walkToStopMinutes,
+    stopToWorkMinutes: plan.stopToWorkMinutes,
+    preparationMinutes: plan.preparationMinutes,
+    safetyBufferMinutes: plan.safetyBufferMinutes,
+    legs: plan.legs ?? [],
+    connections: plan.connections ?? [],
+    alternativeConnection: plan.alternativeConnection ?? null,
+  };
+}
+
+function upcomingFromConnections(connections: TravelConnection[]) {
+  return connections.map((c) => ({
+    time: c.departure || "",
+    line: c.lineSummary || "?",
+    destination: c.direction || c.legs.find((l) => l.type === "TRANSIT")?.to || "",
+    status: c.cancelled
+      ? "CANCELLED"
+      : c.realtime
+        ? "REALTIME"
+        : "PLANNED",
+    delayMinutes: c.delayMinutes ?? null,
+    cancelled: c.cancelled,
+    leaveHome: c.leaveHome,
+    arrival: c.arrival,
+    transfers: c.transfers,
+    isDirect: c.isDirect,
+    legs: c.legs,
+  }));
 }
 
 /**
@@ -118,6 +176,65 @@ async function respondForPerson(
       });
     }
 
+    const now = new Date();
+    const work = getWorkShiftForDate(person, now);
+    const schoolStart =
+      person.schedule.type === "school"
+        ? person.schedule.week[
+            (["sun", "mon", "tue", "wed", "thu", "fri", "sat"] as const)[
+              now.getDay()
+            ]
+          ]?.lessons?.[0]?.time
+        : null;
+    const targetStart =
+      work?.start || prefs.desiredArrivalHHmm || schoolStart || null;
+
+    // ——— Heidi / Birgit: TRIAS TripRequest when configured ———
+    if (personUsesTripTravel(person.id) && isTriasTripConfigured()) {
+      const tripResult =
+        person.id === "heidi"
+          ? await planHeidiTripTravel(person, now)
+          : await planBirgitTripTravel(
+              person,
+              now,
+              targetStart,
+              work?.end ?? null,
+            );
+
+      if (tripResult.plan && tripResult.connections.length > 0) {
+        const plan = tripResult.plan;
+        const next = plan.bus
+          ? {
+              ...plan.bus,
+              fetchedAt: tripResult.fetchedAt,
+              isTestData: tripResult.isTestData,
+              source: "live" as const,
+            }
+          : null;
+        return NextResponse.json({
+          ok: true,
+          stopName: person.busStop.name,
+          departures: [],
+          upcoming: upcomingFromConnections(tripResult.connections),
+          next,
+          workTravel: serializeWorkTravel(plan),
+          source: tripResult.isTestData ? "local" : "live",
+          provider: "verbund-steiermark",
+          warning: tripResult.warning ?? null,
+          isTestData: tripResult.isTestData,
+          enabled: true,
+          targetStart,
+          leadTimeMinutes: prefs.leadTimeMinutes,
+          destinationHint: prefs.destinationHint ?? null,
+          fetchedAt: tripResult.fetchedAt,
+          realtimeAt: plan.bus?.isRealtime ? tripResult.fetchedAt : null,
+          message: null,
+          emptyTitle: null,
+        });
+      }
+      // Fall through to StopEvent / local if TripRequest empty
+    }
+
     const local = departuresFromLocalStop(person.busStop);
     const preferredProvider = resolvePreferredProvider(
       person,
@@ -132,21 +249,6 @@ async function respondForPerson(
     };
     const provider = createBusProvider(preferredProvider, query);
     const result = await provider.getDepartures(query);
-
-    const now = new Date();
-    const work = getWorkShiftForDate(person, now);
-    const schoolStart =
-      person.schedule.type === "school"
-        ? person.schedule.week[
-            (["sun", "mon", "tue", "wed", "thu", "fri", "sat"] as const)[
-              now.getDay()
-            ]
-          ]?.lessons?.[0]?.time
-        : null;
-
-    // Work shift start is authoritative for the day; desiredArrival only as fallback.
-    const targetStart =
-      work?.start || prefs.desiredArrivalHHmm || schoolStart || null;
 
     const workTravelEligible = isWorkTravelPerson(person.id);
 
@@ -225,30 +327,7 @@ async function respondForPerson(
       departures: result.departures,
       upcoming,
       next: nextWithMeta,
-      workTravel: workTravel
-        ? {
-            mode: workTravel.mode,
-            destinationLabel: workTravel.destinationLabel,
-            workStart: workTravel.workStart,
-            workEnd: workTravel.workEnd,
-            arrivalTarget: workTravel.arrivalTarget,
-            arrivalTargetEnd: workTravel.arrivalTargetEnd,
-            leaveHome: workTravel.leaveHome,
-            busDeparture: workTravel.busDeparture,
-            arrivalAtWork: workTravel.arrivalAtWork,
-            arrivalAtDestination: workTravel.arrivalAtDestination,
-            preparationStart: workTravel.preparationStart,
-            status: workTravel.status,
-            isTestData: workTravel.isTestData,
-            matched: workTravel.matched,
-            message: workTravel.message,
-            travelMinutes: workTravel.travelMinutes,
-            walkToStopMinutes: workTravel.walkToStopMinutes,
-            stopToWorkMinutes: workTravel.stopToWorkMinutes,
-            preparationMinutes: workTravel.preparationMinutes,
-            safetyBufferMinutes: workTravel.safetyBufferMinutes,
-          }
-        : null,
+      workTravel: workTravel ? serializeWorkTravel(workTravel) : null,
       source: result.source,
       provider: result.provider,
       warning: result.warning,

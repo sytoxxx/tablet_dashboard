@@ -66,6 +66,12 @@ export function PersonDashboard({
                 applicable: true,
                 mode: bus.workTravel.mode ?? "bus",
                 destinationLabel: bus.workTravel.destinationLabel ?? null,
+                endDestinationLabel:
+                  bus.workTravel.endDestinationLabel ??
+                  bus.workTravel.destinationLabel ??
+                  null,
+                transitDestinationLabel:
+                  bus.workTravel.transitDestinationLabel ?? null,
                 arrivalTarget:
                   bus.workTravel.arrivalTarget ?? bus.workTravel.workStart,
                 arrivalTargetEnd: bus.workTravel.arrivalTargetEnd ?? null,
@@ -89,6 +95,9 @@ export function PersonDashboard({
                 stopToWorkMinutes: bus.workTravel.stopToWorkMinutes ?? 0,
                 preparationMinutes: bus.workTravel.preparationMinutes ?? 0,
                 safetyBufferMinutes: bus.workTravel.safetyBufferMinutes ?? 5,
+                legs: bus.workTravel.legs,
+                connections: bus.workTravel.connections,
+                alternativeConnection: bus.workTravel.alternativeConnection,
               }
             : null,
         },

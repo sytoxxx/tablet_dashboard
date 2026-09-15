@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { ArrowLeft, Coffee, Home } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { ProfileSwitcher } from "@/components/profile-switcher";
 import { cn } from "@/lib/utils";
 
 type MorningNavProps = {
@@ -10,6 +11,7 @@ type MorningNavProps = {
   /** Extra-quiet chrome for Birgit — still reachable Home/Coffee. */
   quiet?: boolean;
   className?: string;
+  showProfileSwitcher?: boolean;
 };
 
 /**
@@ -20,11 +22,12 @@ export function MorningNav({
   showCoffee = true,
   quiet = false,
   className,
+  showProfileSwitcher = true,
 }: MorningNavProps) {
   return (
     <nav
       className={cn(
-        "flex items-center justify-between gap-3",
+        "flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between",
         quiet && "opacity-90",
         className,
       )}
@@ -53,19 +56,22 @@ export function MorningNav({
           </Link>
         </Button>
       </div>
-      {showCoffee ? (
-        <Button
-          asChild
-          variant="secondary"
-          size="lg"
-          className="h-12 gap-2 rounded-2xl bg-[color:var(--surface)] px-5 text-base text-[color:var(--ink)] hover:bg-[color:var(--surface-strong)] active:scale-[0.97] transition-transform duration-150"
-        >
-          <Link href="/kaffee">
-            <Coffee className="size-5" aria-hidden />
-            Kaffee
-          </Link>
-        </Button>
-      ) : null}
+      <div className="flex flex-wrap items-center justify-end gap-3">
+        {showProfileSwitcher ? <ProfileSwitcher compact /> : null}
+        {showCoffee ? (
+          <Button
+            asChild
+            variant="secondary"
+            size="lg"
+            className="h-12 gap-2 rounded-2xl bg-[color:var(--surface)] px-5 text-base text-[color:var(--ink)] hover:bg-[color:var(--surface-strong)] active:scale-[0.97] transition-transform duration-150"
+          >
+            <Link href="/kaffee">
+              <Coffee className="size-5" aria-hidden />
+              Kaffee
+            </Link>
+          </Button>
+        ) : null}
+      </div>
     </nav>
   );
 }

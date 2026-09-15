@@ -156,13 +156,14 @@ export const seedPersons: PersonProfile[] = [
       { id: "ba2", title: "Anruf Familie", time: "19:00" },
     ],
     busStop: {
-      name: "Start (Kapfenberg — im Admin setzen)",
-      provider: "local",
+      name: "Kapfenberg Europaplatz",
+      provider: "auto",
+      externalId: "at:46:6005",
       departures: [
-        // TESTDATEN Richtung Bruck/Mur — keine Live-Abfahrten
-        { id: "bb1", line: "1", destination: "Bruck/Mur Bahnhof [TEST]", time: "05:12" },
-        { id: "bb2", line: "1", destination: "Bruck/Mur Bahnhof [TEST]", time: "05:32" },
-        { id: "bb3", line: "1", destination: "Bruck/Mur Bahnhof [TEST]", time: "05:52" },
+        // Offline-Fallback — Live kommt über TRIAS TripRequest
+        { id: "bb1", line: "1", destination: "Bruck/Mur Koloman-Wallisch-Platz [TEST]", time: "05:12" },
+        { id: "bb2", line: "1", destination: "Bruck/Mur Koloman-Wallisch-Platz [TEST]", time: "05:32" },
+        { id: "bb3", line: "1", destination: "Bruck/Mur Koloman-Wallisch-Platz [TEST]", time: "05:52" },
         { id: "bb4", line: "1", destination: "Koloman-Wallisch-Platz [TEST]", time: "14:45" },
         { id: "bb5", line: "1", destination: "Bruck/Mur Bahnhof [TEST]", time: "15:15" },
         { id: "bb6", line: "2", destination: "Kapfenberg Europaplatz [TEST]", time: "18:30" },
@@ -185,7 +186,13 @@ export const seedPersons: PersonProfile[] = [
       travelMode: "bus",
       leadTimeMinutes: 30,
       preferredModes: ["bus"],
-      destinationStop: { name: "Ziel Bruck/Mur (im Admin setzen)" },
+      preferredLines: ["1", "12", "180", "810"],
+      destinationLabel: "Pflegeverband Bruck/Mur",
+      // TRIAS transit stop — not the end destination label above
+      destinationStop: {
+        name: "Altersheimgasse",
+        externalId: "at:46:6056",
+      },
       destinationHint: "Bruck",
       walkToStopMinutes: 12,
       stopToWorkMinutes: 8,
@@ -207,13 +214,14 @@ export const seedPersons: PersonProfile[] = [
       { id: "ha2", title: "Serie schauen", time: "20:00", weekday: "fri" },
     ],
     busStop: {
-      name: "Start (im Admin setzen)",
-      provider: "local",
+      name: "Kapfenberg Europaplatz",
+      provider: "auto",
+      externalId: "at:46:6005",
       departures: [
-        // TESTDATEN Orientierung Apfelmoar — keine Live-Abfahrten
-        { id: "hb1", line: "2", destination: "Apfelmoar Einkaufszentrum [TEST]", time: "08:10" },
-        { id: "hb2", line: "2", destination: "Apfelmoar Einkaufszentrum [TEST]", time: "08:25" },
-        { id: "hb3", line: "2", destination: "Apfelmoar Einkaufszentrum [TEST]", time: "08:40" },
+        // Offline-Fallback — Live kommt über TRIAS TripRequest
+        { id: "hb1", line: "1", destination: "Apfelmoar Einkaufszentrum [TEST]", time: "08:10" },
+        { id: "hb2", line: "1", destination: "Apfelmoar Einkaufszentrum [TEST]", time: "08:25" },
+        { id: "hb3", line: "1", destination: "Apfelmoar Einkaufszentrum [TEST]", time: "08:40" },
         { id: "hb4", line: "1", destination: "Kapfenberg Europaplatz [TEST]", time: "14:20" },
       ],
     },
@@ -234,7 +242,12 @@ export const seedPersons: PersonProfile[] = [
       travelMode: "bus",
       leadTimeMinutes: 25,
       preferredModes: ["bus"],
-      destinationStop: { name: "Ziel Apfelmoar (im Admin setzen)" },
+      preferredLines: ["1"],
+      destinationLabel: "Apfelmoar Einkaufszentrum",
+      destinationStop: {
+        name: "Apfelmoar Einkaufszentrum",
+        externalId: "at:46:30537",
+      },
       destinationHint: "Apfelmoar",
       walkToStopMinutes: 8,
       stopToWorkMinutes: 5,

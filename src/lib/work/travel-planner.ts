@@ -15,6 +15,9 @@ import {
 import { minutesToHHmm, parseTimeToMinutes } from "@/lib/format";
 import { DEFAULT_TRANSIT_PREFS } from "@/lib/data/defaults";
 import type { BusInfo, PersonId, PersonProfile, TransitPrefs } from "@/lib/types";
+import type { TravelConnection, TravelLeg } from "@/lib/work/travel-types";
+
+export type { TravelConnection, TravelLeg } from "@/lib/work/travel-types";
 
 export type TravelMode = "walking" | "bus";
 
@@ -33,6 +36,13 @@ export type TravelPlan = {
   mode: TravelMode | null;
   /** Destination label, e.g. “HTL Kapfenberg” or workplace. */
   destinationLabel: string | null;
+  /**
+   * True end destination for display (e.g. Pflegeverband).
+   * May differ from the TRIAS transit stop (Altersheimgasse).
+   */
+  endDestinationLabel?: string | null;
+  /** TRIAS transit / alight stop label when end destination is beyond it. */
+  transitDestinationLabel?: string | null;
   /** Desired arrival HH:MM (window start / work start). */
   arrivalTarget: string | null;
   /** Optional window end HH:MM (e.g. 07:50). */
@@ -61,6 +71,12 @@ export type TravelPlan = {
   stopToWorkMinutes: number;
   preparationMinutes: number;
   safetyBufferMinutes: number;
+  /** Legs of the primary connection (multi-leg TRIAS journeys). */
+  legs?: TravelLeg[];
+  /** Heidi: next 3 connections; Birgit: primary (+ optional alternative). */
+  connections?: TravelConnection[];
+  /** Optional alternative journey (Birgit). */
+  alternativeConnection?: TravelConnection | null;
 };
 
 /** @deprecated Prefer TravelPlan. */
@@ -162,6 +178,11 @@ function emptyPlan(
     stopToWorkMinutes: 0,
     preparationMinutes: 0,
     safetyBufferMinutes: 5,
+    legs: undefined,
+    connections: undefined,
+    alternativeConnection: undefined,
+    endDestinationLabel: undefined,
+    transitDestinationLabel: undefined,
     ...partial,
   };
 }
