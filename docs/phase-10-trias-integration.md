@@ -72,6 +72,16 @@ Admin: Einstellungen → Bus (`StopSearchField`) oder `node scripts/probe-trias-
 
 Ohne Zugang: keine erfundenen Treffer, manuelle Admin-Eingabe.
 
+## TripRequest (noch nicht produktiv)
+
+Experimentell bestätigt am OGD-Endpunkt (`scripts/probe-trias-routes.mjs`):
+
+- TimedLeg / ContinuousLeg (Fußweg) / Umstiege
+- Heidi Europaplatz → Apfelmoar Einkaufszentrum: Linie 1 direkt
+- Birgit: kein TRIAS-POI „Pflegeverband“; Altersheimgasse nur Zwischenhalt
+
+Siehe `docs/trias-route-research-heidi-birgit.md`. **Nicht** in Provider/Dashboard verdrahtet.
+
 ## Abfahrten & Morning Engine
 
 `selectRelevantDeparture` (Phase 9):
