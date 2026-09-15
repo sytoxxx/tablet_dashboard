@@ -1,0 +1,206 @@
+"use client";
+
+import { useEffect, useRef, useState } from "react";
+import type { CoffeeDrink, CoffeeDrinkId } from "@/lib/types";
+import { formatTimer } from "@/lib/format";
+import { Button } from "@/components/ui/button";
+import { cn } from "@/lib/utils";
+import { Check } from "lucide-react";
+
+type CoffeeTimerProps = {
+  drinks: CoffeeDrink[];
+};
+
+type TimerStatus = "idle" | "running" | "paused" | "done";
+
+export function CoffeeTimer({ drinks }: CoffeeTimerProps) {
+  const [selectedId, setSelectedId] = useState<CoffeeDrinkId>(
+    drinks[0]?.id ?? "espresso",
+  );
+  const selected = drinks.find((d) => d.id === selectedId) ?? drinks[0];
+  const duration = selected?.timerSeconds ?? 0;
+
+  const [remainingMs, setRemainingMs] = useState(duration * 1000);
+  const [status, setStatus] = useState<TimerStatus>("idle");
+  const endsAtRef = useRef<number | null>(null);
+
+  const selectDrink = (id: CoffeeDrinkId) => {
+    const drink = drinks.find((d) => d.id === id);
+    endsAtRef.current = null;
+    setSelectedId(id);
+    setStatus("idle");
+    setRemainingMs((drink?.timerSeconds ?? 0) * 1000);
+  };
+
+  useEffect(() => {
+    if (status !== "running" || endsAtRef.current === null) return;
+
+    const tick = () => {
+      const left = Math.max(0, (endsAtRef.current ?? 0) - Date.now());
+      setRemainingMs(left);
+      if (left <= 0) {
+        endsAtRef.current = null;
+        setStatus("done");
+      }
+    };
+
+    tick();
+    const id = window.setInterval(tick, 200);
+    return () => window.clearInterval(id);
+  }, [status]);
+
+  if (!selected) return null;
+
+  const remainingSec = Math.ceil(remainingMs / 1000);
+  const progress = duration > 0 ? 1 - remainingMs / (duration * 1000) : 0;
+
+  const start = () => {
+    const base = remainingMs > 0 ? remainingMs : duration * 1000;
+    endsAtRef.current = Date.now() + base;
+    setRemainingMs(base);
+    setStatus("running");
+  };
+
+  const stop = () => {
+    if (endsAtRef.current !== null) {
+      setRemainingMs(Math.max(0, endsAtRef.current - Date.now()));
+    }
+    endsAtRef.current = null;
+    setStatus("paused");
+  };
+
+  const reset = () => {
+    endsAtRef.current = null;
+    setRemainingMs(duration * 1000);
+    setStatus("idle");
+  };
+
+  return (
+    <div className="space-y-8">
+      <div
+        className="grid grid-cols-1 gap-3 sm:grid-cols-3"
+        role="tablist"
+        aria-label="Getränke"
+      >
+        {drinks.map((drink) => {
+          const active = drink.id === selected.id;
+          return (
+            <button
+              key={drink.id}
+              type="button"
+              role="tab"
+              aria-selected={active}
+              onClick={() => selectDrink(drink.id)}
+              className={cn(
+                "min-h-20 rounded-[1.5rem] px-5 text-xl font-medium transition-[transform,background-color,color] duration-200 ease-out active:scale-[0.97]",
+                active
+                  ? "bg-[color:var(--ink)] text-[color:var(--surface)] shadow-[0_16px_36px_-24px_rgba(28,36,48,0.55)]"
+                  : "bg-[color:var(--surface)] text-[color:var(--ink)] hover:bg-[color:var(--surface-strong)]",
+              )}
+            >
+              {drink.name}
+            </button>
+          );
+        })}
+      </div>
+
+      <div className="grid gap-8 lg:grid-cols-[1.05fr_0.95fr] landscape-tablet:grid-cols-[1fr_1fr] landscape-tablet:gap-6">
+        <div className="animate-soft-in space-y-5">
+          <h2 className="font-display text-4xl tracking-tight sm:text-5xl">{selected.name}</h2>
+          <p className="text-lg leading-relaxed text-[color:var(--ink)]">{selected.prepNotes}</p>
+          <p className="text-[color:var(--quiet)]">{selected.amounts}</p>
+          <ol className="space-y-3 text-lg">
+            {selected.steps.map((step, index) => (
+              <li key={step} className="flex gap-3">
+                <span className="tabular-nums text-[color:var(--quiet)]">{index + 1}.</span>
+                <span>{step}</span>
+              </li>
+            ))}
+          </ol>
+        </div>
+
+        <div
+          className={cn(
+            "flex flex-col items-start gap-5 rounded-[1.75rem] bg-[color:var(--surface)] px-6 py-8 sm:px-8",
+            "transition-[box-shadow] duration-300",
+            status === "done" && "ring-2 ring-[color:var(--brand)]/40",
+          )}
+        >
+          <p className="text-sm tracking-[0.16em] text-[color:var(--quiet)] uppercase">Timer</p>
+          <p
+            data-testid="coffee-timer-display"
+            className={cn(
+              "font-display text-7xl tabular-nums tracking-tight sm:text-8xl",
+              status === "done" && "text-[color:var(--brand)]",
+            )}
+            aria-live="polite"
+          >
+            {status === "done" ? (
+              <span className="inline-flex items-center gap-3 animate-soft-in">
+                <Check className="size-14 sm:size-16" strokeWidth={2.5} aria-hidden />
+                Fertig
+              </span>
+            ) : (
+              formatTimer(remainingSec)
+            )}
+          </p>
+
+          <div
+            className="h-2 w-full overflow-hidden rounded-full bg-[color:var(--hairline)]"
+            aria-hidden
+          >
+            <div
+              className="h-full rounded-full bg-[color:var(--brand)] transition-[width] duration-200 ease-linear"
+              style={{
+                width: `${Math.min(100, Math.max(0, (status === "done" ? 1 : progress) * 100))}%`,
+              }}
+            />
+          </div>
+
+          <p className="text-[color:var(--quiet)]" data-testid="coffee-timer-status">
+            {status === "running" && "Läuft …"}
+            {status === "paused" && "Pausiert"}
+            {status === "done" && (
+              <span className="text-lg text-[color:var(--brand)]">✓ Fertig — genieß deinen Kaffee.</span>
+            )}
+            {status === "idle" && "Bereit zum Start"}
+          </p>
+
+          <div className="flex flex-wrap gap-3 pt-1">
+            <Button
+              type="button"
+              size="lg"
+              data-testid="coffee-timer-start"
+              className="h-14 min-w-28 rounded-2xl px-6 text-base active:scale-[0.97]"
+              onClick={start}
+              disabled={status === "running" || status === "done"}
+            >
+              Start
+            </Button>
+            <Button
+              type="button"
+              variant="secondary"
+              size="lg"
+              data-testid="coffee-timer-stop"
+              className="h-14 min-w-28 rounded-2xl bg-[color:var(--surface-strong)] px-6 text-base active:scale-[0.97]"
+              onClick={stop}
+              disabled={status !== "running"}
+            >
+              Stop
+            </Button>
+            <Button
+              type="button"
+              variant="outline"
+              size="lg"
+              data-testid="coffee-timer-reset"
+              className="h-14 min-w-28 rounded-2xl px-6 text-base active:scale-[0.97]"
+              onClick={reset}
+            >
+              Neu
+            </Button>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
