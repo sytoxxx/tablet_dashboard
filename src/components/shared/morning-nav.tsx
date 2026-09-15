@@ -1,13 +1,14 @@
 "use client";
 
 import Link from "next/link";
-import { ArrowLeft, Coffee, Home } from "lucide-react";
+import { ArrowLeft, Coffee, Home, Music2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { ProfileSwitcher } from "@/components/profile-switcher";
 import { cn } from "@/lib/utils";
 
 type MorningNavProps = {
   showCoffee?: boolean;
+  showMusic?: boolean;
   /** Extra-quiet chrome for Birgit — still reachable Home/Coffee. */
   quiet?: boolean;
   className?: string;
@@ -20,6 +21,7 @@ type MorningNavProps = {
  */
 export function MorningNav({
   showCoffee = true,
+  showMusic = true,
   quiet = false,
   className,
   showProfileSwitcher = true,
@@ -58,6 +60,19 @@ export function MorningNav({
       </div>
       <div className="flex flex-wrap items-center justify-end gap-3">
         {showProfileSwitcher ? <ProfileSwitcher compact /> : null}
+        {showMusic ? (
+          <Button
+            asChild
+            variant="secondary"
+            size="lg"
+            className="h-12 gap-2 rounded-2xl bg-[color:var(--surface)] px-5 text-base text-[color:var(--ink)] hover:bg-[color:var(--surface-strong)] active:scale-[0.97] transition-transform duration-150"
+          >
+            <Link href="/musik">
+              <Music2 className="size-5" aria-hidden />
+              Musik
+            </Link>
+          </Button>
+        ) : null}
         {showCoffee ? (
           <Button
             asChild
