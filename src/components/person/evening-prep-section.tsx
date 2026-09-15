@@ -154,7 +154,7 @@ function EveningPrepBody({
   }
 
   return (
-    <Section title={prep.title}>
+    <Section title={prep.title} emphasis="secondary">
       {prep.banner ? (
         <p
           className={cn(
