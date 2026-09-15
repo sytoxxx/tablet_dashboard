@@ -53,6 +53,7 @@ export function WeatherSection({
   showWeekStrip = true,
   showCurrent = true,
   focusTomorrow = false,
+  now,
   className,
 }: {
   weather: WeatherInfo | null;
@@ -66,11 +67,14 @@ export function WeatherSection({
   showCurrent?: boolean;
   /** Evening / night: surface tomorrow when week data exists. */
   focusTomorrow?: boolean;
+  /** Wall / DevTime clock — used for today/tomorrow highlight. */
+  now?: Date;
   emphasis?: ClarityEmphasis;
   className?: string;
 }) {
+  const wall = now ?? new Date();
   const week = weather?.week?.length ? weather.week : null;
-  const tomorrow = focusTomorrow ? pickTomorrowGlance(week) : null;
+  const tomorrow = focusTomorrow ? pickTomorrowGlance(week, wall) : null;
 
   // Evening: show tomorrow max when known; otherwise fall back to current (honest).
   const useTomorrow = Boolean(tomorrow && isValidTempC(tomorrow.tempMaxC));
@@ -113,7 +117,7 @@ export function WeatherSection({
         })
       : null;
 
-  const todayKey = getWeekdayKey(new Date());
+  const todayKey = getWeekdayKey(wall);
   const weatherTitle = useTomorrow ? "Wetter morgen" : "Wetter";
   const primaryLabel = useTomorrow ? "Morgen" : "Jetzt";
   const clothingTitle = useTomorrow ? "Kleidung morgen" : "Kleidung";
@@ -187,10 +191,10 @@ export function WeatherSection({
           >
             {week.slice(0, 7).map((d) => {
               const key = d.weekdayKey ?? todayKey;
-              const isoToday = new Date().toISOString().slice(0, 10);
+              const isoToday = wall.toISOString().slice(0, 10);
               const isToday =
                 d.weekdayKey === todayKey || d.dateIso === isoToday;
-              const isTomorrow = d.dateIso === tomorrowIso();
+              const isTomorrow = d.dateIso === tomorrowIso(wall);
               return (
                 <li
                   key={d.dateIso}

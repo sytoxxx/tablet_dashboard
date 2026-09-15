@@ -35,6 +35,7 @@ import { cn } from "@/lib/utils";
 export function LeviMorningDashboard({
   view,
   overview,
+  wallNow,
   busMessage: _busMessage,
   busEmptyTitle: _busEmptyTitle,
   busUpcoming: _busUpcoming,
@@ -55,6 +56,7 @@ export function LeviMorningDashboard({
 }: {
   view: DayIntelligenceView;
   overview: MorningOverview;
+  wallNow: Date;
   busMessage?: string | null;
   busEmptyTitle?: string | null;
   busUpcoming?: Array<{ time: string; line: string; destination: string }>;
@@ -237,6 +239,7 @@ export function LeviMorningDashboard({
             showCurrent
             showWeekStrip={false}
             focusTomorrow={eveningFocus}
+            now={wallNow}
             emphasis="secondary"
           />
         ) : null}
@@ -274,6 +277,7 @@ export function LeviMorningDashboard({
             showCurrent={false}
             showWeekStrip
             focusTomorrow={eveningFocus}
+            now={wallNow}
           />
         ) : null}
       </div>

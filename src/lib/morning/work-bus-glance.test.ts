@@ -147,8 +147,30 @@ describe("resolveWorkBusGlance", () => {
     });
     expect(g.kind).toBe("deviation");
     expect(g.alertTitle).toMatch(/Achtung/);
-    expect(g.alertDetail).toMatch(/anders/);
+    expect(g.alertDetail).toMatch(/Heute fährt der Bus anders/);
     expect(g.alertDetail).toMatch(/Geplant 05:48/);
+  });
+
+  it("deviation uses Morgen wording when focusTomorrow", () => {
+    const g = resolveWorkBusGlance({
+      isWorking: true,
+      focusTomorrow: true,
+      plan: {
+        mode: "bus",
+        status: "on-time",
+        busDeparture: "06:02",
+        bus: {
+          line: "1",
+          destination: "Bruck",
+          departure: "06:02",
+          scheduledDeparture: "05:48",
+          realtimeDeparture: "06:02",
+          delayMinutes: 0,
+        },
+      },
+    });
+    expect(g.kind).toBe("deviation");
+    expect(g.alertDetail).toMatch(/Morgen fährt der Bus anders/);
   });
 
   it("never invents delay when absent", () => {

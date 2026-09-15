@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { ProfileTile } from "@/components/profile-tile";
 import { PrimaryNav } from "@/components/shared/primary-nav";
@@ -30,6 +30,8 @@ export default function HomePage() {
       holdTimer.current = null;
     }
   }, []);
+
+  useEffect(() => () => clearHold(), [clearHold]);
 
   const startHold = useCallback(() => {
     clearHold();

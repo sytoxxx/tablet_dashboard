@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import type { BusInfo, BusProviderPreference, PersonProfile } from "@/lib/types";
 import { getNextBus } from "@/lib/day/bus";
 import { useOnlineStatus } from "@/components/admin/offline-banner";
@@ -93,9 +93,23 @@ export function useBusLive(
     workTravel: null,
   }));
   const cacheRef = useRef<BusLiveState | null>(null);
+  const abortRef = useRef<AbortController | null>(null);
+  const personIdRef = useRef(person?.id);
+
+  useEffect(() => {
+    personIdRef.current = person?.id;
+  }, [person?.id]);
+
+  useEffect(() => {
+    return () => {
+      abortRef.current?.abort();
+      abortRef.current = null;
+    };
+  }, []);
 
   const refresh = useCallback(async () => {
     if (!person) return;
+    const requestPersonId = person.id;
     const busOn = isBusEnabled(person);
 
     if (!busOn) {
@@ -157,6 +171,10 @@ export function useBusLive(
       return;
     }
 
+    abortRef.current?.abort();
+    const ac = new AbortController();
+    abortRef.current = ac;
+
     setState((s) => ({ ...s, loading: s.fetchedAt ? false : true, offline: false }));
     try {
       const res = await fetch("/api/bus/departures", {
@@ -166,7 +184,9 @@ export function useBusLive(
           person,
           regionPreferredProvider,
         }),
+        signal: ac.signal,
       });
+      if (personIdRef.current !== requestPersonId) return;
       const json = (await res.json()) as {
         next?: BusInfo | null;
         upcoming?: BusLiveState["upcoming"];
@@ -184,6 +204,7 @@ export function useBusLive(
         provider?: string;
         workTravel?: WorkTravelLive | null;
       };
+      if (personIdRef.current !== requestPersonId) return;
 
       if (!res.ok || json.ok === false) {
         const fallback = getNextBus(person.busStop);
@@ -261,8 +282,11 @@ export function useBusLive(
       } catch {
         /* ignore */
       }
+      if (personIdRef.current !== requestPersonId) return;
       setState(nextState);
-    } catch {
+    } catch (err) {
+      if (err instanceof DOMException && err.name === "AbortError") return;
+      if (personIdRef.current !== requestPersonId) return;
       const fallback = getNextBus(person.busStop);
       const cached = cacheRef.current;
       const cachedNext = cached?.next

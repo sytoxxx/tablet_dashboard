@@ -163,6 +163,7 @@ export function PersonDashboard({
       <LeviMorningDashboard
         view={overviewView}
         overview={overview}
+        wallNow={wallNow}
         busMessage={liveMeta.busMessage}
         busEmptyTitle={liveMeta.busEmptyTitle}
         busUpcoming={liveMeta.busUpcoming}

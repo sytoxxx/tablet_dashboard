@@ -248,7 +248,9 @@ export function resolveWorkBusGlance(input: {
   } else if (deviation) {
     kind = "deviation";
     alertTitle = "⚠️ Achtung";
-    alertDetail = `Heute fährt der Bus anders.\n${deviation}`;
+    alertDetail = input.focusTomorrow
+      ? `Morgen fährt der Bus anders.\n${deviation}`
+      : `Heute fährt der Bus anders.\n${deviation}`;
   }
 
   return {

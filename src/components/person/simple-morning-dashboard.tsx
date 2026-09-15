@@ -92,10 +92,9 @@ export function SimpleMorningDashboard({
   void simple;
 
   const greetingBucket = useGreetingBucket();
-  const eveningFocus =
-    overview.focusIsTomorrow ||
-    greetingBucket === "evening" ||
-    greetingBucket === "night";
+  // Wording “Morgen” must follow schedule focus — not greeting night (00–04).
+  // Night shell ambiance stays via daypartShellClass; bus quiet via nightQuiet.
+  const eveningFocus = overview.focusIsTomorrow;
   const nightQuiet = greetingBucket === "night" && !overview.focusIsTomorrow;
 
   const priority = resolveWorkMorningPriority({
@@ -235,6 +234,7 @@ export function SimpleMorningDashboard({
             showCurrent
             showWeekStrip={false}
             focusTomorrow={eveningFocus}
+            now={wallNow}
           />
         ) : null}
 
@@ -248,6 +248,7 @@ export function SimpleMorningDashboard({
             showCurrent={false}
             showWeekStrip
             focusTomorrow={eveningFocus}
+            now={wallNow}
           />
         ) : null}
 

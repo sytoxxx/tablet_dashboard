@@ -35,7 +35,16 @@ export function useWeatherLive(person: PersonProfile | undefined): WeatherLiveSt
   const online = useOnlineStatus();
   const key = weatherKey(person);
   const personRef = useRef(person);
-  personRef.current = person;
+  const abortRef = useRef<AbortController | null>(null);
+  const keyRef = useRef(key);
+
+  useEffect(() => {
+    personRef.current = person;
+  }, [person]);
+
+  useEffect(() => {
+    keyRef.current = key;
+  }, [key]);
 
   const [state, setState] = useState<WeatherLiveState>(() => ({
     weather: person?.weather
@@ -48,8 +57,16 @@ export function useWeatherLive(person: PersonProfile | undefined): WeatherLiveSt
   }));
   const cacheRef = useRef<WeatherLiveState | null>(null);
 
+  useEffect(() => {
+    return () => {
+      abortRef.current?.abort();
+      abortRef.current = null;
+    };
+  }, []);
+
   const refresh = useCallback(async () => {
     const current = personRef.current;
+    const requestKey = keyRef.current;
     if (!current) return;
     if (!online) {
       setState((prev) => ({
@@ -60,13 +77,19 @@ export function useWeatherLive(person: PersonProfile | undefined): WeatherLiveSt
       return;
     }
 
+    abortRef.current?.abort();
+    const ac = new AbortController();
+    abortRef.current = ac;
+
     setState((s) => ({ ...s, loading: s.fetchedAt ? false : true }));
     try {
       const res = await fetch("/api/weather", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ person: current }),
+        signal: ac.signal,
       });
+      if (keyRef.current !== requestKey) return;
       const json = (await res.json()) as {
         weather?: WeatherSnapshot;
         place?: string;
@@ -74,6 +97,7 @@ export function useWeatherLive(person: PersonProfile | undefined): WeatherLiveSt
         error?: string;
         ok?: boolean;
       };
+      if (keyRef.current !== requestKey) return;
 
       if (!res.ok && !json.weather) {
         setState({
@@ -97,8 +121,11 @@ export function useWeatherLive(person: PersonProfile | undefined): WeatherLiveSt
         fetchedAt: json.fetchedAt ?? json.weather?.fetchedAt ?? null,
       };
       cacheRef.current = next;
+      if (keyRef.current !== requestKey) return;
       setState(next);
-    } catch {
+    } catch (err) {
+      if (err instanceof DOMException && err.name === "AbortError") return;
+      if (keyRef.current !== requestKey) return;
       setState({
         weather: cacheRef.current?.weather ?? {
           ...current.weather,
@@ -114,6 +141,7 @@ export function useWeatherLive(person: PersonProfile | undefined): WeatherLiveSt
 
   // Reset local seed when switching person / location — without refetch spam on identity churn.
   useEffect(() => {
+    abortRef.current?.abort();
     const current = personRef.current;
     if (!current) return;
     cacheRef.current = null;

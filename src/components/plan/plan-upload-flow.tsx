@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useRef, useState, type ReactNode } from "react";
+import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { useRouter } from "next/navigation";
 import { Camera, ImagePlus, X } from "lucide-react";
 import { AppNav } from "@/components/shared/app-nav";
@@ -65,6 +65,12 @@ export function PlanUploadFlow({
   const [applyMode, setApplyMode] = useState<ApplyMode>("replace");
   const [resolutions, setResolutions] = useState<Record<string, ConflictResolution>>({});
 
+  useEffect(() => {
+    return () => {
+      if (previewUrl) URL.revokeObjectURL(previewUrl);
+    };
+  }, [previewUrl]);
+
   const hasExisting = useMemo(
     () => (person ? personHasScheduleContent(person, planType) : false),
     [person, planType],
@@ -82,7 +88,6 @@ export function PlanUploadFlow({
   };
 
   const clearFile = () => {
-    if (previewUrl) URL.revokeObjectURL(previewUrl);
     setPreviewUrl(null);
     setFile(null);
     setAnalysis(null);
@@ -100,7 +105,6 @@ export function PlanUploadFlow({
       setError(validationError);
       return;
     }
-    if (previewUrl) URL.revokeObjectURL(previewUrl);
     setFile(next);
     setPreviewUrl(URL.createObjectURL(next));
     setAnalysis(null);
