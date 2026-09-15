@@ -1,4 +1,8 @@
 import type { StopSearchHit } from "@/server/bus/types";
+import {
+  TRIAS_DEFAULT_TIMEOUT_MS,
+  TRIAS_REQUEST_HEADERS,
+} from "@/server/bus/trias/http";
 import { parseTriasLocationResults } from "@/server/bus/trias/parse-locations";
 import { buildTriasLocationInformationRequest } from "@/server/bus/trias/requests";
 
@@ -20,19 +24,20 @@ export async function searchSteiermarkStops(query: string): Promise<StopSearchHi
   });
 
   const controller = new AbortController();
-  const timeout = setTimeout(() => controller.abort(), 8000);
+  const timeout = setTimeout(
+    () => controller.abort(),
+    TRIAS_DEFAULT_TIMEOUT_MS,
+  );
   try {
     const res = await fetch(endpoint, {
       method: "POST",
       signal: controller.signal,
-      headers: {
-        "Content-Type": "text/xml",
-        Accept: "application/xml, text/xml, */*",
-      },
+      headers: { ...TRIAS_REQUEST_HEADERS },
       body,
       next: { revalidate: 0 },
     });
     if (!res.ok) throw new Error(`HTTP ${res.status}`);
+    // Parsed only — full XML is never logged.
     const xml = await res.text();
     return parseTriasLocationResults(xml);
   } finally {

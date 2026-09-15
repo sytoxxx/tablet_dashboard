@@ -2,24 +2,24 @@
 
 ## Status Zugang
 
-TRIAS-Zugang wurde bei der Verbund Linie angefragt (`ogdtrias@verbundlinie.at`).  
-**Zugangsdaten liegen noch nicht vor.**
+Offizieller TRIAS-OGD-Endpunkt von der Verbund Linie:
 
-Deshalb:
+`http://ogdtrias.verbundlinie.at:8183/stv/trias`
 
-- Keine erfundenen URLs, RequestorRefs oder StopPointRefs
-- Ohne ENV → `isTestData: true`, nie als Live
-- Parser/Requests sind spezifikationsbasiert vorbereitet und mit Fixtures getestet
+- `BUS_PROVIDER=auto` belassen
+- Noch keine produktiven StopPointRefs für Heidi/Birgit gesetzt
+- Connectivity-Probe: `src/server/bus/trias/connectivity.ts` (serverseitig, Timeout, keine XML-/Secret-Logs)
+- Ohne StopPointRef → weiterhin `isTestData: true` / lokale Testdaten
 
 ## Benötigte ENV
 
 ```bash
 BUS_PROVIDER=auto
-VERBUND_STEIERMARK_TRIAS_URL=     # von Verbund Linie nach Vereinbarung
+VERBUND_STEIERMARK_TRIAS_URL=http://ogdtrias.verbundlinie.at:8183/stv/trias
 VERBUND_STEIERMARK_REQUESTOR_REF= # optional, Default OpenService
 ```
 
-Platzhalter nur in `.env.example`. Niemals `.env.local` committen.
+`.env.local` nicht committen (steht in `.gitignore`).
 
 ## TRIAS Provider
 
@@ -114,9 +114,16 @@ Keine Secrets.
 - Location-Parse inkl. Geo  
 - fehlende ENV → Testdaten  
 
+`src/server/bus/trias/connectivity.test.ts` — HTTP-Vertrag + Probe:
+
+- offizieller Endpoint, `Content-Type: text/xml`, `IncludeRealtimeData=true`
+- keine Secrets / kein volles XML in Log-Summaries
+- Timeout- und 401/403-Fälle
+- Live-Probe gegen den echten Endpunkt (nur strukturiertes Ergebnis)
+
 ## Dateien
 
-- `src/server/bus/trias/*`
+- `src/server/bus/trias/*` (inkl. `http.ts`, `connectivity.ts`)
 - `src/server/bus/verbund-steiermark.ts` / `-search.ts`
 - `src/server/bus/types.ts`, `status.ts`
 - `src/lib/bus/select.ts`, `src/lib/types.ts`

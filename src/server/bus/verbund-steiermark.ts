@@ -1,4 +1,8 @@
 import type { BusProvider, BusProviderResult, BusQuery } from "@/server/bus/types";
+import {
+  TRIAS_DEFAULT_TIMEOUT_MS,
+  TRIAS_REQUEST_HEADERS,
+} from "@/server/bus/trias/http";
 import { parseTriasStopEvents } from "@/server/bus/trias/parse-stop-events";
 import { buildTriasStopEventRequest } from "@/server/bus/trias/requests";
 
@@ -58,20 +62,21 @@ export class VerbundSteiermarkBusProvider implements BusProvider {
     });
 
     const controller = new AbortController();
-    const timeout = setTimeout(() => controller.abort(), 8000);
+    const timeout = setTimeout(
+      () => controller.abort(),
+      TRIAS_DEFAULT_TIMEOUT_MS,
+    );
 
     try {
       const res = await fetch(endpoint, {
         method: "POST",
         signal: controller.signal,
-        headers: {
-          "Content-Type": "text/xml",
-          Accept: "application/xml, text/xml, */*",
-        },
+        headers: { ...TRIAS_REQUEST_HEADERS },
         body,
         next: { revalidate: 0 },
       });
       if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      // Response body is parsed only — never logged in full.
       const xml = await res.text();
       const departures = parseTriasStopEvents(xml);
       const hasRealtime = departures.some((d) => d.isRealtime);
