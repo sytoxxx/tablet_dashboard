@@ -32,7 +32,16 @@ export function CoffeeStopwatch({ recipe, onStopped }: CoffeeStopwatchProps) {
     };
     tick();
     const id = window.setInterval(tick, 100);
-    return () => window.clearInterval(id);
+    // Tab switch / background throttles intervals; wall-clock math stays correct —
+    // force one sync when the tablet returns so the display updates immediately.
+    const onVisible = () => {
+      if (document.visibilityState === "visible") tick();
+    };
+    document.addEventListener("visibilitychange", onVisible);
+    return () => {
+      window.clearInterval(id);
+      document.removeEventListener("visibilitychange", onVisible);
+    };
   }, [status]);
 
   const start = () => {

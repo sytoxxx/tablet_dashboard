@@ -11,9 +11,14 @@ import {
   statsForToday,
   statsForWeek,
 } from "@/lib/coffee";
+import { filterBrewsSince } from "@/lib/coffee/stats";
 import { COFFEE_METHOD_LABELS } from "@/lib/coffee/types";
 import { formatTimer } from "@/lib/format";
 import { Button } from "@/components/ui/button";
+
+function startOfLocalDay(d: Date): Date {
+  return new Date(d.getFullYear(), d.getMonth(), d.getDate());
+}
 
 export function CoffeeHome() {
   const { ready, data } = useCoffeeCommand();
@@ -28,10 +33,13 @@ export function CoffeeHome() {
     );
   }
 
-  const today = statsForToday(data.brews);
-  const week = statsForWeek(data.brews);
+  const now = new Date();
+  const today = statsForToday(data.brews, now);
+  const week = statsForWeek(data.brews, now);
   const activeBean = data.beans.find((b) => b.id === data.activeBeanId) ?? null;
-  const latest = lastBrew(data.brews);
+  const latestOverall = lastBrew(data.brews);
+  const latestToday = lastBrew(filterBrewsSince(data.brews, startOfLocalDay(now), now));
+  const latest = latestToday ?? latestOverall;
   const personName = (id: string) =>
     app.persons.find((p) => p.id === id)?.name ?? id;
 

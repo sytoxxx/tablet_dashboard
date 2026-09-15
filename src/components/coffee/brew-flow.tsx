@@ -20,7 +20,7 @@ import { formatTimer } from "@/lib/format";
 type Step = "bean" | "method" | "brew" | "save" | "done";
 
 export function BrewFlow() {
-  const { ready, data, addBrew, setActiveBeanId } = useCoffeeCommand();
+  const { ready, data, addBrew } = useCoffeeCommand();
   const { data: app } = useAppData();
 
   const [step, setStep] = useState<Step>("bean");
@@ -31,15 +31,20 @@ export function BrewFlow() {
   useEffect(() => {
     if (!ready || hydratedPrefs) return;
     const active = getActivePersonId();
-    if (active) setPersonId(active);
-    setBeanId(data.activeBeanId);
-    setHydratedPrefs(true);
+    const nextBean = data.activeBeanId;
+    const id = window.setTimeout(() => {
+      if (active) setPersonId(active);
+      setBeanId(nextBean);
+      setHydratedPrefs(true);
+    }, 0);
+    return () => window.clearTimeout(id);
   }, [ready, data.activeBeanId, hydratedPrefs]);
   const [method, setMethod] = useState<CoffeeBrewMethod>("espresso");
   const [durationSeconds, setDurationSeconds] = useState(0);
   const [rating, setRating] = useState<number | null>(null);
   const [note, setNote] = useState("");
   const [brewedAt, setBrewedAt] = useState(() => toLocalInputValue(new Date()));
+  const [saving, setSaving] = useState(false);
 
   const recipe = useMemo(
     () => recipeForMethod(method, app.coffeeDrinks),
@@ -53,7 +58,11 @@ export function BrewFlow() {
   };
 
   const saveBrew = () => {
+    if (saving) return;
+    setSaving(true);
     const iso = fromLocalInputValue(brewedAt) ?? new Date().toISOString();
+    // addBrew already sets activeBeanId when beanId is known — do not chain
+    // setActiveBeanId here (stale closure previously wiped the new brew).
     addBrew({
       personId,
       beanId,
@@ -64,8 +73,8 @@ export function BrewFlow() {
       rating,
       note: note.trim() || undefined,
     });
-    if (beanId) setActiveBeanId(beanId);
     setStep("done");
+    setSaving(false);
   };
 
   return (
@@ -285,6 +294,7 @@ export function BrewFlow() {
               type="button"
               size="lg"
               className="h-14 rounded-2xl"
+              disabled={saving}
               onClick={saveBrew}
             >
               Ja, speichern

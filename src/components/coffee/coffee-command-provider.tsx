@@ -7,7 +7,9 @@ import {
   useEffect,
   useMemo,
   useState,
+  type Dispatch,
   type ReactNode,
+  type SetStateAction,
 } from "react";
 import type { CoffeeBean, CoffeeBrew, CoffeeCommandData } from "@/lib/coffee/types";
 import {
@@ -31,18 +33,34 @@ type CoffeeCommandContextValue = {
 
 const CoffeeCommandContext = createContext<CoffeeCommandContextValue | null>(null);
 
+/**
+ * Apply a mutation from the latest persisted snapshot.
+ * Functional updates avoid stale-closure overwrites when callers chain
+ * addBrew + setActiveBeanId (or double-tap Speichern) in one turn.
+ */
+function applyAndPersist(
+  setData: Dispatch<SetStateAction<CoffeeCommandData>>,
+  updater: (prev: CoffeeCommandData) => CoffeeCommandData,
+): void {
+  setData((prev) => {
+    const committed = updater(prev);
+    saveCoffeeCommandData(committed);
+    return committed;
+  });
+}
+
 export function CoffeeCommandProvider({ children }: { children: ReactNode }) {
   const [ready, setReady] = useState(false);
   const [data, setData] = useState<CoffeeCommandData>(emptyCoffeeCommandData);
 
   useEffect(() => {
-    setData(loadCoffeeCommandData());
-    setReady(true);
-  }, []);
-
-  const persist = useCallback((next: CoffeeCommandData) => {
-    setData(next);
-    saveCoffeeCommandData(next);
+    // Hydrate after mount from LocalStorage (external store). Defer setState so we
+    // don't cascade a sync render inside the effect body (react-hooks/set-state-in-effect).
+    const id = window.setTimeout(() => {
+      setData(loadCoffeeCommandData());
+      setReady(true);
+    }, 0);
+    return () => window.clearTimeout(id);
   }, []);
 
   const addBean = useCallback(
@@ -53,77 +71,64 @@ export function CoffeeCommandProvider({ children }: { children: ReactNode }) {
         addedAt: input.addedAt ?? new Date().toISOString(),
         name: input.name.trim(),
       };
-      persist({
-        ...data,
-        beans: [bean, ...data.beans],
-        activeBeanId: data.activeBeanId ?? bean.id,
-      });
+      applyAndPersist(setData, (prev) => ({
+        ...prev,
+        beans: [bean, ...prev.beans],
+        activeBeanId: prev.activeBeanId ?? bean.id,
+      }));
       return bean;
     },
-    [data, persist],
+    [],
   );
 
-  const updateBean = useCallback(
-    (id: string, patch: Partial<CoffeeBean>) => {
-      persist({
-        ...data,
-        beans: data.beans.map((b) => (b.id === id ? { ...b, ...patch, id: b.id } : b)),
-      });
-    },
-    [data, persist],
-  );
+  const updateBean = useCallback((id: string, patch: Partial<CoffeeBean>) => {
+    applyAndPersist(setData, (prev) => ({
+      ...prev,
+      beans: prev.beans.map((b) => (b.id === id ? { ...b, ...patch, id: b.id } : b)),
+    }));
+  }, []);
 
-  const removeBean = useCallback(
-    (id: string) => {
-      persist({
-        ...data,
-        beans: data.beans.filter((b) => b.id !== id),
-        activeBeanId: data.activeBeanId === id ? null : data.activeBeanId,
-      });
-    },
-    [data, persist],
-  );
+  const removeBean = useCallback((id: string) => {
+    applyAndPersist(setData, (prev) => ({
+      ...prev,
+      beans: prev.beans.filter((b) => b.id !== id),
+      activeBeanId: prev.activeBeanId === id ? null : prev.activeBeanId,
+    }));
+  }, []);
 
-  const setActiveBeanId = useCallback(
-    (id: string | null) => {
-      persist({ ...data, activeBeanId: id });
-    },
-    [data, persist],
-  );
+  const setActiveBeanId = useCallback((id: string | null) => {
+    applyAndPersist(setData, (prev) => ({ ...prev, activeBeanId: id }));
+  }, []);
 
-  const addBrew = useCallback(
-    (input: Omit<CoffeeBrew, "id"> & { id?: string }) => {
-      const brew: CoffeeBrew = {
-        ...input,
-        id: input.id ?? createCoffeeId("brew"),
-      };
+  const addBrew = useCallback((input: Omit<CoffeeBrew, "id"> & { id?: string }) => {
+    const brew: CoffeeBrew = {
+      ...input,
+      id: input.id ?? createCoffeeId("brew"),
+    };
+    applyAndPersist(setData, (prev) => {
       const nextActive =
-        brew.beanId && data.beans.some((b) => b.id === brew.beanId)
+        brew.beanId && prev.beans.some((b) => b.id === brew.beanId)
           ? brew.beanId
-          : data.activeBeanId;
-      persist({
-        ...data,
-        brews: [brew, ...data.brews],
+          : prev.activeBeanId;
+      return {
+        ...prev,
+        brews: [brew, ...prev.brews],
         activeBeanId: nextActive,
-      });
-      return brew;
-    },
-    [data, persist],
-  );
+      };
+    });
+    return brew;
+  }, []);
 
-  const removeBrew = useCallback(
-    (id: string) => {
-      persist({ ...data, brews: data.brews.filter((b) => b.id !== id) });
-    },
-    [data, persist],
-  );
+  const removeBrew = useCallback((id: string) => {
+    applyAndPersist(setData, (prev) => ({
+      ...prev,
+      brews: prev.brews.filter((b) => b.id !== id),
+    }));
+  }, []);
 
-  const replaceAll = useCallback(
-    (next: CoffeeCommandData) => {
-      persist(next);
-    },
-    [persist],
-  );
+  const replaceAll = useCallback((next: CoffeeCommandData) => {
+    applyAndPersist(setData, () => next);
+  }, []);
 
   const value = useMemo(
     () => ({

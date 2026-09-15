@@ -117,6 +117,57 @@ describe("coffee store normalize", () => {
     expect(data.brews).toHaveLength(1);
     expect(data.activeBeanId).toBeNull();
   });
+
+  it("returns empty data for corrupt / non-object payloads", () => {
+    expect(normalizeCoffeeCommandData(null)).toEqual({
+      version: 1,
+      beans: [],
+      brews: [],
+      activeBeanId: null,
+    });
+    expect(normalizeCoffeeCommandData("not-json-object")).toEqual({
+      version: 1,
+      beans: [],
+      brews: [],
+      activeBeanId: null,
+    });
+    expect(normalizeCoffeeCommandData([])).toEqual({
+      version: 1,
+      beans: [],
+      brews: [],
+      activeBeanId: null,
+    });
+  });
+
+  it("accepts legacy-ish payloads missing version and strips XSS-ish chars", () => {
+    const data = normalizeCoffeeCommandData({
+      beans: [{ id: "b1", name: "  <script>Yirg</script>  ", roaster: "A<b>B" }],
+      brews: [],
+      activeBeanId: "b1",
+    });
+    expect(data.version).toBe(1);
+    expect(data.beans[0]?.name).toBe("scriptYirg/script");
+    expect(data.beans[0]?.roaster).toBe("AbB");
+    expect(data.activeBeanId).toBe("b1");
+  });
+
+  it("rejects brews with unparseable brewedAt", () => {
+    const data = normalizeCoffeeCommandData({
+      beans: [],
+      brews: [
+        {
+          id: "br1",
+          personId: "levi",
+          beanId: null,
+          method: "espresso",
+          durationSeconds: 25,
+          brewedAt: "not-a-date",
+        },
+      ],
+      activeBeanId: null,
+    });
+    expect(data.brews).toHaveLength(0);
+  });
 });
 
 describe("recommendations", () => {
@@ -136,6 +187,13 @@ describe("recommendations", () => {
     expect(items.some((i) => i.id === "most-drunk-bean")).toBe(true);
     expect(items.some((i) => i.id === "high-rated")).toBe(true);
   });
+
+  it("stays empty for a single unrated brew without known bean stats", () => {
+    const items = buildRecommendations([], [
+      brew({ id: "1", brewedAt: "2026-09-15T10:00:00.000Z", beanId: null, rating: null }),
+    ]);
+    expect(items).toEqual([]);
+  });
 });
 
 describe("bean scan validate", () => {
@@ -151,5 +209,33 @@ describe("bean scan validate", () => {
       expect(validated.result.draft.name.recognized).toBe(false);
       expect(validated.result.draft.name.value).toBe("");
     }
+  });
+
+  it("rejects non-object scan payloads", () => {
+    expect(validateBeanScanResult("nope").ok).toBe(false);
+  });
+});
+
+describe("period stats edge sizes", () => {
+  it("handles zero, one, and many brews", () => {
+    expect(computePeriodStats([]).total).toBe(0);
+    expect(computePeriodStats([]).avgDurationSeconds).toBeNull();
+
+    const one = computePeriodStats([
+      brew({ id: "1", brewedAt: "2026-09-15T10:00:00.000Z", durationSeconds: 28 }),
+    ]);
+    expect(one.total).toBe(1);
+    expect(one.avgDurationSeconds).toBe(28);
+
+    const many = Array.from({ length: 12 }, (_, i) =>
+      brew({
+        id: `m${i}`,
+        brewedAt: `2026-09-15T${String(10 + (i % 10)).padStart(2, "0")}:00:00.000Z`,
+        beanId: i % 2 === 0 ? "b1" : "b2",
+      }),
+    );
+    const stats = computePeriodStats(many);
+    expect(stats.total).toBe(12);
+    expect(stats.mostDrunkBeanId).toBe("b1");
   });
 });

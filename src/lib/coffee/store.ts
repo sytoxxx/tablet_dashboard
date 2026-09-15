@@ -74,6 +74,7 @@ function sanitizeBrew(raw: unknown): CoffeeBrew | null {
       : NaN;
   const brewedAt = typeof raw.brewedAt === "string" ? raw.brewedAt : "";
   if (!id || !PERSON_IDS.has(personId) || !METHODS.has(method) || !brewedAt) return null;
+  if (!Number.isFinite(Date.parse(brewedAt))) return null;
   if (!Number.isFinite(durationSeconds)) return null;
 
   const brew: CoffeeBrew = {

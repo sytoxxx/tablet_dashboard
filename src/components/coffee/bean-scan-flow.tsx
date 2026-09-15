@@ -1,6 +1,6 @@
 "use client";
 
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { Camera, ImagePlus } from "lucide-react";
 import { useCoffeeCommand } from "@/components/coffee/coffee-command-provider";
@@ -15,6 +15,13 @@ import { Button } from "@/components/ui/button";
 
 const MAX_BYTES = 8 * 1024 * 1024;
 const ACCEPT = "image/jpeg,image/png,image/webp,image/heic,image/heif";
+const ALLOWED_TYPES = new Set([
+  "image/jpeg",
+  "image/png",
+  "image/webp",
+  "image/heic",
+  "image/heif",
+]);
 
 type Step = "upload" | "analyzing" | "confirm";
 
@@ -24,6 +31,8 @@ export function BeanScanFlow() {
   const { addBean } = useCoffeeCommand();
   const fileRef = useRef<HTMLInputElement>(null);
   const cameraRef = useRef<HTMLInputElement>(null);
+  const previewUrlRef = useRef<string | null>(null);
+  const abortRef = useRef<AbortController | null>(null);
 
   const [file, setFile] = useState<File | null>(null);
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
@@ -40,6 +49,13 @@ export function BeanScanFlow() {
     remainingGrams: "",
   });
 
+  useEffect(() => {
+    return () => {
+      abortRef.current?.abort();
+      if (previewUrlRef.current) URL.revokeObjectURL(previewUrlRef.current);
+    };
+  }, []);
+
   const onFile = (next: File | undefined) => {
     if (!next) return;
     if (next.size <= 0) {
@@ -50,13 +66,19 @@ export function BeanScanFlow() {
       setError("Maximal 8 MB erlaubt.");
       return;
     }
-    if (next.type && !next.type.startsWith("image/")) {
+    if (next.type && !ALLOWED_TYPES.has(next.type) && !next.type.startsWith("image/")) {
       setError("Nur Bilddateien sind erlaubt.");
       return;
     }
-    if (previewUrl) URL.revokeObjectURL(previewUrl);
+    if (next.type && next.type.startsWith("image/") && !ALLOWED_TYPES.has(next.type)) {
+      setError("Nur JPEG, PNG, WebP oder HEIC.");
+      return;
+    }
+    if (previewUrlRef.current) URL.revokeObjectURL(previewUrlRef.current);
+    const url = URL.createObjectURL(next);
+    previewUrlRef.current = url;
     setFile(next);
-    setPreviewUrl(URL.createObjectURL(next));
+    setPreviewUrl(url);
     setError(null);
     setStep("upload");
   };
@@ -80,10 +102,17 @@ export function BeanScanFlow() {
     }
     setError(null);
     setStep("analyzing");
+    abortRef.current?.abort();
+    const ac = new AbortController();
+    abortRef.current = ac;
     try {
       const form = new FormData();
       form.set("file", file);
-      const res = await fetch("/api/coffee/scan-bean", { method: "POST", body: form });
+      const res = await fetch("/api/coffee/scan-bean", {
+        method: "POST",
+        body: form,
+        signal: ac.signal,
+      });
       const json = (await res.json()) as BeanScanResult & { error?: string };
       if (!res.ok) {
         throw new Error(json.error || "Scan fehlgeschlagen.");
@@ -101,6 +130,7 @@ export function BeanScanFlow() {
       });
       setStep("confirm");
     } catch (e) {
+      if (e instanceof DOMException && e.name === "AbortError") return;
       setError(e instanceof Error ? e.message : "Scan fehlgeschlagen.");
       setStep("upload");
     }
@@ -290,6 +320,7 @@ export function BeanScanFlow() {
               size="lg"
               className="h-14 rounded-2xl bg-[color:var(--surface)]"
               onClick={() => {
+                abortRef.current?.abort();
                 setStep("upload");
                 setError(null);
               }}

@@ -31,8 +31,9 @@ export async function POST(request: Request) {
       );
     }
 
-    const mimeType = file.type || "application/octet-stream";
-    if (!ALLOWED.has(mimeType) && !mimeType.startsWith("image/")) {
+    // Only allowlisted camera formats — do not accept arbitrary image/* (e.g. SVG).
+    const mimeType = file.type;
+    if (!ALLOWED.has(mimeType)) {
       return NextResponse.json(
         { error: "Nur Bilder erlaubt (JPEG, PNG, WebP, HEIC)." },
         { status: 400 },
