@@ -160,7 +160,12 @@ function EveningPrepBody({
       ) : null}
 
       <ul className={simple ? "space-y-4" : "space-y-4 sm:space-y-5"}>
-        {prep.items.map((item) => (
+        {prep.items.map((item) => {
+          const detail =
+            item.detail && item.detail.includes("Kleiderschrank")
+              ? item.label
+              : item.detail;
+          return (
           <li key={item.kind} className="min-w-0">
             <p className="text-base text-[color:var(--quiet)]">{item.label}</p>
             {item.kind === "outfit" && outfitLines.length > 0 ? (
@@ -183,10 +188,13 @@ function EveningPrepBody({
                     : "mt-0.5 text-lg sm:text-xl text-[color:var(--ink)]"
                 }
               >
-                {item.detail}
+                {detail}
               </p>
             )}
-            {item.kind !== "outfit" && item.items && item.items.length > 1 ? (
+            {item.kind !== "outfit" &&
+            item.items &&
+            item.items.length > 1 &&
+            !item.items.some((line) => line.includes("Kleiderschrank")) ? (
               <ul className="mt-1 space-y-0.5 text-base text-[color:var(--quiet)]">
                 {item.items.map((line) => (
                   <li key={line}>{line}</li>
@@ -194,7 +202,8 @@ function EveningPrepBody({
               </ul>
             ) : null}
           </li>
-        ))}
+          );
+        })}
       </ul>
 
       {prep.pickedOutfit ? (
