@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { unauthorizedIfAnonymous } from "@/lib/auth/guard";
 import { createBusProvider } from "@/server/bus";
 import {
   departuresFromLocalStop,
@@ -83,6 +84,8 @@ function upcomingFromConnections(connections: TravelConnection[]) {
  * Prefers client-provided profile (LocalStorage) via header or POST body.
  */
 export async function GET(request: Request) {
+  const denied = await unauthorizedIfAnonymous(request);
+  if (denied) return denied;
   try {
     const { searchParams } = new URL(request.url);
     const personId = String(searchParams.get("personId") || "");
@@ -120,6 +123,8 @@ export async function GET(request: Request) {
 }
 
 export async function POST(request: Request) {
+  const denied = await unauthorizedIfAnonymous(request);
+  if (denied) return denied;
   try {
     const body = (await request.json()) as {
       person?: PersonProfile;

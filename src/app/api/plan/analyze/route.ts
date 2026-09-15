@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { unauthorizedIfAnonymous } from "@/lib/auth/guard";
 import { createPlanAiProvider } from "@/server/ai";
 import { seedPersons } from "@/data/seed";
 
@@ -12,6 +13,8 @@ function isPersonId(value: string): boolean {
 }
 
 export async function POST(request: Request) {
+  const denied = await unauthorizedIfAnonymous(request);
+  if (denied) return denied;
   try {
     const form = await request.formData();
     const file = form.get("file");

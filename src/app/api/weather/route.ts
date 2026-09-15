@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { unauthorizedIfAnonymous } from "@/lib/auth/guard";
 import { createWeatherProvider } from "@/server/weather";
 import { seedPersons } from "@/data/seed";
 import { DEFAULT_WEATHER_LOCATION } from "@/lib/data/defaults";
@@ -11,6 +12,8 @@ function isPersonId(value: string): value is PersonId {
 }
 
 export async function GET(request: Request) {
+  const denied = await unauthorizedIfAnonymous(request);
+  if (denied) return denied;
   const { searchParams } = new URL(request.url);
   const personId = String(searchParams.get("personId") || "");
   if (!isPersonId(personId)) {
@@ -35,6 +38,8 @@ export async function GET(request: Request) {
 }
 
 export async function POST(request: Request) {
+  const denied = await unauthorizedIfAnonymous(request);
+  if (denied) return denied;
   try {
     const body = (await request.json()) as { person?: PersonProfile };
     if (!body.person || !isPersonId(body.person.id)) {

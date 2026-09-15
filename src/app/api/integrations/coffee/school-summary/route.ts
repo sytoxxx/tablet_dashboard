@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { unauthorizedIfAnonymous } from "@/lib/auth/guard";
 import type { PersonId } from "@/lib/types";
 import { fetchSchoolJarvisDailySummary } from "@/lib/integrations/school-jarvis/client";
 import { SCHOOL_JARVIS_UNAVAILABLE_MESSAGE } from "@/lib/integrations/school-jarvis/examples";
@@ -20,6 +21,8 @@ function isPersonId(value: string): value is PersonId {
  * No tokens in the client response.
  */
 export async function GET(request: Request) {
+  const denied = await unauthorizedIfAnonymous(request);
+  if (denied) return denied;
   try {
     const { searchParams } = new URL(request.url);
     const personId = String(searchParams.get("personId") || "");

@@ -1,10 +1,13 @@
 import { NextResponse } from "next/server";
+import { unauthorizedIfAnonymous } from "@/lib/auth/guard";
 import { searchTransitStops, getStopSearchCapability } from "@/server/bus/stop-search";
 
 export const runtime = "nodejs";
 
 /** GET /api/bus/stops?q=Kapfenberg — Admin stop search (TRIAS/VAO if configured). */
 export async function GET(request: Request) {
+  const denied = await unauthorizedIfAnonymous(request);
+  if (denied) return denied;
   try {
     const { searchParams } = new URL(request.url);
     const q = String(searchParams.get("q") || "");

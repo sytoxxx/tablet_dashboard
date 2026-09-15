@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { unauthorizedIfAnonymous } from "@/lib/auth/guard";
 import { askJarvis } from "@/lib/jarvis/ask";
 import { phraseJarvisWithOpenAi, withAiAnswer } from "@/server/jarvis/phrase";
 import { seedAppData } from "@/data/seed";
@@ -17,6 +18,8 @@ function isPersonId(value: string): value is PersonId {
  * OPENAI_API_KEY only on server — never returned to client.
  */
 export async function POST(request: Request) {
+  const denied = await unauthorizedIfAnonymous(request);
+  if (denied) return denied;
   try {
     const body = (await request.json()) as {
       personId?: string;

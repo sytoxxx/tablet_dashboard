@@ -13,7 +13,9 @@ Minimaler Morgen-Tablet-Dashboard (deutsch) für ein wandmontiertes Android-Tabl
 ## Lokal starten
 
 ```bash
-cp .env.example .env.local   # optional: OPENAI_API_KEY für echte Vision-Analyse
+cp .env.example .env.local
+# Pflicht für den Geräte-Zugang: COFFEE_MORNING_ACCESS_CODE setzen
+# Optional: OPENAI_API_KEY, VERBUND_STEIERMARK_TRIAS_URL, …
 npm install
 npm run build
 npm run start
@@ -21,7 +23,11 @@ npm run start
 
 Server: Port **43127** → [http://127.0.0.1:43127](http://127.0.0.1:43127)
 
+Ohne gültige Session öffnet die App `/zugang` (Zugangscode). Danach: **Wer bist du?**
+
 Dev: `npm run dev` (gleicher Port).
+
+Vercel-Vorbereitung: siehe [`docs/vercel-deployment.md`](docs/vercel-deployment.md).
 
 ## Admin
 

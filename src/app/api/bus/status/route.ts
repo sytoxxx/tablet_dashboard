@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { unauthorizedIfAnonymous } from "@/lib/auth/guard";
 import { getBusStatusSnapshot } from "@/server/bus/status";
 
 export const runtime = "nodejs";
@@ -8,6 +9,8 @@ export const runtime = "nodejs";
  * Optional query: lastSuccessAt, lastError, preferredProvider
  */
 export async function GET(request: Request) {
+  const denied = await unauthorizedIfAnonymous(request);
+  if (denied) return denied;
   try {
     const { searchParams } = new URL(request.url);
     const snapshot = getBusStatusSnapshot({
