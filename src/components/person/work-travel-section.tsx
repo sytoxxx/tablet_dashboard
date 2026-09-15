@@ -269,17 +269,17 @@ export function WorkTravelSection({
     return (
       <div className="space-y-5">
         {!isWalking ? (
-          <ArbeitBlock plan={plan} workLabel={workLabel} emphasis={workEmphasis} />
+          <ArbeitBlock plan={plan} workLabel={workLabel} emphasis="hero" />
         ) : null}
         {!isWalking ? (
-          <Section title="Losfahren" emphasis={leaveEmphasis}>
+          <Section title="Losfahren" emphasis="secondary">
             <EmptyState
               title="Du musst heute keinen Bus nehmen."
               description="Gerade ist keine passende Verbindung verfügbar."
             />
           </Section>
         ) : (
-          <Section title="Losfahren" emphasis={leaveEmphasis}>
+          <Section title="Losfahren" emphasis="hero">
             <EmptyState
               title="Kein Weg zur Schule geplant."
               description="Sobald Zeiten da sind, siehst du hier wann du los musst."
