@@ -13,23 +13,25 @@ import {
   daypartShellClass,
 } from "@/components/shared/daypart-greeting";
 import { WorkShiftSection } from "@/components/person/work-shift";
-import { WorkTravelSection } from "@/components/person/work-travel-section";
-import { BusSection } from "@/components/person/bus-section";
+import { WorkBusSection } from "@/components/person/work-bus-section";
 import { WeatherSection } from "@/components/person/weather-section";
 import { WorkWeekSection } from "@/components/person/work-week-section";
 import { NextUpSection } from "@/components/person/next-up-section";
+import { CalendarSection } from "@/components/person/calendar-section";
 import { Section } from "@/components/section";
 import {
   resolveNextUpGlance,
   resolveWorkMorningPriority,
 } from "@/lib/morning/work-priority";
+import { resolveWorkBusGlance } from "@/lib/morning/work-bus-glance";
 import { formatGermanDate, WEEKDAY_LABELS } from "@/lib/format";
 import { cn } from "@/lib/utils";
 
 /**
- * Birgit & Heidi — personal day assistant.
- * Morning: Heute → Losfahren → Als Nächstes → Wetter → Meine Woche.
- * Evening: tomorrow plan, no leftover clutter; no detailed clothing.
+ * Birgit & Heidi — shared Apple-like block stack, work-commute priority.
+ *
+ * Order: Als Nächstes → Arbeit → Bus/Arbeitsweg → Wetter → Meine Woche
+ * → Wochenwetter → Termine. Mount only when relevant. No detailed clothing.
  */
 export function SimpleMorningDashboard({
   view,
@@ -37,15 +39,15 @@ export function SimpleMorningDashboard({
   wallNow,
   mode,
   simple = false,
-  busMessage,
-  busEmptyTitle,
-  busUpcoming,
-  busMatched,
+  busMessage: _busMessage,
+  busEmptyTitle: _busEmptyTitle,
+  busUpcoming: _busUpcoming,
+  busMatched: _busMatched,
   busEnabled = true,
-  busOffline,
-  busUnavailable,
-  busDataAgeLabel,
-  weatherPlace,
+  busOffline: _busOffline,
+  busUnavailable: _busUnavailable,
+  busDataAgeLabel: _busDataAgeLabel,
+  weatherPlace: _weatherPlace,
   workTravel,
   workWeek = null,
   leaveReminderActive = false,
@@ -79,8 +81,14 @@ export function SimpleMorningDashboard({
   void _digitalWardrobe;
   void _onExcludeCombination;
   void _onWardrobeChange;
-  void weatherPlace;
-  void busEmptyTitle;
+  void _weatherPlace;
+  void _busEmptyTitle;
+  void _busMessage;
+  void _busUpcoming;
+  void _busMatched;
+  void _busOffline;
+  void _busUnavailable;
+  void _busDataAgeLabel;
   void simple;
 
   const greetingBucket = useGreetingBucket();
@@ -88,6 +96,7 @@ export function SimpleMorningDashboard({
     overview.focusIsTomorrow ||
     greetingBucket === "evening" ||
     greetingBucket === "night";
+  const nightQuiet = greetingBucket === "night" && !overview.focusIsTomorrow;
 
   const priority = resolveWorkMorningPriority({
     workShift: view.workShift ?? overview.workShift,
@@ -99,28 +108,28 @@ export function SimpleMorningDashboard({
     view.displayPrefs.showWeather &&
     (overview.visibility.weather ||
       Boolean(overview.weather.weather ?? view.weather));
+  const weather = overview.weather.weather ?? view.weather;
   const showWeek = Boolean(workWeek) && mode === "work";
 
-  const travelUsable =
+  const leaveKnown =
     priority.isWorking &&
     mode === "work" &&
-    workTravel &&
-    (workTravel.status === "on-time" ||
-      workTravel.status === "no-connection" ||
-      workTravel.status === "cancelled");
-
-  const leaveKnown =
-    Boolean(travelUsable) &&
     workTravel?.status === "on-time" &&
     Boolean(workTravel.leaveHome);
 
-  const showStandaloneBus =
-    priority.isWorking &&
-    !eveningFocus &&
-    !travelUsable &&
-    view.displayPrefs.showBus &&
-    overview.visibility.bus &&
-    Boolean(view.nextBus);
+  // Night: no senseless today’s bus. Evening: only when tomorrow leave known.
+  const hideTodayBus =
+    nightQuiet ||
+    (eveningFocus && !leaveKnown) ||
+    !busEnabled ||
+    view.displayPrefs.showBus === false;
+
+  const busGlance = resolveWorkBusGlance({
+    plan: workTravel,
+    isWorking: priority.isWorking && mode === "work",
+    hideTodayBus,
+    focusTomorrow: eveningFocus,
+  });
 
   const nextUp = resolveNextUpGlance({
     isWorking: priority.isWorking,
@@ -131,12 +140,21 @@ export function SimpleMorningDashboard({
     appointment: priority.nextAppointment,
   });
 
+  const showNextUp = !(
+    priority.isFree && nextUp.title.includes("nichts Dringendes")
+  );
+
+  const showCalendar =
+    view.displayPrefs.showCalendar &&
+    overview.visibility.appointments &&
+    overview.appointments.length > 0;
+
   const heuteTitle = overview.focusIsTomorrow ? "Morgen" : "Heute";
 
   return (
     <div
       className={cn(
-        "morning-shell mx-auto flex w-full max-w-5xl flex-col gap-5 px-5 py-5 sm:gap-6 sm:px-8 sm:py-6 lg:px-10 landscape-tablet:gap-4 landscape-tablet:py-4",
+        "morning-shell mx-auto flex w-full max-w-3xl flex-col gap-5 px-5 py-5 sm:gap-6 sm:px-8 sm:py-6 lg:max-w-4xl lg:px-10 landscape-tablet:max-w-5xl landscape-tablet:gap-5 landscape-tablet:py-5",
         daypartShellClass(greetingBucket),
       )}
     >
@@ -163,124 +181,76 @@ export function SimpleMorningDashboard({
         <LiveClock className="hidden sm:block landscape-tablet:block" />
       </header>
 
-      <div
-        className={cn(
-          "animate-rise grid gap-5",
-          "landscape-tablet:grid-cols-[1.55fr_0.85fr] landscape-tablet:gap-5 landscape-tablet:items-start",
-          "lg:grid-cols-[1.55fr_0.85fr]",
+      {/* Single-column block order — Bus sits directly under Arbeit */}
+      <div className="animate-rise flex flex-col gap-5" style={{ animationDelay: "60ms" }}>
+        {showNextUp ? (
+          <NextUpSection
+            next={nextUp}
+            emphasis={
+              nextUp.title.includes("nichts Dringendes")
+                ? "tertiary"
+                : "hero"
+            }
+          />
+        ) : null}
+
+        {priority.isFree ? (
+          <Section title={heuteTitle} emphasis="hero">
+            <p className="font-display text-4xl tracking-tight sm:text-5xl">
+              {priority.freeDayCopy}
+            </p>
+          </Section>
+        ) : (
+          <WorkShiftSection
+            shift={view.workShift ?? overview.workShift}
+            simple
+            emphasis="hero"
+            focusTomorrow={eveningFocus || overview.focusIsTomorrow}
+          />
         )}
-        style={{ animationDelay: "60ms" }}
-      >
-        <div className="space-y-5">
-          {priority.isFree ? (
-            <Section title={heuteTitle} emphasis="hero">
-              <p className="font-display text-4xl tracking-tight sm:text-5xl">
-                {priority.freeDayCopy}
-              </p>
-            </Section>
-          ) : travelUsable ? (
-            <>
-              <WorkTravelSection
-                plan={workTravel}
-                workLabel={view.workShift?.label}
-                leaveEmphasis="hero"
-                workEmphasis="secondary"
-                includeLeave={leaveKnown && !eveningFocus}
-                quietNoBus
-                focusTomorrow={eveningFocus || overview.focusIsTomorrow}
-              />
-              {leaveReminderActive && leaveKnown && !eveningFocus ? (
-                <p className="px-1 text-base text-[color:var(--quiet)]">
-                  Erinnerung: {leaveReminderLabel?.trim() || "Bald losfahren"}
-                </p>
-              ) : null}
-            </>
-          ) : (
-            <WorkShiftSection
-              shift={view.workShift}
-              simple
-              emphasis="hero"
-              focusTomorrow={eveningFocus || overview.focusIsTomorrow}
-            />
-          )}
 
-          {/* Evening working day without travel: still show Arbeit only */}
-          {eveningFocus && priority.isWorking && leaveKnown ? (
-            <Section title="Losfahren" emphasis="secondary">
-              <p className="text-xl text-[color:var(--ink)] sm:text-2xl">
-                Morgen musst du um{" "}
-                <span className="font-display text-5xl tabular-nums tracking-tight">
-                  {workTravel?.leaveHome}
-                </span>{" "}
-                los.
-              </p>
-            </Section>
-          ) : null}
+        {priority.isWorking ? (
+          <WorkBusSection
+            glance={busGlance}
+            emphasis={
+              busGlance.kind === "none" && !eveningFocus ? "hero" : "secondary"
+            }
+          />
+        ) : null}
 
-          {!(
-            priority.isFree &&
-            nextUp.title.includes("nichts Dringendes")
-          ) ? (
-            <NextUpSection
-              next={nextUp}
-              emphasis={
-                nextUp.title.includes("nichts Dringendes")
-                  ? "tertiary"
-                  : "secondary"
-              }
-            />
-          ) : null}
-        </div>
+        {leaveReminderActive && leaveKnown && !eveningFocus ? (
+          <p className="px-1 text-base text-[color:var(--quiet)]">
+            Erinnerung: {leaveReminderLabel?.trim() || "Bald losfahren"}
+          </p>
+        ) : null}
 
-        <aside className="space-y-4">
-          {showWeather ? (
-            <WeatherSection
-              weather={overview.weather.weather ?? view.weather}
-              emphasis="secondary"
-              showWeekStrip
-              focusTomorrow={eveningFocus}
-            />
-          ) : (
-            <Section title="Wetter" emphasis="tertiary">
-              <p className="text-lg text-[color:var(--quiet)]">
-                Wetter momentan nicht verfügbar.
-              </p>
-            </Section>
-          )}
+        {showWeather ? (
+          <WeatherSection
+            weather={weather}
+            emphasis="secondary"
+            showCurrent
+            showWeekStrip={false}
+            focusTomorrow={eveningFocus}
+          />
+        ) : null}
 
-          {showStandaloneBus ? (
-            <BusSection
-              bus={view.nextBus}
-              stopName={view.busStopName}
-              hasBusConfig={Boolean(view.busStopName) && busEnabled}
-              busEnabled={busEnabled}
-              message={busMessage}
-              emptyTitle="Du musst heute keinen Bus nehmen."
-              upcoming={busUpcoming}
-              simple
-              matchedToWork={busMatched || overview.bus.matchedToActivity}
-              offline={busOffline}
-              unavailable={busUnavailable}
-              dataAgeLabel={busDataAgeLabel}
-              arrivalStatus={overview.bus.status}
-              arrivalMessage={
-                overview.bus.status === "delayed"
-                  ? "Bus hat Verspätung"
-                  : overview.bus.status === "cancelled"
-                    ? null
-                    : overview.bus.message || null
-              }
-              emphasis="tertiary"
-            />
-          ) : null}
-        </aside>
-      </div>
-
-      {showWeek && workWeek ? (
-        <div className="animate-rise" style={{ animationDelay: "90ms" }}>
+        {showWeek && workWeek ? (
           <WorkWeekSection week={workWeek} today={wallNow} />
-        </div>
-      ) : null}
+        ) : null}
+
+        {showWeather ? (
+          <WeatherSection
+            weather={weather}
+            showCurrent={false}
+            showWeekStrip
+            focusTomorrow={eveningFocus}
+          />
+        ) : null}
+
+        {showCalendar ? (
+          <CalendarSection events={overview.appointments} compact />
+        ) : null}
+      </div>
     </div>
   );
 }

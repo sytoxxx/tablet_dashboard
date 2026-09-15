@@ -12,7 +12,6 @@ import {
   useGreetingBucket,
 } from "@/components/shared/daypart-greeting";
 import { DayFlowHero } from "@/components/person/day-flow-hero";
-import { BusSection } from "@/components/person/bus-section";
 import { WorkTravelSection } from "@/components/person/work-travel-section";
 import { MorningTimelineSection } from "@/components/person/morning-timeline-section";
 import { EveningPrepSection } from "@/components/person/evening-prep-section";
@@ -24,23 +23,27 @@ import { Section } from "@/components/section";
 import { resolveNextUpGlance } from "@/lib/morning/work-priority";
 import { WEEKDAY_LABELS } from "@/lib/format";
 import type { SchoolJarvisDailySummary } from "@/lib/integrations/school-jarvis/types";
+import { cn } from "@/lib/utils";
 
 /**
- * Levi day assistant: school / leave / next / weather+clothing / prep.
- * No work-week strip. Detailed clothing render-gated here only.
+ * Levi — shared quiet block language, school priorities.
+ *
+ * Order: Als Nächstes → Schule/Tagesplan → Wetter → Anfahrt (only if relevant)
+ * → Aufgaben/Termine → Wochenwetter.
+ * No work-week strip. No invented bus (walk is normal). Detailed clothing ✓.
  */
 export function LeviMorningDashboard({
   view,
   overview,
-  busMessage,
-  busEmptyTitle,
-  busUpcoming,
-  busMatched,
-  busIsTestData,
+  busMessage: _busMessage,
+  busEmptyTitle: _busEmptyTitle,
+  busUpcoming: _busUpcoming,
+  busMatched: _busMatched,
+  busIsTestData: _busIsTestData,
   busEnabled = true,
-  busOffline,
-  busUnavailable,
-  busDataAgeLabel,
+  busOffline: _busOffline,
+  busUnavailable: _busUnavailable,
+  busDataAgeLabel: _busDataAgeLabel,
   weatherPlace,
   schoolJarvisSummary: _schoolJarvisSummary = null,
   schoolJarvisHandoffUrl: _schoolJarvisHandoffUrl = null,
@@ -72,9 +75,19 @@ export function LeviMorningDashboard({
 }) {
   void _schoolJarvisSummary;
   void _schoolJarvisHandoffUrl;
+  void _busMessage;
+  void _busEmptyTitle;
+  void _busUpcoming;
+  void _busMatched;
+  void _busIsTestData;
+  void _busOffline;
+  void _busUnavailable;
+  void _busDataAgeLabel;
+  void busEnabled;
 
   const greetingBucket = useGreetingBucket();
   const dayLabel = overview.focusIsTomorrow ? "Morgen" : "Heute";
+  const eveningFocus = overview.focusIsTomorrow;
 
   const showMitnehmen =
     overview.visibility.itemsToTake && !overview.focusIsTomorrow;
@@ -88,24 +101,23 @@ export function LeviMorningDashboard({
     overview.visibility.importantTasks &&
     overview.importantTasks.length > 0 &&
     !overview.focusIsTomorrow;
-  const showTimeline = overview.visibility.timeline && !overview.focusIsTomorrow;
+  const showTimeline =
+    overview.visibility.timeline && !overview.focusIsTomorrow;
   const showEveningPrep = overview.visibility.eveningPrep;
   const showWalkTravel =
     !overview.focusIsTomorrow &&
     overview.visibility.travelPlan &&
     overview.travelPlan?.mode === "walking" &&
-    overview.travelPlan.status === "on-time";
-  const showBus =
-    !showWalkTravel &&
-    !showTimeline &&
-    !overview.focusIsTomorrow &&
-    view.displayPrefs.showBus &&
-    overview.visibility.bus;
+    overview.travelPlan.status === "on-time" &&
+    Boolean(overview.travelPlan.leaveHome);
+  // Never invent a bus block for school walk — only real walk leave when relevant.
+  const showAnfahrt = showWalkTravel && !showTimeline;
   const showWeather =
     view.displayPrefs.showWeather &&
     (overview.visibility.weather ||
       Boolean(overview.weather.weather ?? view.weather));
-  const showNext =
+  const weather = overview.weather.weather ?? view.weather;
+  const showSchoolPlan =
     overview.visibility.nextActivity && !overview.focusIsTomorrow;
 
   const leaveIsUrgent =
@@ -121,7 +133,7 @@ export function LeviMorningDashboard({
 
   const nextUp = resolveNextUpGlance({
     isWorking: false,
-    isFree: !showNext && !showWalkTravel && !showTimeline,
+    isFree: !showSchoolPlan && !showWalkTravel && !showTimeline,
     focusIsTomorrow: overview.focusIsTomorrow,
     leaveHome:
       showWalkTravel || showTimeline
@@ -132,16 +144,20 @@ export function LeviMorningDashboard({
     coffeeMessage: overview.coffee.message,
   });
 
+  const showNextUp =
+    !showEveningPrep || !nextUp.title.includes("nichts Dringendes");
+
   return (
     <div
-      className={cnShell(
-        greetingBucket,
-        overview.focusIsTomorrow,
+      className={cn(
+        "morning-shell mx-auto flex w-full max-w-3xl flex-col gap-5 px-5 py-5 sm:gap-6 sm:px-8 sm:py-6 lg:max-w-4xl lg:px-10 landscape-tablet:max-w-5xl landscape-tablet:gap-5 landscape-tablet:py-5",
+        daypartShellClass(greetingBucket),
+        eveningFocus ? "daypart-evening" : "",
       )}
     >
       <MorningNav />
 
-      <header className="flex flex-col gap-2 sm:flex-row sm:items-end sm:justify-between">
+      <header className="animate-rise flex flex-col gap-2 sm:flex-row sm:items-end sm:justify-between">
         <div className="min-w-0 space-y-1">
           <p className="text-sm tracking-[0.14em] text-[color:var(--quiet)] uppercase">
             {WEEKDAY_LABELS[view.weekdayKey]} · {dayLabel} · Schule
@@ -155,132 +171,111 @@ export function LeviMorningDashboard({
         <LiveClock className="sm:text-right" />
       </header>
 
-      <div className="grid gap-4 landscape-tablet:grid-cols-[1.4fr_1fr] landscape-tablet:gap-4 lg:grid-cols-[1.4fr_1fr]">
-        <div className="space-y-4">
-          {showEveningPrep ? (
-            <EveningPrepSection
-              prep={overview.eveningPrep}
-              simple
-              digitalWardrobe={digitalWardrobe}
-              onExcludeCombination={onExcludeCombination}
-              onWardrobeChange={onWardrobeChange}
-            />
-          ) : null}
+      <div
+        className="animate-rise flex flex-col gap-5"
+        style={{ animationDelay: "60ms" }}
+      >
+        {showEveningPrep ? (
+          <EveningPrepSection
+            prep={overview.eveningPrep}
+            simple
+            digitalWardrobe={digitalWardrobe}
+            onExcludeCombination={onExcludeCombination}
+            onWardrobeChange={onWardrobeChange}
+          />
+        ) : null}
 
-          {showTimeline ? (
-            <MorningTimelineSection
-              timeline={overview.timeline}
-              reminderActive={leaveReminderActive}
-              reminderLabel={leaveReminderLabel}
-              emphasis={leaveIsUrgent || !showNext ? "hero" : "secondary"}
-            />
-          ) : null}
+        {showNextUp ? (
+          <NextUpSection
+            next={nextUp}
+            emphasis={
+              nextUp.title.includes("nichts Dringendes")
+                ? "tertiary"
+                : "hero"
+            }
+          />
+        ) : null}
 
-          {showNext ? (
-            <DayFlowHero
-              flow={view.dayFlow}
-              dominant={!showTimeline || !leaveIsUrgent}
-              title="Stundenplan"
-            />
-          ) : null}
+        {/* 2. Schule / Tagesplan */}
+        {showTimeline ? (
+          <MorningTimelineSection
+            timeline={overview.timeline}
+            reminderActive={leaveReminderActive}
+            reminderLabel={leaveReminderLabel}
+            emphasis={leaveIsUrgent ? "hero" : "secondary"}
+          />
+        ) : null}
 
-          {showWalkTravel && !showTimeline ? (
-            <WorkTravelSection
-              plan={overview.travelPlan}
-              leaveEmphasis="hero"
-            />
-          ) : null}
+        {showSchoolPlan ? (
+          <DayFlowHero
+            flow={view.dayFlow}
+            dominant={!showTimeline || !leaveIsUrgent}
+            title="Schule"
+          />
+        ) : null}
 
-          {!showEveningPrep ||
-          !(nextUp.title.includes("nichts Dringendes")) ? (
-            <NextUpSection next={nextUp} emphasis="secondary" />
-          ) : null}
-
-          {showMitnehmen ? (
-            <Section title="Mitnehmen" emphasis="secondary">
-              {mitnehmenEmpty ? (
-                <p className="text-base text-[color:var(--quiet)]">
-                  {overview.itemsToTakeEmptyMessage ||
-                    "Heute nichts Besonderes mitnehmen."}
-                </p>
-              ) : (
-                <ul className="flex flex-wrap gap-x-3 gap-y-2 text-xl font-medium">
-                  {overview.itemsToTake.map((item) => (
-                    <li
-                      key={item}
-                      className="rounded-2xl bg-[color:var(--bg)]/70 px-4 py-2"
-                    >
-                      {item}
-                    </li>
-                  ))}
-                </ul>
-              )}
-            </Section>
-          ) : null}
-
-          {showCalendar ? (
-            <CalendarSection events={overview.appointments} compact />
-          ) : null}
-        </div>
-
-        <aside className="grid gap-3 content-start sm:grid-cols-2 landscape-tablet:grid-cols-1">
-          {/* Detailed clothing: Levi-only render gate */}
-          {showWeather ? (
-            <WeatherSection
-              weather={overview.weather.weather ?? view.weather}
-              place={weatherPlace}
-              showDetailedClothing
-              showWeekStrip
-              focusTomorrow={overview.focusIsTomorrow}
-              emphasis="secondary"
-            />
-          ) : (
-            <Section title="Wetter" emphasis="tertiary">
-              <p className="text-lg text-[color:var(--quiet)]">
-                Wetter momentan nicht verfügbar.
+        {showMitnehmen ? (
+          <Section title="Mitnehmen" emphasis="secondary">
+            {mitnehmenEmpty ? (
+              <p className="text-base text-[color:var(--quiet)]">
+                {overview.itemsToTakeEmptyMessage ||
+                  "Heute nichts Besonderes mitnehmen."}
               </p>
-            </Section>
-          )}
+            ) : (
+              <ul className="flex flex-wrap gap-x-3 gap-y-2 text-xl font-medium">
+                {overview.itemsToTake.map((item) => (
+                  <li
+                    key={item}
+                    className="rounded-2xl bg-[color:var(--bg)]/70 px-4 py-2"
+                  >
+                    {item}
+                  </li>
+                ))}
+              </ul>
+            )}
+          </Section>
+        ) : null}
 
-          {showTasks ? (
-            <TasksSection tasks={overview.importantTasks} morningOnly />
-          ) : null}
+        {/* 3. Wetter (+ Levi clothing) */}
+        {showWeather ? (
+          <WeatherSection
+            weather={weather}
+            place={weatherPlace}
+            showDetailedClothing
+            showCurrent
+            showWeekStrip={false}
+            focusTomorrow={eveningFocus}
+            emphasis="secondary"
+          />
+        ) : null}
 
-          {showBus ? (
-            <BusSection
-              bus={view.nextBus}
-              stopName={view.busStopName}
-              hasBusConfig={Boolean(view.busStopName) && busEnabled}
-              busEnabled={busEnabled}
-              message={busMessage}
-              emptyTitle={
-                overview.bus.status === "none"
-                  ? "Du musst heute keinen Bus nehmen."
-                  : busEmptyTitle
-              }
-              upcoming={busUpcoming}
-              matchedToWork={busMatched || overview.bus.matchedToActivity}
-              isTestData={busIsTestData}
-              offline={busOffline}
-              unavailable={busUnavailable}
-              dataAgeLabel={busDataAgeLabel}
-              arrivalStatus={overview.bus.status}
-              arrivalMessage={overview.bus.message || null}
-              scheduleNote={overview.bus.scheduleNote}
-              emphasis="tertiary"
-            />
-          ) : null}
-        </aside>
+        {/* 4. Anfahrt — walk leave only when relevant; never invent bus */}
+        {showAnfahrt ? (
+          <WorkTravelSection
+            plan={overview.travelPlan}
+            leaveEmphasis="secondary"
+          />
+        ) : null}
+
+        {/* 5. Aufgaben / Termine */}
+        {showTasks ? (
+          <TasksSection tasks={overview.importantTasks} morningOnly />
+        ) : null}
+
+        {showCalendar ? (
+          <CalendarSection events={overview.appointments} compact />
+        ) : null}
+
+        {/* 6. Wochenwetter */}
+        {showWeather ? (
+          <WeatherSection
+            weather={weather}
+            showCurrent={false}
+            showWeekStrip
+            focusTomorrow={eveningFocus}
+          />
+        ) : null}
       </div>
     </div>
   );
-}
-
-function cnShell(
-  bucket: ReturnType<typeof useGreetingBucket>,
-  focusTomorrow: boolean,
-): string {
-  const base =
-    "morning-shell mx-auto flex w-full max-w-6xl flex-col gap-4 px-5 py-4 sm:gap-5 sm:px-8 sm:py-5 lg:px-10 landscape-tablet:gap-3 landscape-tablet:py-3";
-  return `${base} ${daypartShellClass(bucket)}${focusTomorrow ? " daypart-evening" : ""}`;
 }

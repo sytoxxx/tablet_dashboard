@@ -51,6 +51,7 @@ export function WeatherSection({
   showDetailedClothing = false,
   emphasis = "secondary",
   showWeekStrip = true,
+  showCurrent = true,
   focusTomorrow = false,
   className,
 }: {
@@ -61,6 +62,8 @@ export function WeatherSection({
   showDetailedClothing?: boolean;
   /** Compact Mo–So strip (all profiles). */
   showWeekStrip?: boolean;
+  /** Current / afternoon / tip / clothing. Set false to render week strip alone. */
+  showCurrent?: boolean;
   /** Evening / night: surface tomorrow when week data exists. */
   focusTomorrow?: boolean;
   emphasis?: ClarityEmphasis;
@@ -115,62 +118,66 @@ export function WeatherSection({
   const primaryLabel = useTomorrow ? "Morgen" : "Jetzt";
   const clothingTitle = useTomorrow ? "Kleidung morgen" : "Kleidung";
 
+  if (!showCurrent && !(showWeekStrip && week)) return null;
+
   return (
-    <div className={cn("space-y-4", className)}>
-      <Section title={weatherTitle} emphasis={emphasis}>
-        {hasNow ? (
-          <div>
-            <div
-              className={cn(
-                "grid gap-6",
-                hasAfternoon ? "grid-cols-2" : "grid-cols-1",
-              )}
-            >
-              <div>
-                <p className="font-display text-5xl tabular-nums tracking-tight sm:text-6xl">
-                  <span className="mr-1 text-4xl sm:text-5xl" aria-hidden>
-                    {nowEmoji}
-                  </span>
-                  {Math.round(primaryTemp!)}°
-                </p>
-                <p className="mt-2 text-base text-[color:var(--quiet)]">
-                  {primaryLabel}
-                </p>
-                {rainLabel(rainNow) ? (
-                  <p className="mt-1 text-sm text-[color:var(--quiet)]">
-                    {rainLabel(rainNow)}
-                  </p>
-                ) : null}
-              </div>
-              {hasAfternoon ? (
+    <div className={cn("space-y-5", className)}>
+      {showCurrent ? (
+        <Section title={weatherTitle} emphasis={emphasis}>
+          {hasNow ? (
+            <div>
+              <div
+                className={cn(
+                  "grid gap-6",
+                  hasAfternoon ? "grid-cols-2" : "grid-cols-1",
+                )}
+              >
                 <div>
                   <p className="font-display text-5xl tabular-nums tracking-tight sm:text-6xl">
                     <span className="mr-1 text-4xl sm:text-5xl" aria-hidden>
-                      {afternoonEmoji}
+                      {nowEmoji}
                     </span>
-                    {Math.round(afternoonTemp!)}°
+                    {Math.round(primaryTemp!)}°
                   </p>
                   <p className="mt-2 text-base text-[color:var(--quiet)]">
-                    {afternoonLabel}
+                    {primaryLabel}
                   </p>
-                  {rainLabel(rainAfternoon) ? (
+                  {rainLabel(rainNow) ? (
                     <p className="mt-1 text-sm text-[color:var(--quiet)]">
-                      {rainLabel(rainAfternoon)}
+                      {rainLabel(rainNow)}
                     </p>
                   ) : null}
                 </div>
+                {hasAfternoon ? (
+                  <div>
+                    <p className="font-display text-5xl tabular-nums tracking-tight sm:text-6xl">
+                      <span className="mr-1 text-4xl sm:text-5xl" aria-hidden>
+                        {afternoonEmoji}
+                      </span>
+                      {Math.round(afternoonTemp!)}°
+                    </p>
+                    <p className="mt-2 text-base text-[color:var(--quiet)]">
+                      {afternoonLabel}
+                    </p>
+                    {rainLabel(rainAfternoon) ? (
+                      <p className="mt-1 text-sm text-[color:var(--quiet)]">
+                        {rainLabel(rainAfternoon)}
+                      </p>
+                    ) : null}
+                  </div>
+                ) : null}
+              </div>
+              {shortTip ? (
+                <p className="mt-5 text-lg text-[color:var(--ink)]">{shortTip}</p>
               ) : null}
             </div>
-            {shortTip ? (
-              <p className="mt-5 text-lg text-[color:var(--ink)]">{shortTip}</p>
-            ) : null}
-          </div>
-        ) : (
-          <p className="text-lg text-[color:var(--quiet)]">
-            Wetter momentan nicht verfügbar.
-          </p>
-        )}
-      </Section>
+          ) : (
+            <p className="text-lg text-[color:var(--quiet)]">
+              Wetter momentan nicht verfügbar.
+            </p>
+          )}
+        </Section>
+      ) : null}
 
       {showWeekStrip && week ? (
         <Section title="Wetter diese Woche" emphasis="tertiary">
@@ -215,7 +222,7 @@ export function WeatherSection({
         </Section>
       ) : null}
 
-      {detailed ? (
+      {showCurrent && detailed ? (
         <Section title={clothingTitle} emphasis="tertiary">
           <p className="text-xl font-medium text-[color:var(--ink)]">
             {detailed}
