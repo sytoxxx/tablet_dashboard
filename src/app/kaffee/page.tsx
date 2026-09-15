@@ -1,13 +1,17 @@
 "use client";
 
-import { CoffeeArea } from "@/components/coffee/coffee-area";
-import { useAppData } from "@/components/providers/data-provider";
+import { CoffeeShell } from "@/components/coffee/coffee-shell";
+import { CoffeeHome } from "@/components/coffee/coffee-home";
 
 export default function KaffeePage() {
-  const { data } = useAppData();
   return (
     <main>
-      <CoffeeArea drinks={data.coffeeDrinks} />
+      <CoffeeShell
+        title="Dein Kaffee-Dashboard"
+        subtitle="Heute und diese Woche auf einen Blick — ruhig, ohne Tabellen."
+      >
+        <CoffeeHome />
+      </CoffeeShell>
     </main>
   );
 }
