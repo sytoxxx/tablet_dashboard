@@ -197,19 +197,10 @@ export function LeviMorningDashboard({
         ) : null}
 
         {/* 2. Schule / Tagesplan */}
-        {showTimeline ? (
-          <MorningTimelineSection
-            timeline={overview.timeline}
-            reminderActive={leaveReminderActive}
-            reminderLabel={leaveReminderLabel}
-            emphasis={leaveIsUrgent ? "hero" : "secondary"}
-          />
-        ) : null}
-
         {showSchoolPlan ? (
           <DayFlowHero
             flow={view.dayFlow}
-            dominant={!showTimeline || !leaveIsUrgent}
+            dominant={!leaveIsUrgent}
             title="Schule"
           />
         ) : null}
@@ -249,7 +240,16 @@ export function LeviMorningDashboard({
           />
         ) : null}
 
-        {/* 4. Anfahrt — walk leave only when relevant; never invent bus */}
+        {/* 4. Anfahrt — timeline / walk leave only when relevant; never invent bus */}
+        {showTimeline ? (
+          <MorningTimelineSection
+            timeline={overview.timeline}
+            reminderActive={leaveReminderActive}
+            reminderLabel={leaveReminderLabel}
+            emphasis={leaveIsUrgent ? "hero" : "secondary"}
+          />
+        ) : null}
+
         {showAnfahrt ? (
           <WorkTravelSection
             plan={overview.travelPlan}
