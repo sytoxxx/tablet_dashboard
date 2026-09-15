@@ -208,6 +208,16 @@ function sanitizePerson(raw: unknown, fallback: PersonProfile): PersonProfile | 
             fallback.weather.clothingTip,
             160,
           ),
+          afternoonTempC:
+            typeof raw.weather.afternoonTempC === "number" &&
+            Number.isFinite(raw.weather.afternoonTempC)
+              ? raw.weather.afternoonTempC
+              : fallback.weather.afternoonTempC,
+          afternoonLabel: sanitizeString(
+            raw.weather.afternoonLabel,
+            fallback.weather.afternoonLabel ?? "",
+            8,
+          ) || fallback.weather.afternoonLabel,
         }
       : fallback.weather,
     personalSettings: isObject(raw.personalSettings)

@@ -190,12 +190,12 @@ export function LeviMorningDashboard({
         </div>
 
         <aside className="grid gap-3 content-start sm:grid-cols-2 landscape-tablet:grid-cols-1">
-          {/* Clothing tip: render gate — Levi only (this dashboard). */}
+          {/* Short tip for all; detailed Kleidung Levi-only (render gate). */}
           {showWeather ? (
             <WeatherSection
               weather={overview.weather.weather ?? view.weather}
               place={weatherPlace}
-              showClothingTip
+              showDetailedClothing
               emphasis="secondary"
             />
           ) : null}

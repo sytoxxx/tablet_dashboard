@@ -255,13 +255,15 @@ describe("weather clothing tips", () => {
   });
 
   it("hot → light clothes", () => {
-    expect(clothingRecommendation({ temperatureC: 28 })).toMatch(/Leichte Kleidung/i);
+    expect(clothingRecommendation({ temperatureC: 28 })).toMatch(
+      /Leichte Kleidung/i,
+    );
   });
 
   it("snow → warm clothes", () => {
-    expect(clothingRecommendation({ temperatureC: -2, weatherCode: 71 })).toMatch(
-      /Warme Kleidung/i,
-    );
+    expect(
+      clothingRecommendation({ temperatureC: -2, weatherCode: 71 }),
+    ).toMatch(/Warme Jacke/i);
   });
 
   it("heavy rain → rain jacket", () => {

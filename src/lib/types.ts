@@ -160,6 +160,10 @@ export type WeatherSettings = {
   summary: string;
   temperatureC: number;
   clothingTip: string;
+  /** Optional ~afternoon sample when known from forecast/seed. */
+  afternoonTempC?: number;
+  /** Clock label for afternoonTempC, e.g. "14:00". */
+  afternoonLabel?: string;
 };
 
 export type PersonalSettings = {

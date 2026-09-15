@@ -3,6 +3,7 @@
 import type { DayIntelligenceView } from "@/lib/day/intelligence";
 import type { MorningOverview } from "@/lib/morning/types";
 import type { WardrobeCatalog } from "@/lib/wardrobe/model";
+import type { WeekdayKey, WorkShiftDay } from "@/lib/types";
 import type { WorkTravelLive } from "@/hooks/use-bus-live";
 import { MorningNav } from "@/components/shared/morning-nav";
 import { LiveClock } from "@/components/shared/live-clock";
@@ -10,13 +11,14 @@ import { WorkShiftSection } from "@/components/person/work-shift";
 import { WorkTravelSection } from "@/components/person/work-travel-section";
 import { BusSection } from "@/components/person/bus-section";
 import { WeatherSection } from "@/components/person/weather-section";
+import { WorkWeekSection } from "@/components/person/work-week-section";
 import { formatGermanDate, WEEKDAY_LABELS } from "@/lib/format";
 import { cn } from "@/lib/utils";
 
 /**
  * Extreme reduction for Birgit & Heidi:
- * Greeting → Heute → Losfahren → Nächster Bus → Wetter.
- * No clothing, no calendar, no wardrobe, no evening prep chrome.
+ * Greeting → Heute → Losfahren → Nächster Bus → Wetter(+short tip) → Meine Woche.
+ * No detailed clothing. Week strip is Birgit/Heidi-only (this dashboard).
  */
 export function SimpleMorningDashboard({
   view,
@@ -34,9 +36,9 @@ export function SimpleMorningDashboard({
   busDataAgeLabel,
   weatherPlace,
   workTravel,
+  workWeek = null,
   leaveReminderActive = false,
   leaveReminderLabel = null,
-  // Wardrobe props kept for call-site compatibility — never rendered here.
   digitalWardrobe: _digitalWardrobe = null,
   onExcludeCombination: _onExcludeCombination,
   onWardrobeChange: _onWardrobeChange,
@@ -56,6 +58,8 @@ export function SimpleMorningDashboard({
   busDataAgeLabel?: string | null;
   weatherPlace?: string | null;
   workTravel?: WorkTravelLive | null;
+  /** Work schedule week — enables Meine Woche (Birgit/Heidi only). */
+  workWeek?: Partial<Record<WeekdayKey, WorkShiftDay>> | null;
   leaveReminderActive?: boolean;
   leaveReminderLabel?: string | null;
   digitalWardrobe?: WardrobeCatalog | null;
@@ -70,6 +74,7 @@ export function SimpleMorningDashboard({
   const showWeather =
     view.displayPrefs.showWeather && overview.visibility.weather;
   const showBus = view.displayPrefs.showBus && overview.visibility.bus;
+  const showWeek = Boolean(workWeek) && mode === "work";
 
   const useWorkTravel =
     mode === "work" &&
@@ -145,14 +150,10 @@ export function SimpleMorningDashboard({
           {showWeather ? (
             <WeatherSection
               weather={overview.weather.weather ?? view.weather}
-              simple
-              place={weatherPlace}
-              showClothingTip={false}
               emphasis="secondary"
             />
           ) : null}
 
-          {/* Standalone bus only when work-travel did not already cover it */}
           {showBus && !useWorkTravel ? (
             <BusSection
               bus={view.nextBus}
@@ -185,6 +186,13 @@ export function SimpleMorningDashboard({
           ) : null}
         </aside>
       </div>
+
+      {/* Meine Woche — Birgit/Heidi only (this component never mounts for Levi). */}
+      {showWeek && workWeek ? (
+        <div className="animate-rise" style={{ animationDelay: "90ms" }}>
+          <WorkWeekSection week={workWeek} today={wallNow} />
+        </div>
+      ) : null}
     </div>
   );
 }

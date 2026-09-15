@@ -122,7 +122,9 @@ export const seedPersons: PersonProfile[] = [
     weather: {
       summary: "Leicht bewölkt",
       temperatureC: 14,
-      clothingTip: "🧥 Jacke mitnehmen",
+      clothingTip: "Eine dünne Jacke reicht.",
+      afternoonTempC: 18,
+      afternoonLabel: "14:00",
     },
     personalSettings: { preferredCoffee: "espresso", notes: "Schultasche am Abend packen." },
     // No bus on the school commute — leave-time comes from walking travel plan.
@@ -177,7 +179,9 @@ export const seedPersons: PersonProfile[] = [
     weather: {
       summary: "Kühl und klar",
       temperatureC: 9,
-      clothingTip: "🧥 Jacke mitnehmen",
+      clothingTip: "Jacke empfehlenswert.",
+      afternoonTempC: 14,
+      afternoonLabel: "14:00",
     },
     personalSettings: { preferredCoffee: "cappuccino", notes: "Schlüsselbund mit Chip." },
     displayPrefs: { showBus: true, showWeather: true, showCalendar: true, showTasks: true },
@@ -233,7 +237,9 @@ export const seedPersons: PersonProfile[] = [
     weather: {
       summary: "Sonnig",
       temperatureC: 17,
-      clothingTip: "👕 Leichte Kleidung",
+      clothingTip: "Eine dünne Jacke reicht.",
+      afternoonTempC: 22,
+      afternoonLabel: "14:00",
     },
     personalSettings: { preferredCoffee: "latte", notes: "Ruhiger Vormittag bevorzugen." },
     displayPrefs: { showBus: true, showWeather: true, showCalendar: true, showTasks: true },

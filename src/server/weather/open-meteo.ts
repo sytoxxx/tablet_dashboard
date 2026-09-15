@@ -2,6 +2,7 @@ import type { WeatherServiceProvider, WeatherQuery } from "@/server/weather/type
 import type { WeatherSnapshot } from "@/lib/types";
 import {
   clothingRecommendation,
+  pickNearestAfternoonTemp,
   toWeatherSnapshot,
   weatherCodeLabel,
 } from "@/lib/weather/clothing";
@@ -18,6 +19,7 @@ export class OpenMeteoWeatherProvider implements WeatherServiceProvider {
       latitude: String(query.latitude),
       longitude: String(query.longitude),
       current: "temperature_2m,weather_code,precipitation",
+      hourly: "temperature_2m",
       daily: "temperature_2m_max,temperature_2m_min,precipitation_sum",
       timezone: "Europe/Vienna",
       forecast_days: "1",
@@ -39,6 +41,10 @@ export class OpenMeteoWeatherProvider implements WeatherServiceProvider {
           weather_code?: number;
           precipitation?: number;
         };
+        hourly?: {
+          time?: string[];
+          temperature_2m?: Array<number | null>;
+        };
         daily?: {
           temperature_2m_max?: number[];
           temperature_2m_min?: number[];
@@ -47,7 +53,9 @@ export class OpenMeteoWeatherProvider implements WeatherServiceProvider {
       };
 
       const temp = json.current?.temperature_2m;
-      if (typeof temp !== "number") throw new Error("Keine Temperatur");
+      if (typeof temp !== "number" || !Number.isFinite(temp)) {
+        throw new Error("Keine Temperatur");
+      }
 
       const code = json.current?.weather_code ?? 1;
       const rain =
@@ -57,6 +65,11 @@ export class OpenMeteoWeatherProvider implements WeatherServiceProvider {
         rainMm: rain,
         weatherCode: code,
       });
+      const afternoon = pickNearestAfternoonTemp(
+        json.hourly?.time,
+        json.hourly?.temperature_2m,
+        14,
+      );
 
       return toWeatherSnapshot({
         temperatureC: temp,
@@ -65,6 +78,8 @@ export class OpenMeteoWeatherProvider implements WeatherServiceProvider {
         rainMm: rain,
         tempMaxC: json.daily?.temperature_2m_max?.[0],
         tempMinC: json.daily?.temperature_2m_min?.[0],
+        afternoonTempC: afternoon?.tempC,
+        afternoonLabel: afternoon?.label,
         source: "live",
       });
     } catch {
@@ -77,8 +92,8 @@ export class OpenMeteoWeatherProvider implements WeatherServiceProvider {
       }
       return toWeatherSnapshot({
         temperatureC: 12,
-        summary: "Wetter gerade nicht verfügbar",
-        clothingTip: "🧥 Jacke empfohlen",
+        summary: "Wetter momentan nicht verfügbar",
+        clothingTip: clothingRecommendation({ temperatureC: 12 }),
         source: "local",
       });
     } finally {
