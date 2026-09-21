@@ -10,6 +10,8 @@ type ProfileTileProps = {
   hint: string;
   accent: string;
   avatar?: string;
+  /** Real profile photo — shown instead of the initials badge when present. */
+  avatarImageSrc?: string;
   delayMs?: number;
   personId?: PersonId;
 };
@@ -20,6 +22,7 @@ export function ProfileTile({
   hint,
   accent,
   avatar,
+  avatarImageSrc,
   delayMs = 0,
   personId,
 }: ProfileTileProps) {
@@ -50,7 +53,15 @@ export function ProfileTile({
         <span className="font-display text-4xl tracking-tight sm:text-5xl landscape-tablet:text-[3rem]">
           {name}
         </span>
-        {avatar ? (
+        {avatarImageSrc ? (
+          // eslint-disable-next-line @next/next/no-img-element
+          <img
+            src={avatarImageSrc}
+            alt=""
+            aria-hidden
+            className="size-14 shrink-0 rounded-full border border-[color:var(--hairline)] object-cover sm:size-16"
+          />
+        ) : avatar ? (
           <span
             className="flex size-11 shrink-0 items-center justify-center rounded-full text-sm font-semibold text-white"
             style={{ background: accent }}

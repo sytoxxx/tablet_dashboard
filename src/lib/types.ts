@@ -22,6 +22,13 @@ export type SchoolDay = {
   lessons: SchoolLesson[];
 };
 
+/**
+ * Explicit day status — "work" when omitted, for backward compatibility with
+ * plans saved before this field existed. Non-"work" days carry no real
+ * start/end/location; never invent times for a day off.
+ */
+export type WorkDayStatus = "work" | "free" | "vacation" | "sick" | "other";
+
 export type WorkShiftDay = {
   label: string;
   start: string;
@@ -29,6 +36,23 @@ export type WorkShiftDay = {
   location: string;
   notes?: string;
   bringItems?: string[];
+  status?: WorkDayStatus;
+};
+
+/**
+ * A real, dated work-plan entry — e.g. from an uploaded monthly roster.
+ * Takes priority over the recurring weekday `week` pattern for its date.
+ * `date` is an ISO "YYYY-MM-DD" (local calendar date, not a timestamp).
+ */
+export type WorkPlanEntry = {
+  date: string;
+  label: string;
+  start: string;
+  end: string;
+  location: string;
+  notes?: string;
+  bringItems?: string[];
+  status: WorkDayStatus;
 };
 
 export type PersonalBlock = {
@@ -45,7 +69,12 @@ export type PersonalDay = {
 
 export type Schedule =
   | { type: "school"; week: Partial<Record<WeekdayKey, SchoolDay>> }
-  | { type: "work"; week: Partial<Record<WeekdayKey, WorkShiftDay>> }
+  | {
+      type: "work";
+      week: Partial<Record<WeekdayKey, WorkShiftDay>>;
+      /** Real dated entries (e.g. an uploaded monthly roster) — take priority over `week` for their date. */
+      entries?: WorkPlanEntry[];
+    }
   | { type: "personal"; week: Partial<Record<WeekdayKey, PersonalDay>> };
 
 export type Appointment = {
@@ -210,6 +239,8 @@ export type PersonProfile = {
   id: PersonId;
   name: string;
   avatar: string;
+  /** Custom profile photo (data URL or local /public path) — overrides the built-in default when set. */
+  avatarImageUrl?: string;
   hint: string;
   greeting: string;
   accent: string;
@@ -236,6 +267,8 @@ export type CoffeeDrink = {
   amounts: string;
   steps: string[];
   timerSeconds: number;
+  /** Real, admin-entered button text as printed on the machine — never invented. */
+  machineButtonLabel?: string;
 };
 
 export type AppData = {
@@ -325,6 +358,8 @@ export type TodayView = {
   scheduleType: Schedule["type"];
   displayName: string;
   avatar: string;
+  /** Resolved profile photo — the person's own image, or the built-in default. */
+  avatarImageUrl: string;
   hint: string;
   greeting: string;
   accent: string;

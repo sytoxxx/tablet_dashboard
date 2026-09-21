@@ -1,4 +1,4 @@
-import type { CoffeeBean, CoffeeBrew } from "@/lib/coffee/types";
+import type { CoffeeBean, CoffeeBrew, CoffeeBrewMethod } from "@/lib/coffee/types";
 import { computePeriodStats } from "@/lib/coffee/stats";
 
 export type CoffeeRecommendation = {
@@ -67,6 +67,32 @@ export function buildRecommendations(
   }
 
   return out;
+}
+
+/**
+ * Bean most often brewed for this method, from real saved brews only.
+ * Returns null when there is no usage history to base a suggestion on.
+ */
+export function recommendBeanForMethod(
+  beans: CoffeeBean[],
+  brews: CoffeeBrew[],
+  method: CoffeeBrewMethod,
+): CoffeeBean | null {
+  const counts = new Map<string, number>();
+  for (const b of brews) {
+    if (b.method !== method || !b.beanId) continue;
+    counts.set(b.beanId, (counts.get(b.beanId) ?? 0) + 1);
+  }
+  let bestId: string | null = null;
+  let bestCount = 0;
+  for (const [id, count] of counts) {
+    if (count > bestCount) {
+      bestId = id;
+      bestCount = count;
+    }
+  }
+  if (!bestId) return null;
+  return beans.find((b) => b.id === bestId) ?? null;
 }
 
 function formatWhen(iso: string): string {

@@ -1,13 +1,15 @@
 "use client";
 
+import { useState } from "react";
 import Link from "next/link";
 import { useCoffeeCommand } from "@/components/coffee/coffee-command-provider";
 import { EmptyState } from "@/components/empty-state";
 import { Skeleton } from "@/components/shared/skeleton";
 import { Button } from "@/components/ui/button";
+import type { CoffeeBean } from "@/lib/coffee/types";
 
 export function BeansList() {
-  const { ready, data, setActiveBeanId, removeBean } = useCoffeeCommand();
+  const { ready, data, setActiveBeanId, removeBean, updateBean } = useCoffeeCommand();
 
   if (!ready) {
     return (
@@ -63,6 +65,7 @@ export function BeansList() {
                   />
                   <Field label="Hinzugefügt" value={formatAdded(bean.addedAt)} />
                 </dl>
+                <GrindSettingField bean={bean} onSave={updateBean} />
                 <div className="flex flex-wrap gap-2 pt-1">
                   <Button
                     type="button"
@@ -93,6 +96,42 @@ export function BeansList() {
           })}
         </ul>
       )}
+    </div>
+  );
+}
+
+/** Mahlgrad je Bohne — gelernt aus echter Nutzung, kein globaler Standardwert. */
+function GrindSettingField({
+  bean,
+  onSave,
+}: {
+  bean: CoffeeBean;
+  onSave: (id: string, patch: Partial<CoffeeBean>) => void;
+}) {
+  const [draft, setDraft] = useState(bean.grindSetting ?? "");
+  const dirty = draft.trim() !== (bean.grindSetting ?? "");
+
+  return (
+    <div className="flex flex-wrap items-center gap-2 text-base text-[color:var(--quiet)]">
+      <label className="flex items-center gap-2">
+        <span>Mahlgrad:</span>
+        <input
+          value={draft}
+          onChange={(e) => setDraft(e.target.value.slice(0, 10))}
+          placeholder="z. B. 10"
+          className="h-10 w-24 rounded-xl bg-[color:var(--bg)] px-3 text-[color:var(--ink)] outline-none ring-[color:var(--brand)] focus:ring-2"
+        />
+      </label>
+      {dirty ? (
+        <Button
+          type="button"
+          size="sm"
+          className="h-10 rounded-xl"
+          onClick={() => onSave(bean.id, { grindSetting: draft.trim() || undefined })}
+        >
+          Speichern
+        </Button>
+      ) : null}
     </div>
   );
 }

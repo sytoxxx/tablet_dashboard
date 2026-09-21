@@ -3,6 +3,7 @@ import {
   ACTIVE_PERSON_STORAGE_KEY,
   clearActivePersonId,
   getActivePersonId,
+  hasManualOverrideToday,
   setActivePersonId,
 } from "@/lib/profile/active-person";
 import { isPersonId } from "@/components/providers/data-provider";
@@ -51,5 +52,17 @@ describe("active person profile switch", () => {
   it("rejects invalid stored values", () => {
     mem.set(ACTIVE_PERSON_STORAGE_KEY, "unknown");
     expect(getActivePersonId()).toBeNull();
+  });
+
+  it("records a manual pick as today's override, so auto-select must stand down", () => {
+    expect(hasManualOverrideToday()).toBe(false);
+    setActivePersonId("levi");
+    expect(hasManualOverrideToday()).toBe(true);
+  });
+
+  it("the override only holds for that Vienna calendar day", () => {
+    setActivePersonId("birgit");
+    const twoDaysLater = new Date(Date.now() + 2 * 24 * 60 * 60 * 1000);
+    expect(hasManualOverrideToday(twoDaysLater)).toBe(false);
   });
 });

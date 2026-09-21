@@ -376,6 +376,8 @@ function cancelledPlanShell(meta: {
 export async function planHeidiTripTravel(
   person: PersonProfile,
   now: Date,
+  workStart: string | null,
+  workEnd: string | null,
 ): Promise<{
   plan: TravelPlan | null;
   connections: TravelConnection[];
@@ -388,7 +390,6 @@ export async function planHeidiTripTravel(
     person.busStop?.externalId?.trim() || HEIDI_ORIGIN_REF;
   const dest =
     person.transitPrefs?.destinationStop?.externalId?.trim() || HEIDI_DEST_REF;
-  const workStart = prefs.desiredArrivalHHmm ?? null;
 
   const result = await fetchTriasTrips({
     originRef: origin,
@@ -422,7 +423,7 @@ export async function planHeidiTripTravel(
           prefs.destinationStop?.name ||
           "Apfelmoar Einkaufszentrum",
         workStart,
-        workEnd: null,
+        workEnd,
         walkToStopMinutes: earliestCancelled.walkToStopMinutes,
         stopToWorkMinutes: prefs.stopToWorkMinutes ?? 0,
         preparationMinutes: prefs.preparationMinutes ?? 0,
@@ -469,7 +470,7 @@ export async function planHeidiTripTravel(
         prefs.destinationStop?.name ||
         "Apfelmoar Einkaufszentrum",
       workStart,
-      workEnd: null,
+      workEnd,
       walkToStopMinutes: earliestCancelled.walkToStopMinutes,
       stopToWorkMinutes: prefs.stopToWorkMinutes ?? 0,
       preparationMinutes: prefs.preparationMinutes ?? 0,
@@ -495,7 +496,7 @@ export async function planHeidiTripTravel(
       prefs.destinationStop?.name ||
       "Apfelmoar Einkaufszentrum",
     workStart,
-    workEnd: null,
+    workEnd,
     walkToStopMinutes: primary.walkToStopMinutes,
     stopToWorkMinutes: prefs.stopToWorkMinutes ?? 0,
     preparationMinutes: prefs.preparationMinutes ?? 0,

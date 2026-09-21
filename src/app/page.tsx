@@ -3,11 +3,16 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { ProfileTile } from "@/components/profile-tile";
+import { personAvatarSrc } from "@/lib/profile/avatar";
 import { PrimaryNav } from "@/components/shared/primary-nav";
 import { DaypartGreeting } from "@/components/shared/daypart-greeting";
 import { useAppData } from "@/components/providers/data-provider";
+import { useDevTime } from "@/components/providers/dev-time-provider";
 import { OfflineBanner } from "@/components/admin/offline-banner";
 import { Skeleton } from "@/components/shared/skeleton";
+import { resolveAutoProfile } from "@/lib/profile/auto-select";
+import { hasManualOverrideToday } from "@/lib/profile/active-person";
+import { isAppHydrated } from "@/data/app-store";
 
 const ADMIN_HOLD_MS = 2200;
 
@@ -21,8 +26,30 @@ function roleHint(personId: string, fallback: string): string {
 export default function HomePage() {
   const { data } = useAppData();
   const router = useRouter();
+  const { now } = useDevTime();
   const holdTimer = useRef<number | null>(null);
   const [adminHint, setAdminHint] = useState(false);
+
+  // Auto-open the right profile from real schedule data — never while a
+  // manual pick already stands for today, and never on any page but this
+  // one, so an active session is never yanked to another profile mid-use.
+  // Re-evaluates whenever `now` ticks (~every 30s) or the schedule changes,
+  // so a tablet left open on this screen crosses 07:00/07:30/midnight cleanly.
+  useEffect(() => {
+    // Defer past the same-tick render churn around hydration (dev-mode
+    // double-effects, useSyncExternalStore's post-subscribe re-check) so we
+    // only ever act on the settled, real LocalStorage snapshot. A redirect
+    // fired on a stale pre-hydration render can't be un-fired by the next,
+    // correct render.
+    const id = window.setTimeout(() => {
+      if (!isAppHydrated()) return;
+      if (!data.persons.length) return;
+      if (hasManualOverrideToday(now)) return;
+      const target = resolveAutoProfile(data.persons, now);
+      if (target) router.replace(`/person/${target}`);
+    }, 0);
+    return () => window.clearTimeout(id);
+  }, [data.persons, now, router]);
 
   const clearHold = useCallback(() => {
     if (holdTimer.current !== null) {
@@ -91,6 +118,7 @@ export default function HomePage() {
             hint={roleHint(person.id, person.hint)}
             accent={person.accent}
             avatar={person.avatar}
+            avatarImageSrc={personAvatarSrc(person)}
             delayMs={80 + index * 70}
           />
         ))}

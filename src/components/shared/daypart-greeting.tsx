@@ -90,19 +90,21 @@ export function useGreetingBucket(): GreetingBucket {
   );
 
   useEffect(() => {
-    if (override) {
-      setBucket(greetingSnapshot(override).key);
-      return;
-    }
-    const apply = () => {
-      const next = greetingSnapshot(new Date()).key;
+    const apply = (now: Date) => {
+      const next = greetingSnapshot(now).key;
       setBucket((prev) => (prev === next ? prev : next));
     };
-    apply();
+
+    if (override) {
+      apply(override);
+      return;
+    }
+
+    apply(new Date());
     let timer: number | null = null;
     const schedule = () => {
       timer = window.setTimeout(() => {
-        apply();
+        apply(new Date());
         schedule();
       }, msUntilNextGreetingBucket(new Date()));
     };

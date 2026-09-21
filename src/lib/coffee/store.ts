@@ -49,6 +49,9 @@ function sanitizeBean(raw: unknown): CoffeeBean | null {
   else if (typeof raw.remainingGrams === "number" && Number.isFinite(raw.remainingGrams)) {
     bean.remainingGrams = Math.max(0, Math.min(50_000, Math.round(raw.remainingGrams)));
   }
+  if (typeof raw.grindSetting === "string" && raw.grindSetting.trim()) {
+    bean.grindSetting = raw.grindSetting.replace(/[<>]/g, "").trim().slice(0, 40);
+  }
   return bean;
 }
 

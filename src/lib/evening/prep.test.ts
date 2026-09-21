@@ -435,3 +435,57 @@ describe("no regressions", () => {
     expect(o.timeline).not.toBeNull();
   });
 });
+
+describe("evening prep — regression: tomorrow's context must use the real dated shift, not the weekday pattern", () => {
+  it("shows 'off' for tomorrow when a dated entry marks it Frei, even though the weekday pattern has a shift", () => {
+    const heidi = person("heidi");
+    if (heidi.schedule.type !== "work") throw new Error("expected work schedule");
+    // Monday evening -> Tuesday; Heidi's week pattern has a Tuesday shift ("Früher Termin").
+    const withDatedFree: typeof heidi = {
+      ...heidi,
+      schedule: {
+        ...heidi.schedule,
+        entries: [
+          { date: "2026-09-15", label: "Frei", start: "", end: "", location: "", status: "free" },
+        ],
+      },
+    };
+    const prep = buildEveningPrep({ person: withDatedFree, now: at(19, 0, 1) });
+    expect(prep.date).toBe("2026-09-15");
+    expect(prep.dayContext.kind).toBe("off");
+  });
+
+  it("shows tomorrow's real dated shift time, not the recurring weekday pattern's time", () => {
+    const heidi = person("heidi");
+    if (heidi.schedule.type !== "work") throw new Error("expected work schedule");
+    // Week pattern for Tuesday is 08:30–16:30 ("Früher Termin") — the real
+    // scanned roster says 07:15–15:00 for that exact date.
+    const withDatedShift: typeof heidi = {
+      ...heidi,
+      schedule: {
+        ...heidi.schedule,
+        entries: [
+          {
+            date: "2026-09-15",
+            label: "Vertretung",
+            start: "07:15",
+            end: "15:00",
+            location: "Apfelmoar",
+            status: "work",
+          },
+        ],
+      },
+    };
+    const prep = buildEveningPrep({ person: withDatedShift, now: at(19, 0, 1) });
+    expect(prep.dayContext.kind).toBe("work");
+    expect(prep.dayContext.timeRange).toBe("07:15–15:00");
+    expect(prep.dayContext.label).toBe("Vertretung");
+  });
+
+  it("without a dated override, still falls back to the recurring weekday pattern (no regression for Birgit)", () => {
+    const birgit = person("birgit");
+    const prep = buildEveningPrep({ person: birgit, now: at(19, 0, 1) });
+    expect(prep.dayContext.kind).toBe("work");
+    expect(prep.dayContext.timeRange).toBeTruthy();
+  });
+});

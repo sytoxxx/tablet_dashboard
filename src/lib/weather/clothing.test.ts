@@ -120,7 +120,7 @@ describe("buildWorkWeekGlance", () => {
 
   it("marks Arbeit with hours, Frei when explicit, Keine Daten when missing", () => {
     const today = new Date(2026, 8, 14); // Monday
-    const days = buildWorkWeekGlance(week, today);
+    const days = buildWorkWeekGlance({ type: "work", week }, today);
     expect(days).toHaveLength(7);
     expect(days[0]).toMatchObject({
       day: "mon",
@@ -142,7 +142,7 @@ describe("buildWorkWeekGlance", () => {
 
   it("never invents Frei for absent weekend keys", () => {
     const days = buildWorkWeekGlance(
-      { mon: week.mon! },
+      { type: "work", week: { mon: week.mon! } },
       new Date(2026, 8, 19),
     );
     expect(days.find((d) => d.day === "sat")?.statusLabel).toBe("Keine Daten");

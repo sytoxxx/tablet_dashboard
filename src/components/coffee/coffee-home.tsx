@@ -50,6 +50,14 @@ export function CoffeeHome() {
           size="lg"
           className="h-14 rounded-2xl px-6 text-base active:scale-[0.97]"
         >
+          <Link href="/kaffee/machen">☕ Kaffee machen</Link>
+        </Button>
+        <Button
+          asChild
+          variant="secondary"
+          size="lg"
+          className="h-14 rounded-2xl bg-[color:var(--surface)] px-6 text-base active:scale-[0.97]"
+        >
           <Link href="/kaffee/bruehen">Brühen</Link>
         </Button>
         <Button

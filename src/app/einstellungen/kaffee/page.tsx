@@ -9,7 +9,7 @@ export default function KaffeeSettingsPage() {
   const { data, updateCoffeeDrinks } = useAppData();
 
   return (
-    <AdminShell title="Kaffee" subtitle="Timer-Sekunden und Kurzbeschreibung.">
+    <AdminShell title="Kaffee" subtitle="Timer-Sekunden, Kurzbeschreibung und Maschinen-Taste.">
       <div className="space-y-8">
         {data.coffeeDrinks.map((drink, index) => (
           <form
@@ -33,6 +33,11 @@ export default function KaffeeSettingsPage() {
                         600,
                         Math.max(5, Number(fd.get("timerSeconds") || d.timerSeconds)),
                       ),
+                      machineButtonLabel:
+                        String(fd.get("machineButtonLabel") || "")
+                          .replace(/[<>]/g, "")
+                          .trim()
+                          .slice(0, 24) || undefined,
                     }
                   : d,
               );
@@ -65,6 +70,17 @@ export default function KaffeeSettingsPage() {
                 max={600}
                 defaultValue={drink.timerSeconds}
                 className="h-12 w-28 rounded-2xl bg-[color:var(--surface)] px-4 outline-none ring-[color:var(--brand)] focus:ring-2"
+              />
+            </label>
+            <label className="flex items-center gap-3">
+              <span className="text-sm text-[color:var(--quiet)]">
+                Maschinen-Taste (echte Beschriftung, z. B. ESPRESSO)
+              </span>
+              <input
+                name="machineButtonLabel"
+                defaultValue={drink.machineButtonLabel ?? ""}
+                placeholder="Nicht konfiguriert"
+                className="h-12 w-56 rounded-2xl bg-[color:var(--surface)] px-4 outline-none ring-[color:var(--brand)] focus:ring-2"
               />
             </label>
             <Button type="submit" size="lg" className="h-12 rounded-2xl">

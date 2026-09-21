@@ -3,7 +3,9 @@
 import type { DayIntelligenceView } from "@/lib/day/intelligence";
 import type { MorningOverview } from "@/lib/morning/types";
 import type { WardrobeCatalog } from "@/lib/wardrobe/model";
-import type { WeekdayKey, WorkShiftDay } from "@/lib/types";
+import type { Schedule } from "@/lib/types";
+
+type WorkSchedule = Extract<Schedule, { type: "work" }>;
 import type { WorkTravelLive } from "@/hooks/use-bus-live";
 import { MorningNav } from "@/components/shared/morning-nav";
 import { LiveClock } from "@/components/shared/live-clock";
@@ -51,7 +53,7 @@ export function SimpleMorningDashboard({
   busDataAgeLabel: _busDataAgeLabel,
   weatherPlace: _weatherPlace,
   workTravel,
-  workWeek = null,
+  workSchedule = null,
   leaveReminderActive = false,
   leaveReminderLabel = null,
   digitalWardrobe: _digitalWardrobe = null,
@@ -73,7 +75,7 @@ export function SimpleMorningDashboard({
   busDataAgeLabel?: string | null;
   weatherPlace?: string | null;
   workTravel?: WorkTravelLive | null;
-  workWeek?: Partial<Record<WeekdayKey, WorkShiftDay>> | null;
+  workSchedule?: WorkSchedule | null;
   leaveReminderActive?: boolean;
   leaveReminderLabel?: string | null;
   digitalWardrobe?: WardrobeCatalog | null;
@@ -112,7 +114,7 @@ export function SimpleMorningDashboard({
   const weather = overview.weather.weather ?? view.weather;
   // Meine Woche must stay visible for Birgit/Heidi — never hide for daypart/space.
   // Compact scroll lives in WorkWeekSection; gate only on having a work schedule.
-  const showWeek = Boolean(workWeek) && mode === "work";
+  const showWeek = Boolean(workSchedule) && mode === "work";
 
   const leaveKnown =
     priority.isWorking &&
@@ -168,22 +170,33 @@ export function SimpleMorningDashboard({
       <MorningNav quiet />
 
       <header className="animate-rise flex items-start justify-between gap-4 sm:gap-6 landscape-tablet:gap-5">
-        <div className="min-w-0 flex-1 space-y-0.5">
-          <p className="text-sm tracking-[0.14em] text-[color:var(--quiet)] uppercase landscape-tablet:text-xs">
-            {WEEKDAY_LABELS[view.weekdayKey]}
-            {overview.focusIsTomorrow ? " · Morgen" : " · Heute"}
-          </p>
-          <DaypartGreeting
-            name={overview.displayName}
-            className="font-display text-4xl leading-tight tracking-tight sm:text-5xl landscape-tablet:text-[2.5rem]"
-            style={{ color: view.accent }}
-          />
-          <p
-            className="text-base text-[color:var(--quiet)] sm:text-lg landscape-tablet:hidden"
-            suppressHydrationWarning
-          >
-            {formatGermanDate(wallNow)}
-          </p>
+        <div className="flex min-w-0 flex-1 items-center gap-3 sm:gap-4">
+          {view.avatarImageUrl ? (
+            // eslint-disable-next-line @next/next/no-img-element
+            <img
+              src={view.avatarImageUrl}
+              alt=""
+              aria-hidden
+              className="size-12 shrink-0 rounded-full border border-[color:var(--hairline)] object-cover sm:size-14 landscape-tablet:size-11"
+            />
+          ) : null}
+          <div className="min-w-0 flex-1 space-y-0.5">
+            <p className="text-sm tracking-[0.14em] text-[color:var(--quiet)] uppercase landscape-tablet:text-xs">
+              {WEEKDAY_LABELS[view.weekdayKey]}
+              {overview.focusIsTomorrow ? " · Morgen" : " · Heute"}
+            </p>
+            <DaypartGreeting
+              name={overview.displayName}
+              className="font-display text-4xl leading-tight tracking-tight sm:text-5xl landscape-tablet:text-[2.5rem]"
+              style={{ color: view.accent }}
+            />
+            <p
+              className="text-base text-[color:var(--quiet)] sm:text-lg landscape-tablet:hidden"
+              suppressHydrationWarning
+            >
+              {formatGermanDate(wallNow)}
+            </p>
+          </div>
         </div>
         <div className="flex shrink-0 flex-col items-end gap-1.5 sm:gap-2">
           {showWeather ? (
@@ -256,7 +269,7 @@ export function SimpleMorningDashboard({
           </p>
         ) : null}
 
-        {showWeek && workWeek ? (
+        {showWeek && workSchedule ? (
           <div
             className={cn(
               "landscape-tablet:col-span-2",
@@ -264,7 +277,7 @@ export function SimpleMorningDashboard({
                 "landscape-tablet:grid landscape-tablet:grid-cols-2 landscape-tablet:items-start landscape-tablet:gap-5",
             )}
           >
-            <WorkWeekSection week={workWeek} today={wallNow} compact />
+            <WorkWeekSection schedule={workSchedule} today={wallNow} compact />
             {showWeather ? (
               <WeatherSection
                 weather={weather}

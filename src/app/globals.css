@@ -140,19 +140,22 @@
     overflow-x: hidden;
   }
 
-  /* Evening ambiance foundation — calmer, deeper (not dark-mode product switch). */
+  /*
+   * Evening/night ambiance — a touch darker AND a touch warmer than the
+   * cool morning slate (not a dark-mode product switch, still very readable).
+   */
   .morning-shell.daypart-evening {
-    --bg: #d8dee8;
-    --bg-deep: #c5cdd9;
-    --surface: #eef1f6;
-    --quiet: #546274;
+    --bg: #e6e2d8;
+    --bg-deep: #d3d1c9;
+    --surface: #f6f3ec;
+    --quiet: #5a646c;
   }
 
   .morning-shell.daypart-night {
-    --bg: #cfd6e2;
-    --bg-deep: #b8c1d0;
-    --surface: #e8ecf3;
-    --quiet: #4a586a;
+    --bg: #ddd9d2;
+    --bg-deep: #c6c4c0;
+    --surface: #f0efe9;
+    --quiet: #505a62;
   }
 }
 

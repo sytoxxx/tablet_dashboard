@@ -5,6 +5,7 @@
  */
 import type { PersonProfile } from "@/lib/types";
 import { getWeekdayKey } from "@/lib/format";
+import { getWorkShiftForDate } from "@/lib/work/schedule";
 import type { DayOutfitSignals } from "@/lib/outfit/types";
 
 const WORKSHOP_RE =
@@ -36,10 +37,12 @@ export function collectDayTexts(
       if (lesson.room) subjects.push(lesson.room);
     }
   } else if (schedule.type === "work") {
-    const day = schedule.week[key];
-    if (day) {
-      titles.push(day.label);
-      if (day.notes) titles.push(day.notes);
+    // The real dated entry (from an uploaded roster) always wins over the
+    // recurring weekday pattern — same single source of truth as everywhere else.
+    const shift = getWorkShiftForDate(person, date);
+    if (shift) {
+      titles.push(shift.label);
+      if (shift.notes) titles.push(shift.notes);
     }
   } else {
     for (const block of schedule.week[key]?.blocks ?? []) {
@@ -70,9 +73,11 @@ export function detectDayOutfitSignals(input: {
   const presentationHit = all.find(textLooksLikePresentation) ?? null;
   const schoolDay =
     input.person.schedule.type === "school" && subjects.length > 0;
+  // The real dated entry always wins over the recurring weekday pattern —
+  // a day explicitly off (Frei/Urlaub/Krankenstand) must never read as a work day.
   const workDay =
     input.person.schedule.type === "work" &&
-    Boolean(input.person.schedule.week[getWeekdayKey(input.date)]);
+    getWorkShiftForDate(input.person, input.date) !== null;
 
   return {
     workshopDay,

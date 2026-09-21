@@ -18,7 +18,15 @@ export {
   beanLabel,
   computePeriodStats,
 } from "@/lib/coffee/stats";
-export { buildRecommendations } from "@/lib/coffee/recommendations";
+export {
+  buildRecommendations,
+  recommendBeanForMethod,
+} from "@/lib/coffee/recommendations";
+export {
+  guidedStepsForDrink,
+  type CoffeeGuidedStep,
+  type CoffeeGuidedStepKind,
+} from "@/lib/coffee/guided-steps";
 export {
   recipesFromDrinks,
   recipeForMethod,

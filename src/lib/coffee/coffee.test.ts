@@ -34,7 +34,10 @@ function brew(partial: Partial<CoffeeBrew> & Pick<CoffeeBrew, "id" | "brewedAt">
 
 describe("coffee stats", () => {
   it("counts today brews and most-drunk bean", () => {
+    // Anchored at noon so the ±1h / 36h offsets below never cross a midnight
+    // boundary regardless of when the suite runs.
     const now = new Date();
+    now.setHours(12, 0, 0, 0);
     const earlierToday = new Date(now.getTime() - 60 * 60 * 1000).toISOString();
     const alsoToday = new Date(now.getTime() - 30 * 60 * 1000).toISOString();
     const yesterday = new Date(now.getTime() - 36 * 60 * 60 * 1000).toISOString();
@@ -149,6 +152,19 @@ describe("coffee store normalize", () => {
     expect(data.beans[0]?.name).toBe("scriptYirg/script");
     expect(data.beans[0]?.roaster).toBe("AbB");
     expect(data.activeBeanId).toBe("b1");
+  });
+
+  it("keeps a trimmed grindSetting and drops an empty one", () => {
+    const data = normalizeCoffeeCommandData({
+      beans: [
+        { id: "b1", name: "Ethiopia", grindSetting: "  10  " },
+        { id: "b2", name: "Brazil", grindSetting: "   " },
+      ],
+      brews: [],
+      activeBeanId: null,
+    });
+    expect(data.beans[0]?.grindSetting).toBe("10");
+    expect(data.beans[1]?.grindSetting).toBeUndefined();
   });
 
   it("rejects brews with unparseable brewedAt", () => {

@@ -4,7 +4,7 @@ import type {
   SchoolDay,
   SchoolLesson,
   WeekdayKey,
-  WorkShiftDay,
+  WorkPlanEntry,
 } from "@/lib/types";
 import type { PlanDraft, SchoolPlanDraft, WorkPlanDraft } from "@/lib/plan-analysis/types";
 import { WEEKDAY_ORDER } from "@/lib/format";
@@ -35,24 +35,50 @@ function stripSchoolUncertainty(draft: SchoolPlanDraft): Partial<Record<WeekdayK
   return week;
 }
 
-function stripWorkUncertainty(draft: WorkPlanDraft): Partial<Record<WeekdayKey, WorkShiftDay>> {
-  const week: Partial<Record<WeekdayKey, WorkShiftDay>> = {};
-  for (const day of WEEKDAY_ORDER) {
-    const entry = draft.week[day];
-    if (!entry) continue;
-    const { uncertain, ...shift } = entry;
-    void uncertain;
-    week[day] = shift;
-  }
-  return week;
+/**
+ * Drops the analysis-only fields, keeping the real dated entry. Never
+ * applies a "work" row whose time couldn't be resolved — that would write a
+ * shift with an invented (empty) start/end into real data instead of
+ * surfacing it for review, which downstream bus/dashboard logic assumes is
+ * always a valid HH:MM. Such rows are excluded here as a last line of
+ * defense; the UI is expected to have already blocked confirming while any
+ * are unresolved.
+ */
+function stripWorkUncertainty(draft: WorkPlanDraft): WorkPlanEntry[] {
+  return draft.entries
+    .filter((e) => !(e.status === "work" && (!e.start || !e.end)))
+    .map(
+      ({
+        uncertain,
+        weekday,
+        code,
+        unresolvedCode,
+        timeUnclear,
+        confidence,
+        reviewed,
+        baseUncertain,
+        ...entry
+      }) => {
+        void uncertain;
+        void weekday;
+        void code;
+        void unresolvedCode;
+        void timeUnclear;
+        void confidence;
+        void reviewed;
+        void baseUncertain;
+        return entry;
+      },
+    );
 }
 
 function lessonLabel(lesson: SchoolLesson): string {
   return `${lesson.time} ${lesson.subject}`;
 }
 
-function shiftLabel(shift: WorkShiftDay): string {
-  return `${shift.start}–${shift.end} ${shift.label}`;
+function shiftLabel(entry: WorkPlanEntry): string {
+  if (entry.status !== "work") return entry.label;
+  return `${entry.start}–${entry.end} ${entry.label}`;
 }
 
 function filterIncomingByResolutions(
@@ -79,14 +105,13 @@ function filterIncomingByResolutions(
     return { ...draft, week };
   }
 
-  const week = structuredClone(draft.week);
-  for (const conflict of conflicts) {
-    const res = resolutions[conflictKey(conflict)] ?? "both";
-    if (res === "keep") {
-      delete week[conflict.day];
-    }
-  }
-  return { ...draft, week };
+  const keepDates = new Set(
+    conflicts
+      .filter((c) => (resolutions[conflictKey(c)] ?? "both") === "keep")
+      .map((c) => c.date),
+  );
+  if (keepDates.size === 0) return draft;
+  return { ...draft, entries: draft.entries.filter((e) => !keepDates.has(e.date)) };
 }
 
 function removeExistingTaken(
@@ -106,19 +131,19 @@ function removeExistingTaken(
   return next;
 }
 
-function removeExistingWorkTaken(
-  existing: Partial<Record<WeekdayKey, WorkShiftDay>>,
+/** Drops existing dated entries the user chose to overwrite ("take") ahead of a date-keyed merge. */
+function removeExistingWorkEntriesTaken(
+  existing: WorkPlanEntry[],
   conflicts: PlanConflict[],
   resolutions: Record<string, ConflictResolution>,
-): Partial<Record<WeekdayKey, WorkShiftDay>> {
-  const next = { ...existing };
-  for (const conflict of conflicts) {
-    const res = resolutions[conflictKey(conflict)] ?? "both";
-    if (res === "take") {
-      delete next[conflict.day];
-    }
-  }
-  return next;
+): WorkPlanEntry[] {
+  const takeDates = new Set(
+    conflicts
+      .filter((c) => (resolutions[conflictKey(c)] ?? "both") === "take")
+      .map((c) => c.date),
+  );
+  if (takeDates.size === 0) return existing;
+  return existing.filter((e) => !takeDates.has(e.date));
 }
 
 function mergeSchool(
@@ -149,35 +174,57 @@ function mergeSchool(
   return next;
 }
 
-function mergeWork(
-  existing: Partial<Record<WeekdayKey, WorkShiftDay>>,
-  incoming: Partial<Record<WeekdayKey, WorkShiftDay>>,
+/** Merge by exact date — a date present in both keeps/takes/combines per its conflict resolution. */
+function mergeWorkEntries(
+  existing: WorkPlanEntry[],
+  incoming: WorkPlanEntry[],
   conflicts: PlanConflict[],
   resolutions: Record<string, ConflictResolution>,
-): Partial<Record<WeekdayKey, WorkShiftDay>> {
-  const next = { ...existing };
-  for (const day of WEEKDAY_ORDER) {
-    const add = incoming[day];
-    if (!add) continue;
-    const conflict = conflicts.find((c) => c.day === day);
-    const res = conflict ? resolutions[conflictKey(conflict)] ?? "both" : undefined;
-    if (res === "both" && next[day]) {
-      const prev = next[day]!;
-      next[day] = {
+): WorkPlanEntry[] {
+  const byDate = new Map(existing.map((e) => [e.date, e]));
+  for (const add of incoming) {
+    const conflict = conflicts.find((c) => c.date === add.date);
+    const res = conflict ? (resolutions[conflictKey(conflict)] ?? "both") : undefined;
+    const prev = byDate.get(add.date);
+    if (res === "both" && prev) {
+      byDate.set(add.date, {
         ...prev,
         notes: [prev.notes, `Konflikt-Entwurf: ${shiftLabel(add)} @ ${add.location}`]
           .filter(Boolean)
           .join(" · "),
-      };
+      });
       continue;
     }
-    next[day] = add;
+    byDate.set(add.date, add);
   }
-  return next;
+  return [...byDate.values()].sort((a, b) => a.date.localeCompare(b.date));
+}
+
+/**
+ * Replace mode for dated entries: only the date range actually covered by
+ * the new upload is replaced — entries for other months are left alone, so
+ * uploading October's plan can never wipe September's.
+ */
+function replaceWorkEntriesInRange(
+  existing: WorkPlanEntry[],
+  incoming: WorkPlanEntry[],
+): WorkPlanEntry[] {
+  if (incoming.length === 0) return existing;
+  const dates = incoming.map((e) => e.date);
+  const minDate = dates.reduce((a, b) => (a < b ? a : b));
+  const maxDate = dates.reduce((a, b) => (a > b ? a : b));
+  const outside = existing.filter((e) => e.date < minDate || e.date > maxDate);
+  return [...outside, ...incoming].sort((a, b) => a.date.localeCompare(b.date));
 }
 
 export function personHasScheduleContent(person: PersonProfile, mode: PlanDraft["type"]): boolean {
   if (person.schedule.type !== mode) return false;
+  if (person.schedule.type === "work") {
+    return (
+      Object.keys(person.schedule.week).length > 0 ||
+      Boolean(person.schedule.entries?.length)
+    );
+  }
   return Object.keys(person.schedule.week).length > 0;
 }
 
@@ -210,12 +257,18 @@ export function applyPlanDraft(
   }
 
   const incoming = stripWorkUncertainty(filteredDraft);
-  let existing = person.schedule.type === "work" ? person.schedule.week : {};
-  if (applyMode === "merge") {
-    existing = removeExistingWorkTaken(existing, conflicts, resolutions);
+  const existingWeek = person.schedule.type === "work" ? person.schedule.week : {};
+  let existingEntries = person.schedule.type === "work" ? (person.schedule.entries ?? []) : [];
+
+  let entries: WorkPlanEntry[];
+  if (applyMode === "replace") {
+    entries = replaceWorkEntriesInRange(existingEntries, incoming);
+  } else {
+    existingEntries = removeExistingWorkEntriesTaken(existingEntries, conflicts, resolutions);
+    entries = mergeWorkEntries(existingEntries, incoming, conflicts, resolutions);
   }
-  const week = applyMode === "replace" ? incoming : mergeWork(existing, incoming, conflicts, resolutions);
-  const schedule: Schedule = { type: "work", week };
+
+  const schedule: Schedule = { type: "work", week: existingWeek, entries };
   return { ...person, schedule };
 }
 

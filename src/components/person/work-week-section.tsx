@@ -1,11 +1,13 @@
 "use client";
 
 import { useMemo } from "react";
-import type { WeekdayKey, WorkShiftDay } from "@/lib/types";
+import type { Schedule } from "@/lib/types";
 import { Section } from "@/components/section";
-import { getWeekdayKey } from "@/lib/format";
+import { toIsoDate } from "@/lib/day/tomorrow";
 import { buildWorkWeekGlance } from "@/lib/work/schedule";
 import { cn } from "@/lib/utils";
+
+type WorkSchedule = Extract<Schedule, { type: "work" }>;
 
 /** Display-only: "08:00–16:00" → "08–16" for landscape density. */
 function compactHourRange(hours: string | null): string | null {
@@ -18,21 +20,22 @@ function compactHourRange(hours: string | null): string | null {
  * Mount only from SimpleMorningDashboard — never for Levi.
  */
 export function WorkWeekSection({
-  week,
+  schedule,
   today,
   compact = false,
 }: {
-  week: Partial<Record<WeekdayKey, WorkShiftDay>>;
+  schedule: WorkSchedule;
   today: Date;
   /** Landscape tablet: hours like 08–16 / Frei — no status + hours stack. */
   compact?: boolean;
 }) {
-  const todayKey = getWeekdayKey(today);
+  const todayIso = toIsoDate(today);
   const days = useMemo(
-    () => buildWorkWeekGlance(week, today),
-    // todayKey avoids recomputing on Date identity churn within the same day.
+    () => buildWorkWeekGlance(schedule, today),
+    // todayIso (not just weekday) avoids recomputing on Date identity churn
+    // within the same day, while still recomputing across calendar weeks.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    [week, todayKey],
+    [schedule, todayIso],
   );
 
   return (
@@ -53,15 +56,15 @@ export function WorkWeekSection({
                   : d.hours
                 : null;
             const primaryLine =
-              d.status === "free"
-                ? "Frei"
+              d.status === "work"
+                ? compact
+                  ? hourLine
+                  : d.statusLabel
                 : d.status === "unknown"
                   ? compact
                     ? "—"
                     : d.statusLabel
-                  : compact
-                    ? hourLine
-                    : d.statusLabel;
+                  : d.statusLabel; // free / vacation / sick / other — show the label even when compact
 
             return (
               <li

@@ -8,6 +8,11 @@ import {
 } from "@/lib/data/conflict-resolution";
 import { WEEKDAY_LABELS } from "@/lib/format";
 
+function formatIsoDisplay(iso: string): string {
+  const [y, m, d] = iso.split("-");
+  return `${d}.${m}.${y}`;
+}
+
 export type { ConflictResolution };
 
 type Props = {
@@ -33,7 +38,8 @@ export function PlanConflictResolver({ conflicts, resolutions, onChange }: Props
         return (
           <div key={key} className="rounded-xl border border-amber-200 bg-white/80 p-3">
             <p className="text-xs tracking-[0.12em] text-amber-800/80 uppercase">
-              {WEEKDAY_LABELS[conflict.day]} · {conflict.reason}
+              {WEEKDAY_LABELS[conflict.day]}
+              {conflict.date ? ` · ${formatIsoDisplay(conflict.date)}` : ""} · {conflict.reason}
             </p>
             <p className="mt-1 text-sm font-medium text-[var(--ink)]">
               Bestehend: {conflict.existingLabel}

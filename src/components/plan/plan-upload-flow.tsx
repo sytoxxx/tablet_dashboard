@@ -13,29 +13,65 @@ import {
 import type { ConflictResolution } from "@/lib/data/conflict-resolution";
 import { detectDraftConflicts } from "@/lib/data/conflicts";
 import { useOnlineStatus } from "@/components/admin/offline-banner";
+import { pdfAllPagesToImageFiles } from "@/lib/plan-analysis/pdf-to-image";
 import type { PersonId } from "@/lib/types";
-import type { PlanAnalysisMode, PlanAnalysisResult } from "@/lib/plan-analysis/types";
+import type { AnalyzedWorkEntry, PlanAnalysisMode, PlanAnalysisResult } from "@/lib/plan-analysis/types";
 import {
   applyPlanDraft,
   defaultPlanTypeForPerson,
   personHasScheduleContent,
   type ApplyMode,
 } from "@/lib/plan-analysis/apply";
+import { revalidateWorkDraftForYear } from "@/lib/plan-analysis/revalidate";
+import { assessReliability } from "@/lib/plan-analysis/reliability";
 import { cn } from "@/lib/utils";
 
 const MAX_BYTES = 8 * 1024 * 1024;
-const ACCEPT = "image/jpeg,image/png,image/webp,image/heic,image/heif";
+const ACCEPT = "image/jpeg,image/png,image/webp,image/heic,image/heif,application/pdf";
+/** A photo below this on its long edge almost never OCRs reliably — ask for a retake instead of guessing. */
+const MIN_PHOTO_LONG_EDGE = 700;
 
-type Step = "upload" | "analyzing" | "preview" | "editor" | "saved";
+type Step = "upload" | "converting" | "analyzing" | "clarify" | "preview" | "editor" | "saved";
 
 function validateImageFile(file: File): string | null {
   if (file.size <= 0) return "Datei ist leer.";
   if (file.size > MAX_BYTES) return "Maximal 8 MB erlaubt.";
-  if (file.type && !file.type.startsWith("image/")) {
-    return "Nur Bilddateien sind erlaubt.";
+  const isPdf = file.type === "application/pdf" || /\.pdf$/i.test(file.name);
+  if (file.type && !file.type.startsWith("image/") && !isPdf) {
+    return "Nur Bilddateien oder PDF sind erlaubt.";
   }
   return null;
 }
+
+/** Loads an image file just to read its pixel dimensions — a genuine too-small photo can't be read reliably. */
+function readImageLongEdge(file: File): Promise<number> {
+  return new Promise((resolve, reject) => {
+    const url = URL.createObjectURL(file);
+    const img = new Image();
+    img.onload = () => {
+      URL.revokeObjectURL(url);
+      resolve(Math.max(img.naturalWidth, img.naturalHeight));
+    };
+    img.onerror = () => {
+      URL.revokeObjectURL(url);
+      reject(new Error("Bild konnte nicht gelesen werden."));
+    };
+    img.src = url;
+  });
+}
+
+const STATUS_CHOICE_LABEL: Record<AnalyzedWorkEntry["status"], string> = {
+  work: "Arbeit",
+  free: "Frei",
+  vacation: "Urlaub",
+  sick: "Krankenstand",
+  other: "Sonstiges",
+};
+
+const MONTH_NAMES = [
+  "Januar", "Februar", "März", "April", "Mai", "Juni",
+  "Juli", "August", "September", "Oktober", "November", "Dezember",
+];
 
 export function PlanUploadFlow({
   embedded = false,
@@ -57,19 +93,23 @@ export function PlanUploadFlow({
     person ? defaultPlanTypeForPerson(person) : "school",
   );
 
-  const [file, setFile] = useState<File | null>(null);
-  const [previewUrl, setPreviewUrl] = useState<string | null>(null);
+  const [files, setFiles] = useState<File[]>([]);
+  const [previewUrls, setPreviewUrls] = useState<string[]>([]);
   const [step, setStep] = useState<Step>("upload");
   const [error, setError] = useState<string | null>(null);
   const [analysis, setAnalysis] = useState<PlanAnalysisResult | null>(null);
   const [applyMode, setApplyMode] = useState<ApplyMode>("replace");
   const [resolutions, setResolutions] = useState<Record<string, ConflictResolution>>({});
+  /** User's confirmed year when the recognized year had to be inferred (not read from the document). */
+  const [yearConfirmed, setYearConfirmed] = useState(false);
+  /** code -> chosen status, applied to every entry sharing that unresolved duty code. */
+  const [codeAnswers, setCodeAnswers] = useState<Record<string, AnalyzedWorkEntry["status"]>>({});
 
   useEffect(() => {
     return () => {
-      if (previewUrl) URL.revokeObjectURL(previewUrl);
+      for (const url of previewUrls) URL.revokeObjectURL(url);
     };
-  }, [previewUrl]);
+  }, [previewUrls]);
 
   const hasExisting = useMemo(
     () => (person ? personHasScheduleContent(person, planType) : false),
@@ -81,6 +121,24 @@ export function PlanUploadFlow({
     return detectDraftConflicts(person.schedule, analysis.draft);
   }, [analysis, person, applyMode]);
 
+  const yearNeedsConfirm =
+    analysis?.mode === "work" &&
+    analysis.period?.year != null &&
+    !analysis.period.yearCertain &&
+    !yearConfirmed;
+
+  const unknownCodes = useMemo(() => {
+    if (!analysis || analysis.mode !== "work") return [];
+    return (analysis.unknownCodes ?? []).filter((code) => !(code in codeAnswers));
+  }, [analysis, codeAnswers]);
+
+  const needsClarification = Boolean(yearNeedsConfirm) || unknownCodes.length > 0;
+
+  const unresolvedReviewCount = useMemo(() => {
+    if (!analysis || analysis.draft.type !== "work") return 0;
+    return analysis.draft.entries.filter((e) => e.uncertain && !e.reviewed).length;
+  }, [analysis]);
+
   const onSelectPerson = (id: PersonId) => {
     setPersonId(id);
     const next = data.persons.find((p) => p.id === id);
@@ -88,33 +146,84 @@ export function PlanUploadFlow({
   };
 
   const clearFile = () => {
-    setPreviewUrl(null);
-    setFile(null);
+    setPreviewUrls([]);
+    setFiles([]);
     setAnalysis(null);
     setResolutions({});
+    setYearConfirmed(false);
+    setCodeAnswers({});
     setStep("upload");
     setError(null);
     if (fileRef.current) fileRef.current.value = "";
     if (cameraRef.current) cameraRef.current.value = "";
   };
 
-  const onFile = (next: File | undefined) => {
-    if (!next) return;
-    const validationError = validateImageFile(next);
-    if (validationError) {
-      setError(validationError);
-      return;
+  const onFiles = async (list: FileList | null) => {
+    const selected = list ? Array.from(list) : [];
+    if (selected.length === 0) return;
+    for (const f of selected) {
+      const validationError = validateImageFile(f);
+      if (validationError) {
+        setError(validationError);
+        return;
+      }
     }
-    setFile(next);
-    setPreviewUrl(URL.createObjectURL(next));
     setAnalysis(null);
     setResolutions({});
+    setYearConfirmed(false);
+    setCodeAnswers({});
     setError(null);
+
+    const isPdf = (f: File) => f.type === "application/pdf" || /\.pdf$/i.test(f.name);
+
+    // A single PDF expands to all of its pages; several selected photos are
+    // treated as consecutive pages of the same roster.
+    if (selected.length === 1 && isPdf(selected[0]!)) {
+      setStep("converting");
+      try {
+        const pages = await pdfAllPagesToImageFiles(selected[0]!);
+        setFiles(pages);
+        setPreviewUrls(pages.map((p) => URL.createObjectURL(p)));
+        setStep("upload");
+      } catch (e) {
+        setError(
+          e instanceof Error
+            ? `PDF konnte nicht gelesen werden: ${e.message}`
+            : "PDF konnte nicht gelesen werden.",
+        );
+        setStep("upload");
+      }
+      return;
+    }
+
+    if (selected.some(isPdf)) {
+      setError("Bitte entweder ein PDF oder mehrere Fotos auswählen, nicht gemischt.");
+      return;
+    }
+
+    // Quality gate: a photo too small on its long edge can't be read reliably — ask for a retake now.
+    try {
+      for (const f of selected) {
+        const longEdge = await readImageLongEdge(f);
+        if (longEdge < MIN_PHOTO_LONG_EDGE) {
+          setError(
+            "Das Bild ist nicht eindeutig genug. Bitte fotografiere den Dienstplan noch einmal vollständig und möglichst gerade, mit gutem Licht.",
+          );
+          return;
+        }
+      }
+    } catch {
+      // If dimension probing itself fails, fall through — the AI's own
+      // legibility warnings still apply; we never block on this alone.
+    }
+
+    setFiles(selected);
+    setPreviewUrls(selected.map((f) => URL.createObjectURL(f)));
     setStep("upload");
   };
 
   const analyze = async () => {
-    if (!file || !person) return;
+    if (files.length === 0 || !person) return;
     if (!online) {
       setError("Offline – KI-Analyse ist nicht verfügbar. Gespeicherte Pläne bleiben nutzbar.");
       return;
@@ -123,7 +232,7 @@ export function PlanUploadFlow({
     setStep("analyzing");
     try {
       const body = new FormData();
-      body.append("file", file);
+      for (const f of files) body.append("file", f);
       body.append("personId", person.id);
       body.append("planType", planType);
       body.append("personName", person.name);
@@ -132,10 +241,33 @@ export function PlanUploadFlow({
       if (!res.ok) {
         throw new Error(json.error || "Analyse fehlgeschlagen.");
       }
+
+      const reliability = assessReliability(json);
+      if (!reliability.reliable) {
+        // Never let a genuinely unreadable photo proceed — ask for a retake
+        // instead of showing a preview built on guesses. This looks at the
+        // overall pattern of unreadable entries, never a single low
+        // confidence number alone.
+        setFiles([]);
+        setPreviewUrls([]);
+        if (fileRef.current) fileRef.current.value = "";
+        if (cameraRef.current) cameraRef.current.value = "";
+        setAnalysis(null);
+        setError(reliability.reason);
+        setStep("upload");
+        return;
+      }
+
       setAnalysis(json);
       setApplyMode(hasExisting ? "merge" : "replace");
       setResolutions({});
-      setStep("preview");
+      setYearConfirmed(false);
+      setCodeAnswers({});
+      const stillNeedsClarification =
+        json.mode === "work" &&
+        ((json.period?.year != null && !json.period.yearCertain) ||
+          (json.unknownCodes?.length ?? 0) > 0);
+      setStep(stillNeedsClarification ? "clarify" : "preview");
     } catch (e) {
       const message =
         e instanceof TypeError
@@ -148,8 +280,77 @@ export function PlanUploadFlow({
     }
   };
 
+  const applyCodeAnswer = (code: string, status: AnalyzedWorkEntry["status"]) => {
+    setCodeAnswers((prev) => ({ ...prev, [code]: status }));
+    setAnalysis((prev) => {
+      if (!prev || prev.draft.type !== "work") return prev;
+      const label = STATUS_CHOICE_LABEL[status];
+      return {
+        ...prev,
+        draft: {
+          ...prev.draft,
+          entries: prev.draft.entries.map((e) =>
+            e.code === code
+              ? {
+                  ...e,
+                  status,
+                  label: status === "work" ? `Schicht (${code})` : label,
+                  start: "",
+                  end: "",
+                  timeUnclear: status === "work",
+                  unresolvedCode: false,
+                  uncertain: status === "work",
+                }
+              : e,
+          ),
+        },
+      };
+    });
+  };
+
+  const applyYearChoice = (year: number) => {
+    setYearConfirmed(true);
+    setAnalysis((prev) => {
+      if (!prev || prev.draft.type !== "work" || !prev.period) return prev;
+      // Full re-validation, not a bare date patch: a year change can flip
+      // weekday-match results and which entries fall inside the recognized
+      // period, so those must be recomputed fresh — never carried over from
+      // the (now superseded) old-year plausibility pass.
+      const { entries, period, uncertainties } = revalidateWorkDraftForYear(
+        prev.draft.entries,
+        year,
+      );
+      const modelNotes = prev.uncertainties.filter((u) => !u.path.startsWith("entries."));
+      return {
+        ...prev,
+        period,
+        uncertainties: [...modelNotes, ...uncertainties],
+        draft: { ...prev.draft, entries },
+      };
+    });
+  };
+
+  const proceedToPreview = () => {
+    if (needsClarification) return;
+    setStep("preview");
+  };
+
   const confirmSave = () => {
     if (!analysis || !person) return;
+    if (unresolvedReviewCount > 0) {
+      setError(
+        `Es sind noch ${unresolvedReviewCount} unsichere Einträge offen — bitte erst prüfen (⚠️-markiert), dann übernehmen.`,
+      );
+      return;
+    }
+    if (
+      analysis.draft.type === "work" &&
+      analysis.draft.entries.some((e) => e.status === "work" && (!e.start || !e.end))
+    ) {
+      setError("Bitte fehlende Zeiten ergänzen, bevor der Plan übernommen wird.");
+      return;
+    }
+    setError(null);
     updatePerson(person.id, (p) =>
       applyPlanDraft(p, analysis.draft, applyMode, { conflicts, resolutions }),
     );
@@ -175,8 +376,8 @@ export function PlanUploadFlow({
           </p>
           <h1 className="font-display text-4xl tracking-tight sm:text-5xl">KI-Planerkennung</h1>
           <p className="text-lg text-[color:var(--quiet)]">
-            Foto → Analyse → Draft → Bearbeiten → Konflikte → Speichern. Nichts wird automatisch
-            ersetzt.
+            Foto oder PDF → Analyse → Draft → Bearbeiten → Konflikte → Speichern. Nichts wird
+            automatisch ersetzt.
           </p>
         </header>
       ) : null}
@@ -242,7 +443,7 @@ export function PlanUploadFlow({
         </>
       ) : null}
 
-      {step === "upload" || step === "analyzing" ? (
+      {step === "upload" || step === "analyzing" || step === "converting" ? (
         <>
           <div className="flex flex-wrap gap-3">
             <Button
@@ -250,10 +451,10 @@ export function PlanUploadFlow({
               size="lg"
               className="h-14 gap-2 rounded-2xl px-5 active:scale-[0.97]"
               onClick={() => fileRef.current?.click()}
-              disabled={step === "analyzing"}
+              disabled={step === "analyzing" || step === "converting"}
             >
               <ImagePlus className="size-5" aria-hidden />
-              Bild auswählen
+              Bild oder PDF auswählen
             </Button>
             <Button
               type="button"
@@ -261,7 +462,7 @@ export function PlanUploadFlow({
               size="lg"
               className="h-14 gap-2 rounded-2xl bg-[color:var(--surface)] px-5 active:scale-[0.97]"
               onClick={() => cameraRef.current?.click()}
-              disabled={step === "analyzing"}
+              disabled={step === "analyzing" || step === "converting"}
             >
               <Camera className="size-5" aria-hidden />
               Foto aufnehmen
@@ -270,8 +471,9 @@ export function PlanUploadFlow({
               ref={fileRef}
               type="file"
               accept={ACCEPT}
+              multiple
               className="hidden"
-              onChange={(e) => onFile(e.target.files?.[0])}
+              onChange={(e) => onFiles(e.target.files)}
             />
             <input
               ref={cameraRef}
@@ -279,14 +481,22 @@ export function PlanUploadFlow({
               accept="image/*"
               capture="environment"
               className="hidden"
-              onChange={(e) => onFile(e.target.files?.[0])}
+              onChange={(e) => onFiles(e.target.files)}
             />
           </div>
 
-          {previewUrl ? (
+          {step === "converting" ? (
+            <p role="status" className="rounded-2xl bg-[color:var(--surface)] px-4 py-3 text-[color:var(--quiet)]">
+              PDF wird gelesen …
+            </p>
+          ) : previewUrls.length > 0 ? (
             <div className="space-y-4">
               <div className="flex items-center justify-between gap-3">
-                <p className="truncate text-sm text-[color:var(--quiet)]">{file?.name}</p>
+                <p className="truncate text-sm text-[color:var(--quiet)]">
+                  {files.length === 1
+                    ? files[0]?.name
+                    : `${files.length} Seiten ausgewählt`}
+                </p>
                 <Button
                   type="button"
                   variant="ghost"
@@ -298,16 +508,31 @@ export function PlanUploadFlow({
                   <X className="size-4" /> Entfernen
                 </Button>
               </div>
-              {/* eslint-disable-next-line @next/next/no-img-element */}
-              <img
-                src={previewUrl}
-                alt="Vorschau des Plans"
-                className="max-h-[45vh] w-full rounded-[1.5rem] object-contain bg-[color:var(--surface)]"
-              />
+              {previewUrls.length === 1 ? (
+                // eslint-disable-next-line @next/next/no-img-element
+                <img
+                  src={previewUrls[0]}
+                  alt="Vorschau des Plans"
+                  className="max-h-[45vh] w-full rounded-[1.5rem] object-contain bg-[color:var(--surface)]"
+                />
+              ) : (
+                <div className="flex gap-3 overflow-x-auto pb-2">
+                  {previewUrls.map((url, index) => (
+                    // eslint-disable-next-line @next/next/no-img-element
+                    <img
+                      key={url}
+                      src={url}
+                      alt={`Seite ${index + 1}`}
+                      className="h-40 w-auto shrink-0 rounded-2xl object-contain bg-[color:var(--surface)]"
+                    />
+                  ))}
+                </div>
+              )}
             </div>
           ) : (
             <div className="rounded-[1.5rem] bg-[color:var(--surface)] px-6 py-16 text-center text-[color:var(--quiet)]">
-              Noch kein Bild — auswählen oder Kamera nutzen.
+              Noch kein Bild — auswählen oder Kamera nutzen. Mehrere Fotos oder ein mehrseitiges
+              PDF werden als zusammenhängender Plan gelesen.
             </div>
           )}
 
@@ -321,12 +546,76 @@ export function PlanUploadFlow({
             type="button"
             size="lg"
             className="h-14 rounded-2xl text-base active:scale-[0.97]"
-            disabled={!file || step === "analyzing" || !online}
+            disabled={files.length === 0 || step === "analyzing" || step === "converting" || !online}
             onClick={analyze}
           >
             {step === "analyzing" ? "Plan wird analysiert …" : "Plan analysieren"}
           </Button>
         </>
+      ) : null}
+
+      {step === "clarify" && analysis ? (
+        <div className="space-y-6">
+          <h2 className="text-sm font-semibold tracking-[0.14em] text-[color:var(--quiet)] uppercase">
+            Kurze Rückfrage, bevor die Vorschau erscheint
+          </h2>
+
+          {yearNeedsConfirm && analysis.period?.year != null ? (
+            <div className="space-y-2 rounded-2xl border border-amber-500/30 bg-amber-50/50 px-4 py-4">
+              <p className="text-sm font-medium text-amber-950">
+                Ich kann das Jahr des Dienstplans nicht eindeutig erkennen. Ich nehme an:{" "}
+                {analysis.period.year}. Stimmt das?
+              </p>
+              <div className="flex flex-wrap gap-2">
+                {[analysis.period.year - 1, analysis.period.year, analysis.period.year + 1].map(
+                  (y) => (
+                    <Button
+                      key={y}
+                      type="button"
+                      variant={y === analysis.period!.year ? "default" : "outline"}
+                      onClick={() => applyYearChoice(y)}
+                    >
+                      {y}
+                    </Button>
+                  ),
+                )}
+              </div>
+            </div>
+          ) : null}
+
+          {unknownCodes.map((code) => (
+            <div key={code} className="space-y-2 rounded-2xl border border-amber-500/30 bg-amber-50/50 px-4 py-4">
+              <p className="text-sm font-medium text-amber-950">
+                Ich habe den Code „{code}“ gefunden, kann ihn aber nicht eindeutig zuordnen. Was
+                bedeutet {code}?
+              </p>
+              <div className="flex flex-wrap gap-2">
+                {(Object.keys(STATUS_CHOICE_LABEL) as AnalyzedWorkEntry["status"][]).map(
+                  (status) => (
+                    <Button
+                      key={status}
+                      type="button"
+                      variant="outline"
+                      onClick={() => applyCodeAnswer(code, status)}
+                    >
+                      {STATUS_CHOICE_LABEL[status]}
+                    </Button>
+                  ),
+                )}
+              </div>
+            </div>
+          ))}
+
+          <Button
+            type="button"
+            size="lg"
+            className="h-14 rounded-2xl px-6 active:scale-[0.97]"
+            disabled={needsClarification}
+            onClick={proceedToPreview}
+          >
+            Weiter zur Vorschau
+          </Button>
+        </div>
       ) : null}
 
       {(step === "preview" || step === "editor") && analysis ? (
@@ -338,6 +627,14 @@ export function PlanUploadFlow({
               <h2 className="text-sm font-semibold tracking-[0.14em] text-[color:var(--quiet)] uppercase">
                 Speichern
               </h2>
+              {analysis.mode === "work" && analysis.period?.month && analysis.period.year ? (
+                <p className="rounded-2xl bg-[color:var(--surface)] px-4 py-3 text-sm text-[color:var(--quiet)]">
+                  Für {MONTH_NAMES[analysis.period.month - 1]} {analysis.period.year} existieren
+                  bereits Daten. Der neue Plan enthält Daten für denselben oder einen
+                  überlappenden Zeitraum — Ersetzen tauscht diesen Zeitraum komplett aus,
+                  Ergänzen vergleicht Tag für Tag und zeigt Konflikte einzeln an.
+                </p>
+              ) : null}
               <div className="flex flex-wrap gap-2">
                 <button
                   type="button"
@@ -377,11 +674,26 @@ export function PlanUploadFlow({
             />
           ) : null}
 
+          {unresolvedReviewCount > 0 ? (
+            <p className="rounded-2xl border border-amber-500/30 bg-amber-50/50 px-4 py-3 text-sm text-amber-950">
+              ⚠️ Noch {unresolvedReviewCount} unsichere{" "}
+              {unresolvedReviewCount === 1 ? "Eintrag" : "Einträge"} zu prüfen, bevor der Plan
+              übernommen werden kann — unten mit „✓ geprüft“ bestätigen oder korrigieren.
+            </p>
+          ) : null}
+
+          {error ? (
+            <p role="alert" className="rounded-2xl bg-red-50 px-4 py-3 text-red-800">
+              {error}
+            </p>
+          ) : null}
+
           <div className="flex flex-wrap gap-3">
             <Button
               type="button"
               size="lg"
               className="h-14 rounded-2xl px-6 active:scale-[0.97]"
+              disabled={unresolvedReviewCount > 0}
               onClick={confirmSave}
             >
               ✓ Plan übernehmen
@@ -403,6 +715,8 @@ export function PlanUploadFlow({
               onClick={() => {
                 setAnalysis(null);
                 setResolutions({});
+                setYearConfirmed(false);
+                setCodeAnswers({});
                 setStep("upload");
               }}
             >

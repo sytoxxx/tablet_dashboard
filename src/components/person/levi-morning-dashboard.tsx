@@ -179,15 +179,26 @@ export function LeviMorningDashboard({
       <MorningNav />
 
       <header className="animate-rise flex items-start justify-between gap-4 sm:gap-6 landscape-tablet:gap-5">
-        <div className="min-w-0 flex-1 space-y-0.5">
-          <p className="text-sm tracking-[0.14em] text-[color:var(--quiet)] uppercase landscape-tablet:text-xs">
-            {WEEKDAY_LABELS[view.weekdayKey]} · {dayLabel} · Schule
-          </p>
-          <DaypartGreeting
-            name={overview.displayName}
-            className="font-display text-3xl leading-tight tracking-tight sm:text-4xl landscape-tablet:text-[2.35rem]"
-            style={{ color: view.accent }}
-          />
+        <div className="flex min-w-0 flex-1 items-center gap-3 sm:gap-4">
+          {view.avatarImageUrl ? (
+            // eslint-disable-next-line @next/next/no-img-element
+            <img
+              src={view.avatarImageUrl}
+              alt=""
+              aria-hidden
+              className="size-12 shrink-0 rounded-full border border-[color:var(--hairline)] object-cover sm:size-14 landscape-tablet:size-11"
+            />
+          ) : null}
+          <div className="min-w-0 flex-1 space-y-0.5">
+            <p className="text-sm tracking-[0.14em] text-[color:var(--quiet)] uppercase landscape-tablet:text-xs">
+              {WEEKDAY_LABELS[view.weekdayKey]} · {dayLabel} · Schule
+            </p>
+            <DaypartGreeting
+              name={overview.displayName}
+              className="font-display text-3xl leading-tight tracking-tight sm:text-4xl landscape-tablet:text-[2.35rem]"
+              style={{ color: view.accent }}
+            />
+          </div>
         </div>
         <div className="flex shrink-0 flex-col items-end gap-1.5 sm:gap-2">
           {showWeather ? (

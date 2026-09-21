@@ -6,7 +6,6 @@ import {
   useContext,
   useEffect,
   useMemo,
-  useRef,
   useState,
   type ReactNode,
 } from "react";
@@ -63,9 +62,8 @@ export function MusicCommandProvider({
   /** Defaults to MockMusicProvider — inject SpotifyMusicProvider later. */
   source?: MusicProvider;
 }) {
-  const sourceRef = useRef(source ?? createMockMusicProvider());
-  if (source) sourceRef.current = source;
-  const activeSource = sourceRef.current;
+  const [mockSource] = useState(() => createMockMusicProvider());
+  const activeSource = source ?? mockSource;
 
   const [ready, setReady] = useState(false);
   const [playback, setPlayback] = useState<MusicPlaybackSnapshot>(() =>

@@ -10,6 +10,8 @@ export type CoffeeBean = {
   notes?: string;
   /** Optional remaining grams; omit or null when unknown. */
   remainingGrams?: number | null;
+  /** Grind setting that worked for this bean — learned from real use, never a global default. */
+  grindSetting?: string;
   addedAt: string;
 };
 

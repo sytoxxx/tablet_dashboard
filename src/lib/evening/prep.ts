@@ -7,6 +7,7 @@ import { addDays, toIsoDate } from "@/lib/day/tomorrow";
 import { DAY_CONFIG } from "@/lib/day/config";
 import { buildDayIntelligence } from "@/lib/day/intelligence";
 import { getWeekdayKey } from "@/lib/format";
+import { getWorkShiftForDate } from "@/lib/work/schedule";
 import {
   buildEveningChecklist,
   isEveningPrepComplete,
@@ -123,12 +124,17 @@ function resolveDayContext(
     };
   }
   if (person.schedule.type === "work" && signals.workDay) {
-    const day = person.schedule.week[key]!;
-    return {
-      kind: "work",
-      label: day.label,
-      timeRange: `${day.start}–${day.end}`,
-    };
+    // The real dated entry (an uploaded, confirmed roster) always wins over
+    // the recurring weekday pattern — evening mode must reflect tomorrow's
+    // ACTUAL confirmed shift, never a stale weekday assumption.
+    const shift = getWorkShiftForDate(person, tomorrow);
+    if (shift) {
+      return {
+        kind: "work",
+        label: shift.label,
+        timeRange: `${shift.start}–${shift.end}`,
+      };
+    }
   }
   if (person.schedule.type === "personal") {
     const blocks = person.schedule.week[key]?.blocks ?? [];

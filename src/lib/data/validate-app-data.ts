@@ -10,6 +10,8 @@ import type {
   TravelModePreference,
   TransitPrefs,
   WeatherLocation,
+  WorkDayStatus,
+  WorkPlanEntry,
 } from "@/lib/types";
 import {
   DEFAULT_DISPLAY_PREFS,
@@ -46,11 +48,79 @@ function sanitizeString(value: unknown, fallback: string, max = 120): string {
   return cleaned || fallback;
 }
 
+/**
+ * Custom avatar photo — same-origin only (local /public path or a data:image URL
+ * from a future upload). Never an external http(s)/javascript URL.
+ */
+function sanitizeAvatarImageUrl(value: unknown, fallback?: string): string | undefined {
+  if (typeof value !== "string") return fallback;
+  const trimmed = value.trim();
+  if (!trimmed) return undefined;
+  const isDataImage = /^data:image\/(png|jpe?g|webp);base64,/.test(trimmed);
+  const isLocalPath = trimmed.startsWith("/") && !trimmed.startsWith("//");
+  if (!isDataImage && !isLocalPath) return fallback;
+  if (trimmed.length > 3_000_000) return fallback;
+  return trimmed;
+}
+
+const MAX_STORED_WORK_ENTRIES = 400; // generous multi-year headroom, still bounded
+const ISO_DATE_RE = /^\d{4}-\d{2}-\d{2}$/;
+const WORK_DAY_STATUSES = new Set<WorkDayStatus>(["work", "free", "vacation", "sick", "other"]);
+
+function sanitizeWorkPlanEntry(raw: unknown): WorkPlanEntry | null {
+  if (!isObject(raw)) return null;
+  const date = typeof raw.date === "string" && ISO_DATE_RE.test(raw.date) ? raw.date : null;
+  if (!date) return null;
+  const label = sanitizeString(raw.label, "", 80);
+  if (!label) return null;
+  const status: WorkDayStatus =
+    typeof raw.status === "string" && WORK_DAY_STATUSES.has(raw.status as WorkDayStatus)
+      ? (raw.status as WorkDayStatus)
+      : "work";
+  const entry: WorkPlanEntry = {
+    date,
+    label,
+    start: status === "work" ? sanitizeString(raw.start, "", 5) : "",
+    end: status === "work" ? sanitizeString(raw.end, "", 5) : "",
+    location: status === "work" ? sanitizeString(raw.location, "", 60) : "",
+    status,
+  };
+  const notes = sanitizeString(raw.notes, "", 160);
+  if (notes) entry.notes = notes;
+  if (Array.isArray(raw.bringItems)) {
+    const items = raw.bringItems
+      .map((i) => sanitizeString(i, "", 40))
+      .filter(Boolean);
+    if (items.length) entry.bringItems = items;
+  }
+  return entry;
+}
+
+/** Real dated roster entries — validated, capped, and kept in date order. Never invents one. */
+function sanitizeWorkPlanEntries(raw: unknown): WorkPlanEntry[] {
+  if (!Array.isArray(raw)) return [];
+  const seen = new Map<string, WorkPlanEntry>();
+  for (const item of raw) {
+    const entry = sanitizeWorkPlanEntry(item);
+    if (entry) seen.set(entry.date, entry); // last one wins on a duplicate date
+  }
+  return [...seen.values()]
+    .sort((a, b) => a.date.localeCompare(b.date))
+    .slice(-MAX_STORED_WORK_ENTRIES);
+}
+
 function sanitizeSchedule(raw: unknown, fallback: Schedule): Schedule {
   if (!isObject(raw)) return fallback;
   const type = raw.type;
   if (type !== "school" && type !== "work" && type !== "personal") return fallback;
   const week = isObject(raw.week) ? raw.week : {};
+  if (type === "work") {
+    return {
+      type,
+      week: week as Schedule["week"],
+      entries: sanitizeWorkPlanEntries(raw.entries),
+    } as Schedule;
+  }
   return { type, week: week as Schedule["week"] } as Schedule;
 }
 
@@ -182,6 +252,7 @@ function sanitizePerson(raw: unknown, fallback: PersonProfile): PersonProfile | 
     id,
     name: sanitizeString(raw.name, fallback.name, 40),
     avatar: sanitizeString(raw.avatar, fallback.avatar, 2),
+    avatarImageUrl: sanitizeAvatarImageUrl(raw.avatarImageUrl, fallback.avatarImageUrl),
     hint: sanitizeString(raw.hint, fallback.hint, 60),
     greeting: sanitizeString(raw.greeting, fallback.greeting, 80),
     accent: sanitizeString(raw.accent, fallback.accent, 20),

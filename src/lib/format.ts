@@ -78,6 +78,34 @@ export function getViennaMinutesSinceMidnight(date: Date = new Date()): number {
 }
 
 /**
+ * A local Date whose getFullYear/getMonth/getDate/getDay/getHours all read
+ * as the Europe/Vienna wall clock, regardless of the device/server's own
+ * timezone. Use this before any weekday/ISO-date lookup that must be
+ * Vienna-correct (e.g. deciding "today" for the auto-profile picker).
+ */
+export function viennaWallClockDate(date: Date = new Date()): Date {
+  const parts = new Intl.DateTimeFormat("en-CA", {
+    timeZone: "Europe/Vienna",
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+    hour: "2-digit",
+    minute: "2-digit",
+    second: "2-digit",
+    hourCycle: "h23",
+  }).formatToParts(date);
+  const get = (type: string) => Number(parts.find((p) => p.type === type)?.value ?? 0);
+  return new Date(
+    get("year"),
+    get("month") - 1,
+    get("day"),
+    get("hour"),
+    get("minute"),
+    get("second"),
+  );
+}
+
+/**
  * Build an absolute ISO timestamp for a Vienna wall-clock HH:MM on the
  * calendar day of `day` (Vienna). Used for TRIAS DepArrTime aiming.
  */

@@ -8,6 +8,8 @@ import type {
   WorkShift,
 } from "@/lib/types";
 import { getWeekdayKey, parseTimeToMinutes } from "@/lib/format";
+import { personAvatarSrc } from "@/lib/profile/avatar";
+import { getWorkShiftForDate } from "@/lib/work/schedule";
 import { getNextBus } from "@/lib/day/bus";
 import { buildBringItems } from "@/lib/day/bring";
 import { selectMorningTasks } from "@/lib/day/tasks";
@@ -74,21 +76,6 @@ function personalTimetable(
   }));
 }
 
-function workShiftFor(
-  schedule: Extract<Schedule, { type: "work" }>,
-  date: Date,
-): WorkShift | null {
-  const day = schedule.week[getWeekdayKey(date)];
-  if (!day) return null;
-  return {
-    label: day.label,
-    start: day.start,
-    end: day.end,
-    location: day.location,
-    notes: day.notes,
-  };
-}
-
 function monthHighlightsFor(
   person: PersonProfile,
   anchor: Date,
@@ -134,7 +121,7 @@ export function buildDayIntelligence(
   } else if (person.schedule.type === "personal") {
     timetable = personalTimetable(person.schedule, focusDate);
   } else {
-    workShift = workShiftFor(person.schedule, focusDate);
+    workShift = getWorkShiftForDate(person, focusDate);
   }
 
   const blocks =
@@ -168,6 +155,7 @@ export function buildDayIntelligence(
     scheduleType: person.schedule.type,
     displayName: person.name,
     avatar: person.avatar,
+    avatarImageUrl: personAvatarSrc(person),
     hint: person.hint,
     greeting: person.greeting,
     accent: person.accent,

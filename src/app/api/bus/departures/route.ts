@@ -9,6 +9,8 @@ import {
 import { seedPersons } from "@/data/seed";
 import { DEFAULT_TRANSIT_PREFS } from "@/lib/data/defaults";
 import { getWorkShiftForDate } from "@/lib/work/schedule";
+import { DAY_CONFIG } from "@/lib/day/config";
+import { getViennaMinutesSinceMidnight } from "@/lib/format";
 import {
   isWorkTravelPerson,
   planWorkTravel,
@@ -182,16 +184,54 @@ async function respondForPerson(
     }
 
     const now = new Date();
+    const tomorrow = new Date(now.getTime() + 24 * 60 * 60 * 1000);
     let work = getWorkShiftForDate(person, now);
-    // If today's start already passed (Vienna), plan against tomorrow's shift.
+    // If today's start already passed (Vienna), plan against tomorrow's shift
+    // — and ONLY tomorrow's: if tomorrow is genuinely off (Frei/Urlaub/
+    // Krankenstand) or has no data, there is no commute to plan, so `work`
+    // must become null here rather than silently reusing today's (already
+    // elapsed) shift for a day that isn't a work day.
     if (work?.start) {
       const { resolveCommuteAim } = await import("@/server/bus/trip-travel");
       const aim = resolveCommuteAim(now, work.start);
       if (aim.rolledToNextDay) {
-        const tomorrow = new Date(now.getTime() + 24 * 60 * 60 * 1000);
-        work = getWorkShiftForDate(person, tomorrow) ?? work;
+        work = getWorkShiftForDate(person, tomorrow);
       }
+    } else if (
+      isWorkTravelPerson(person.id) &&
+      person.schedule.type === "work" &&
+      Math.floor(getViennaMinutesSinceMidnight(now) / 60) >=
+        DAY_CONFIG.eveningTomorrowHour
+    ) {
+      // No shift today (free/vacation/sick/unconfigured) and it's evening —
+      // show tomorrow's commute instead of nothing, same as the rest of the
+      // evening-focus dashboard.
+      work = getWorkShiftForDate(person, tomorrow);
     }
+
+    // Birgit/Heidi: a real work day is required before planning any commute —
+    // never fall back to a generic "desired arrival" default for a day off.
+    if (
+      isWorkTravelPerson(person.id) &&
+      person.schedule.type === "work" &&
+      !work
+    ) {
+      return NextResponse.json({
+        ok: true,
+        stopName: person.busStop.name,
+        departures: [],
+        next: null,
+        upcoming: [],
+        workTravel: null,
+        source: "local",
+        isTestData: true,
+        enabled,
+        message: "Kein Arbeitstag laut Plan — kein Bus zur Arbeit nötig.",
+        emptyTitle: "Kein Arbeitstag",
+        fetchedAt: new Date().toISOString(),
+      });
+    }
+
     const schoolStart =
       person.schedule.type === "school"
         ? person.schedule.week[
@@ -206,15 +246,10 @@ async function respondForPerson(
     // ——— Heidi / Birgit: TRIAS TripRequest when configured ———
     let tripFallbackWarning: string | null = null;
     if (personUsesTripTravel(person.id) && isTriasTripConfigured()) {
-      const tripResult =
-        person.id === "heidi"
-          ? await planHeidiTripTravel(person, now)
-          : await planBirgitTripTravel(
-              person,
-              now,
-              targetStart,
-              work?.end ?? null,
-            );
+      // Both use the same already-resolved dated work shift (targetStart /
+      // work.end) — never a separate, weaker source of truth for either person.
+      const planFn = person.id === "heidi" ? planHeidiTripTravel : planBirgitTripTravel;
+      const tripResult = await planFn(person, now, targetStart, work?.end ?? null);
 
       if (tripResult.plan && tripResult.connections.length > 0) {
         const plan = tripResult.plan;

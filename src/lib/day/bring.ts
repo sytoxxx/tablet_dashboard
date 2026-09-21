@@ -4,6 +4,7 @@ import {
   applySubjectBringRules,
   dedupeBringItems,
 } from "@/lib/morning/bring-rules";
+import { resolveWorkDayForDate } from "@/lib/work/schedule";
 
 /**
  * Bring list for a person/day:
@@ -28,7 +29,7 @@ export function buildBringItems(
       lesson.bringItems?.forEach((i) => collected.push(i));
     }
   } else if (schedule.type === "work") {
-    const day = schedule.week[key];
+    const day = resolveWorkDayForDate(schedule, date)?.day;
     if (day) {
       titles.push(day.label);
       day.bringItems?.forEach((i) => collected.push(i));

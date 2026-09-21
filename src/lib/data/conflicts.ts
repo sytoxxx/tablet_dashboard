@@ -1,11 +1,14 @@
-import type { SchoolLesson, WeekdayKey, WorkShiftDay } from "@/lib/types";
+import type { SchoolLesson, WeekdayKey, WorkPlanEntry } from "@/lib/types";
 import type { PlanDraft } from "@/lib/plan-analysis/types";
 import { parseTimeToMinutes } from "@/lib/format";
 import { WEEKDAY_ORDER } from "@/lib/format";
 import { DAY_CONFIG } from "@/lib/day/config";
 
 export type PlanConflict = {
+  /** Weekday for school conflicts; the entry's own weekday for work conflicts (display only). */
   day: WeekdayKey;
+  /** Real calendar date — set for dated work-plan conflicts, absent for school (weekday-recurring). */
+  date?: string;
   existingLabel: string;
   incomingLabel: string;
   reason: string;
@@ -46,33 +49,45 @@ export function detectSchoolConflicts(
   return conflicts;
 }
 
-export function detectWorkConflicts(
-  existing: Partial<Record<WeekdayKey, WorkShiftDay>>,
-  incoming: Partial<Record<WeekdayKey, WorkShiftDay>>,
+function entryLabel(e: WorkPlanEntry): string {
+  if (e.status !== "work") return e.label;
+  return `${e.start}–${e.end} ${e.label}`;
+}
+
+/** ISO "YYYY-MM-DD" → the weekday it falls on, for display only. */
+function weekdayOfIso(iso: string): WeekdayKey {
+  const [y, m, d] = iso.split("-").map(Number);
+  const date = new Date(y!, m! - 1, d);
+  return WEEKDAY_ORDER[(date.getDay() + 6) % 7]!;
+}
+
+/** A real calendar date present in both existing and incoming entries is a conflict — regardless of status. */
+export function detectWorkEntryConflicts(
+  existing: WorkPlanEntry[],
+  incoming: WorkPlanEntry[],
 ): PlanConflict[] {
+  const byDate = new Map(existing.map((e) => [e.date, e]));
   const conflicts: PlanConflict[] = [];
-  for (const day of WEEKDAY_ORDER) {
-    const a = existing[day];
-    const b = incoming[day];
-    if (!a || !b) continue;
-    const a0 = parseTimeToMinutes(a.start);
-    const a1 = parseTimeToMinutes(a.end);
-    const b0 = parseTimeToMinutes(b.start);
-    const b1 = parseTimeToMinutes(b.end);
-    if (overlaps(a0, a1, b0, b1)) {
-      conflicts.push({
-        day,
-        existingLabel: `${a.start}–${a.end} ${a.label}`,
-        incomingLabel: `${b.start}–${b.end} ${b.label}`,
-        reason: "Schicht überschneidet sich",
-      });
-    }
+  for (const add of incoming) {
+    const prev = byDate.get(add.date);
+    if (!prev) continue;
+    conflicts.push({
+      day: weekdayOfIso(add.date),
+      date: add.date,
+      existingLabel: entryLabel(prev),
+      incomingLabel: entryLabel(add),
+      reason: "Für dieses Datum bereits ein Eintrag vorhanden",
+    });
   }
   return conflicts;
 }
 
 export function detectDraftConflicts(
-  existingSchedule: { type: string; week: Record<string, unknown> },
+  existingSchedule: {
+    type: string;
+    week: Record<string, unknown>;
+    entries?: WorkPlanEntry[];
+  },
   draft: PlanDraft,
 ): PlanConflict[] {
   if (draft.type === "school" && existingSchedule.type === "school") {
@@ -82,10 +97,7 @@ export function detectDraftConflicts(
     );
   }
   if (draft.type === "work" && existingSchedule.type === "work") {
-    return detectWorkConflicts(
-      existingSchedule.week as Partial<Record<WeekdayKey, WorkShiftDay>>,
-      draft.week,
-    );
+    return detectWorkEntryConflicts(existingSchedule.entries ?? [], draft.entries);
   }
   return [];
 }
