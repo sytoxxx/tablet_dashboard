@@ -9,6 +9,7 @@ import { useVisibleInterval } from "@/hooks/use-visible-interval";
 import { formatDataAge } from "@/lib/day/relative-day";
 import type { WorkTravelPlan } from "@/lib/work/travel-planner";
 import type { TravelConnection, TravelLeg } from "@/lib/work/travel-types";
+import type { BusUpcomingEntry } from "@/lib/morning/work-bus-glance";
 
 const BUS_POLL_MS = 60_000;
 
@@ -44,7 +45,7 @@ export type WorkTravelLive = Pick<
 
 export type BusLiveState = {
   next: BusInfo | null;
-  upcoming: Array<{ time: string; line: string; destination: string }>;
+  upcoming: BusUpcomingEntry[];
   stopName: string | null;
   message: string | null;
   emptyTitle: string | null;
@@ -61,6 +62,8 @@ export type BusLiveState = {
   provider?: string | null;
   dataAgeLabel?: string | null;
   workTravel?: WorkTravelLive | null;
+  /** Whether workTravel is based on a confirmed dated shift or only a typical/orientation time. */
+  workTimeBasis?: "confirmed" | "typical" | null;
 };
 
 function isBusEnabled(person: PersonProfile): boolean {
@@ -167,6 +170,7 @@ export function useBusLive(
         workTravel: cached?.workTravel
           ? { ...cached.workTravel, isTestData: true }
           : null,
+        workTimeBasis: cached?.workTimeBasis ?? null,
       }));
       return;
     }
@@ -203,6 +207,7 @@ export function useBusLive(
         enabled?: boolean;
         provider?: string;
         workTravel?: WorkTravelLive | null;
+        workTimeBasis?: "confirmed" | "typical" | null;
       };
       if (personIdRef.current !== requestPersonId) return;
 
@@ -242,6 +247,7 @@ export function useBusLive(
           workTravel: cached?.workTravel
             ? { ...cached.workTravel, isTestData: true }
             : null,
+          workTimeBasis: cached?.workTimeBasis ?? null,
         });
         return;
       }
@@ -266,6 +272,7 @@ export function useBusLive(
         provider: json.provider ?? null,
         dataAgeLabel: null,
         workTravel: json.workTravel ?? null,
+        workTimeBasis: json.workTimeBasis ?? null,
       };
       cacheRef.current = nextState;
       try {
@@ -316,6 +323,7 @@ export function useBusLive(
         workTravel: cached?.workTravel
           ? { ...cached.workTravel, isTestData: true }
           : null,
+        workTimeBasis: cached?.workTimeBasis ?? null,
       });
     }
   }, [person, online, regionPreferredProvider]);

@@ -4,6 +4,7 @@ import type { DayIntelligenceView } from "@/lib/day/intelligence";
 import type { MorningOverview } from "@/lib/morning/types";
 import type { WardrobeCatalog } from "@/lib/wardrobe/model";
 import type { Schedule } from "@/lib/types";
+import type { WorkTimeResolution } from "@/lib/work/work-time-resolution";
 
 type WorkSchedule = Extract<Schedule, { type: "work" }>;
 import type { WorkTravelLive } from "@/hooks/use-bus-live";
@@ -26,7 +27,7 @@ import {
   resolveNextUpGlance,
   resolveWorkMorningPriority,
 } from "@/lib/morning/work-priority";
-import { resolveWorkBusGlance } from "@/lib/morning/work-bus-glance";
+import { resolveWorkBusGlance, selectUpcomingBusRows, type BusUpcomingEntry } from "@/lib/morning/work-bus-glance";
 import { formatGermanDate, WEEKDAY_LABELS } from "@/lib/format";
 import { cn } from "@/lib/utils";
 
@@ -45,7 +46,8 @@ export function SimpleMorningDashboard({
   simple = false,
   busMessage: _busMessage,
   busEmptyTitle: _busEmptyTitle,
-  busUpcoming: _busUpcoming,
+  busUpcoming,
+  showUpcomingBusList = false,
   busMatched: _busMatched,
   busEnabled = true,
   busOffline: _busOffline,
@@ -53,6 +55,8 @@ export function SimpleMorningDashboard({
   busDataAgeLabel: _busDataAgeLabel,
   weatherPlace: _weatherPlace,
   workTravel,
+  workTimeResolution,
+  workTimeBasis = null,
   workSchedule = null,
   leaveReminderActive = false,
   leaveReminderLabel = null,
@@ -67,7 +71,9 @@ export function SimpleMorningDashboard({
   simple?: boolean;
   busMessage?: string | null;
   busEmptyTitle?: string | null;
-  busUpcoming?: Array<{ time: string; line: string; destination: string }>;
+  busUpcoming?: BusUpcomingEntry[];
+  /** Heidi only: show the next 3 real departures instead of just the next one. */
+  showUpcomingBusList?: boolean;
   busMatched?: boolean;
   busEnabled?: boolean;
   busOffline?: boolean;
@@ -75,6 +81,10 @@ export function SimpleMorningDashboard({
   busDataAgeLabel?: string | null;
   weatherPlace?: string | null;
   workTravel?: WorkTravelLive | null;
+  /** Confirmed dated shift vs. typical/unavailable — the single shared source of truth (never the legacy week pattern). */
+  workTimeResolution?: WorkTimeResolution;
+  /** Whether workTravel itself was planned from a confirmed shift or only a typical time. */
+  workTimeBasis?: "confirmed" | "typical" | null;
   workSchedule?: WorkSchedule | null;
   leaveReminderActive?: boolean;
   leaveReminderLabel?: string | null;
@@ -88,7 +98,6 @@ export function SimpleMorningDashboard({
   void _weatherPlace;
   void _busEmptyTitle;
   void _busMessage;
-  void _busUpcoming;
   void _busMatched;
   void _busOffline;
   void _busUnavailable;
@@ -101,10 +110,20 @@ export function SimpleMorningDashboard({
   const eveningFocus = overview.focusIsTomorrow;
   const nightQuiet = greetingBucket === "night" && !overview.focusIsTomorrow;
 
+  // Single shared source of truth: only a confirmed dated shift counts as
+  // "working" or "free" — a typical/orientation time or no data at all is
+  // never presented as either. Never falls back to the legacy week pattern.
+  const confirmedShift =
+    workTimeResolution?.kind === "confirmed" && workTimeResolution.status === "work"
+      ? workTimeResolution.shift
+      : null;
+  const isTypicalTime = workTimeResolution?.kind === "typical";
+
   const priority = resolveWorkMorningPriority({
-    workShift: view.workShift ?? overview.workShift,
+    workShift: confirmedShift,
     appointments: overview.appointments,
     focusIsTomorrow: overview.focusIsTomorrow,
+    confirmation: workTimeResolution?.kind,
   });
 
   const showWeather =
@@ -116,8 +135,14 @@ export function SimpleMorningDashboard({
   // Compact scroll lives in WorkWeekSection; gate only on having a work schedule.
   const showWeek = Boolean(workSchedule) && mode === "work";
 
+  // Bus planning is allowed for a confirmed shift AND for a typical/orientation
+  // time (item 2B) — only the HEADLINE card must never show the typical time
+  // as if it were confirmed. `priority.isWorking` alone would hide the bus
+  // block entirely for the typical case, so it's tracked separately here.
+  const busPlannable = priority.isWorking || isTypicalTime;
+
   const leaveKnown =
-    priority.isWorking &&
+    busPlannable &&
     mode === "work" &&
     workTravel?.status === "on-time" &&
     Boolean(workTravel.leaveHome);
@@ -131,9 +156,10 @@ export function SimpleMorningDashboard({
 
   const busGlance = resolveWorkBusGlance({
     plan: workTravel,
-    isWorking: priority.isWorking && mode === "work",
+    isWorking: busPlannable && mode === "work",
     hideTodayBus,
     focusTomorrow: eveningFocus,
+    basis: workTimeBasis,
   });
 
   const nextUp = resolveNextUpGlance({
@@ -141,7 +167,10 @@ export function SimpleMorningDashboard({
     isFree: priority.isFree,
     focusIsTomorrow: overview.focusIsTomorrow,
     leaveHome: leaveKnown ? workTravel?.leaveHome : null,
-    workStart: view.workShift?.start ?? overview.workShift?.start,
+    // Only a CONFIRMED shift counts as "Arbeit ab HH:MM" here — a typical
+    // time still drives the bus card, but must never look like a confirmed
+    // commitment in the "Als Nächstes" glance either.
+    workStart: confirmedShift?.start,
     appointment: priority.nextAppointment,
   });
 
@@ -154,7 +183,7 @@ export function SimpleMorningDashboard({
     overview.visibility.appointments &&
     overview.appointments.length > 0;
 
-  const showBusBlock = priority.isWorking;
+  const showBusBlock = busPlannable;
   const heuteTitle = overview.focusIsTomorrow ? "Morgen" : "Heute";
 
   return (
@@ -198,7 +227,11 @@ export function SimpleMorningDashboard({
             </p>
           </div>
         </div>
-        <div className="flex shrink-0 flex-col items-end gap-1.5 sm:gap-2">
+        <div className="flex shrink-0 flex-col items-end gap-1 sm:gap-1.5">
+          <LiveClock
+            compact
+            className="hidden sm:block landscape-tablet:block"
+          />
           {showWeather ? (
             <WeatherHeaderGlance
               weather={weather}
@@ -206,10 +239,6 @@ export function SimpleMorningDashboard({
               now={wallNow}
             />
           ) : null}
-          <LiveClock
-            compact
-            className="hidden sm:block landscape-tablet:block"
-          />
         </div>
       </header>
 
@@ -247,10 +276,11 @@ export function SimpleMorningDashboard({
           </div>
         ) : (
           <WorkShiftSection
-            shift={view.workShift ?? overview.workShift}
+            shift={confirmedShift}
             simple
             emphasis="hero"
             focusTomorrow={eveningFocus || overview.focusIsTomorrow}
+            confirmation={workTimeResolution?.kind ?? "confirmed"}
           />
         )}
 
@@ -260,6 +290,12 @@ export function SimpleMorningDashboard({
             emphasis={
               busGlance.kind === "none" && !eveningFocus ? "hero" : "secondary"
             }
+            upcomingList={
+              showUpcomingBusList && !hideTodayBus
+                ? selectUpcomingBusRows(busUpcoming, wallNow)
+                : undefined
+            }
+            now={wallNow}
           />
         ) : null}
 

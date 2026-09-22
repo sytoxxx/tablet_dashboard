@@ -183,6 +183,15 @@ export type TransitPrefs = {
   preparationMinutes?: number;
   /** Extra safety buffer before arrival target (minutes). */
   safetyBufferMinutes?: number;
+  /**
+   * Explicitly configured regular/typical work start — set once in Admin,
+   * never auto-derived from a scanned plan or the legacy weekly pattern.
+   * Used ONLY as bus-planning orientation when no confirmed dated shift
+   * exists for a given day; never shown as a confirmed shift.
+   */
+  typicalWorkStartHHmm?: string;
+  /** Explicitly configured regular/typical work end — see typicalWorkStartHHmm. */
+  typicalWorkEndHHmm?: string;
 };
 
 export type WeatherDayGlance = {

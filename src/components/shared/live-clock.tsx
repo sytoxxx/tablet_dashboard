@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { formatGermanDate, formatGermanTime } from "@/lib/format";
+import { formatCompactDate, formatGermanDate, formatGermanTime } from "@/lib/format";
 import { useDevTime } from "@/components/providers/dev-time-provider";
 import { cn } from "@/lib/utils";
 
@@ -43,10 +43,16 @@ export function LiveClock({
   if (compact) {
     return (
       <div className={cn("text-right", className)} aria-live="polite">
-        <p className="font-display text-2xl tabular-nums tracking-tight landscape-tablet:text-xl">
+        <p className="font-sans text-7xl leading-none font-bold tabular-nums tracking-tight text-[color:var(--ink)] sm:text-8xl landscape-tablet:text-8xl">
           <time dateTime={now.toISOString()} suppressHydrationWarning>
             {timeLabel}
           </time>
+        </p>
+        <p
+          className="mt-2 text-sm tracking-[0.1em] text-[color:var(--quiet)] uppercase landscape-tablet:text-sm"
+          suppressHydrationWarning
+        >
+          {formatCompactDate(now)}
         </p>
       </div>
     );

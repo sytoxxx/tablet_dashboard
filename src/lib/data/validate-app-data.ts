@@ -179,6 +179,16 @@ function sanitizeTransitPrefs(raw: unknown, fallback?: TransitPrefs): TransitPre
     typeof raw.destinationHint === "string"
       ? sanitizeString(raw.destinationHint, "", 40) || undefined
       : base.destinationHint;
+  const typicalWorkStartHHmm =
+    typeof raw.typicalWorkStartHHmm === "string" &&
+    /^\d{2}:\d{2}$/.test(raw.typicalWorkStartHHmm.trim())
+      ? raw.typicalWorkStartHHmm.trim()
+      : base.typicalWorkStartHHmm;
+  const typicalWorkEndHHmm =
+    typeof raw.typicalWorkEndHHmm === "string" &&
+    /^\d{2}:\d{2}$/.test(raw.typicalWorkEndHHmm.trim())
+      ? raw.typicalWorkEndHHmm.trim()
+      : base.typicalWorkEndHHmm;
 
   const clampMin = (value: unknown, fallback: number, max = 180) =>
     typeof value === "number" && Number.isFinite(value)
@@ -212,6 +222,8 @@ function sanitizeTransitPrefs(raw: unknown, fallback?: TransitPrefs): TransitPre
       raw.safetyBufferMinutes,
       base.safetyBufferMinutes ?? 5,
     ),
+    typicalWorkStartHHmm,
+    typicalWorkEndHHmm,
   };
 }
 

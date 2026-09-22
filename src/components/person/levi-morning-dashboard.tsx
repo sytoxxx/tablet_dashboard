@@ -200,7 +200,8 @@ export function LeviMorningDashboard({
             />
           </div>
         </div>
-        <div className="flex shrink-0 flex-col items-end gap-1.5 sm:gap-2">
+        <div className="flex shrink-0 flex-col items-end gap-1 sm:gap-1.5">
+          <LiveClock compact className="text-right" />
           {showWeather ? (
             <WeatherHeaderGlance
               weather={weather}
@@ -208,7 +209,6 @@ export function LeviMorningDashboard({
               now={wallNow}
             />
           ) : null}
-          <LiveClock compact className="text-right" />
         </div>
       </header>
 

@@ -94,7 +94,7 @@ export function WeatherHeaderGlance({
       )}
       aria-label={useTomorrow ? "Wetter morgen" : "Wetter"}
     >
-      <p className="font-display text-3xl tabular-nums tracking-tight sm:text-4xl landscape-tablet:text-[2.35rem]">
+      <p className="font-display text-3xl tabular-nums tracking-tight sm:text-4xl landscape-tablet:text-2xl">
         <span className="mr-1 text-2xl sm:text-3xl" aria-hidden>
           {nowEmoji}
         </span>

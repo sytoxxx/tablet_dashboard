@@ -5,8 +5,37 @@
  */
 import type { TravelConnection, TravelLeg } from "@/lib/work/travel-types";
 import type { TravelPlanStatus } from "@/lib/work/travel-planner";
+import { getViennaMinutesSinceMidnight, parseTimeToMinutes } from "@/lib/format";
 
 export type WorkBusAlertKind = "none" | "delay" | "cancelled" | "deviation";
+
+/** One real upcoming departure — from live TRIAS/StopEvent data only, never invented. */
+export type BusUpcomingEntry = {
+  time: string;
+  line: string;
+  destination: string;
+  status?: string | null;
+  delayMinutes?: number | null;
+  cancelled?: boolean | null;
+};
+
+/**
+ * The next up-to-`limit` real departures, relative to `now` — drops anything
+ * already departed (so a bus that just left is replaced by the next one on
+ * the very next render) instead of showing stale entries from the last poll.
+ * Never pads with invented rows: fewer than `limit` real ones just means fewer rows.
+ */
+export function selectUpcomingBusRows(
+  upcoming: BusUpcomingEntry[] | null | undefined,
+  now: Date,
+  limit = 3,
+): BusUpcomingEntry[] {
+  if (!upcoming?.length) return [];
+  const nowMinutes = getViennaMinutesSinceMidnight(now);
+  return upcoming
+    .filter((e) => e.time && parseTimeToMinutes(e.time) >= nowMinutes)
+    .slice(0, limit);
+}
 
 export type WorkBusGlance = {
   /** Mount the card only when true. */
@@ -30,6 +59,8 @@ export type WorkBusGlance = {
   nextArrival: string | null;
   /** Quiet label when timetable is seed/cache — never present as live. */
   isTestData?: boolean;
+  /** Small honest note shown under the card when the plan is only oriented on a typical time, not a confirmed shift. */
+  hint: string | null;
 };
 
 type PlanLike = {
@@ -159,10 +190,19 @@ export function resolveWorkBusGlance(input: {
   /** Night / senseless today leftovers. */
   hideTodayBus?: boolean;
   focusTomorrow?: boolean;
+  /**
+   * Whether the plan is based on a confirmed dated shift or only an
+   * explicitly configured typical/orientation time. Drives the card's title
+   * and hint — never silently presents a typical time as a confirmed one.
+   */
+  basis?: "confirmed" | "typical" | null;
 }): WorkBusGlance {
+  const title = input.basis === "typical" ? "Nach üblicher Arbeitszeit" : "Für deinen Dienst";
+  const hint = input.basis === "typical" ? "Monatsplan noch nicht verfügbar" : null;
+
   const empty: WorkBusGlance = {
     visible: false,
-    title: "Bus zur Arbeit",
+    title,
     kind: "none",
     time: null,
     lineTarget: null,
@@ -175,6 +215,7 @@ export function resolveWorkBusGlance(input: {
     nextLineTarget: null,
     nextArrival: null,
     isTestData: false,
+    hint: null,
   };
 
   if (!input.isWorking || !input.plan) return empty;
@@ -225,6 +266,7 @@ export function resolveWorkBusGlance(input: {
       alertDetail: input.focusTomorrow
         ? "Morgen steht keine passende Verbindung."
         : "Heute steht keine passende Verbindung.",
+      hint,
     };
   }
   if (!hasNormalFacts && !hasAlertFacts) return empty;
@@ -255,7 +297,7 @@ export function resolveWorkBusGlance(input: {
 
   return {
     visible: true,
-    title: "Bus zur Arbeit",
+    title,
     kind,
     time,
     lineTarget,
@@ -268,5 +310,6 @@ export function resolveWorkBusGlance(input: {
     nextLineTarget,
     nextArrival,
     isTestData: Boolean(plan.isTestData || plan.bus?.isTestData),
+    hint,
   };
 }

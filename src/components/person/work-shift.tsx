@@ -8,13 +8,36 @@ export function WorkShiftSection({
   simple = false,
   emphasis = "hero",
   focusTomorrow = false,
+  /** When the day's time isn't confirmed, say so honestly — never show a guessed or stale shift. */
+  confirmation = "confirmed",
 }: {
   shift: WorkShift | null;
   simple?: boolean;
   emphasis?: ClarityEmphasis;
   focusTomorrow?: boolean;
+  confirmation?: "confirmed" | "typical" | "unavailable";
 }) {
   const title = focusTomorrow ? "Morgen" : "Heute";
+
+  if (confirmation === "typical" || confirmation === "unavailable") {
+    return (
+      <Section title={title} emphasis={emphasis}>
+        <EmptyState
+          title={
+            confirmation === "typical"
+              ? "Arbeitszeit: Informationen nicht verfügbar"
+              : "Arbeitszeit noch nicht bekannt"
+          }
+          description={
+            confirmation === "typical"
+              ? "Monatsplan noch nicht verfügbar — der Bus unten orientiert sich an der üblichen Arbeitszeit."
+              : "Noch kein Monatsplan und keine übliche Arbeitszeit hinterlegt."
+          }
+        />
+      </Section>
+    );
+  }
+
   if (!shift) {
     return (
       <Section title={title} emphasis={emphasis}>

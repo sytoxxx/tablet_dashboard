@@ -263,6 +263,12 @@ function PersonBusEditor({ personId }: { personId: PersonId }) {
               DEFAULT_TRANSIT_PREFS.safetyBufferMinutes ??
               5,
           );
+          const typicalWorkStartHHmm = String(fd.get("typicalWorkStartHHmm") || "")
+            .trim()
+            .slice(0, 5);
+          const typicalWorkEndHHmm = String(fd.get("typicalWorkEndHHmm") || "")
+            .trim()
+            .slice(0, 5);
           const enabled = fd.get("enabled") === "on";
           const providerRaw = String(fd.get("provider") || "auto");
           const provider = (
@@ -314,6 +320,12 @@ function PersonBusEditor({ personId }: { personId: PersonId }) {
               stopToWorkMinutes,
               preparationMinutes,
               safetyBufferMinutes,
+              typicalWorkStartHHmm: /^\d{2}:\d{2}$/.test(typicalWorkStartHHmm)
+                ? typicalWorkStartHHmm
+                : undefined,
+              typicalWorkEndHHmm: /^\d{2}:\d{2}$/.test(typicalWorkEndHHmm)
+                ? typicalWorkEndHHmm
+                : undefined,
             },
           }));
           setSaved(true);
@@ -460,6 +472,39 @@ function PersonBusEditor({ personId }: { personId: PersonId }) {
                 className="h-12 w-full rounded-2xl bg-[color:var(--surface)] px-4 outline-none ring-[color:var(--brand)] focus:ring-2"
               />
             </label>
+          </div>
+        ) : null}
+
+        {personId === "birgit" || personId === "heidi" ? (
+          <div className="space-y-2 rounded-2xl border border-[color:var(--hairline)] p-4">
+            <p className="text-sm font-medium text-[color:var(--ink)]">
+              Typische Arbeitszeit (Orientierung)
+            </p>
+            <p className="text-sm text-[color:var(--quiet)]">
+              Wird NUR verwendet, um den Bus zu planen, solange für den aktuellen Tag noch kein
+              bestätigter Monatsplan vorliegt. Wird nie als bestätigter Dienst angezeigt — dafür
+              zählt ausschließlich der eingescannte Monatsplan.
+            </p>
+            <div className="grid gap-3 sm:grid-cols-2">
+              <label className="block space-y-1">
+                <span className="text-sm text-[color:var(--quiet)]">Übliche Arbeitszeit von (HH:MM)</span>
+                <input
+                  name="typicalWorkStartHHmm"
+                  placeholder="06:00"
+                  defaultValue={person.transitPrefs?.typicalWorkStartHHmm ?? ""}
+                  className="h-12 w-full rounded-2xl bg-[color:var(--surface)] px-4 text-lg outline-none ring-[color:var(--brand)] focus:ring-2"
+                />
+              </label>
+              <label className="block space-y-1">
+                <span className="text-sm text-[color:var(--quiet)]">Übliche Arbeitszeit bis (HH:MM)</span>
+                <input
+                  name="typicalWorkEndHHmm"
+                  placeholder="12:00"
+                  defaultValue={person.transitPrefs?.typicalWorkEndHHmm ?? ""}
+                  className="h-12 w-full rounded-2xl bg-[color:var(--surface)] px-4 text-lg outline-none ring-[color:var(--brand)] focus:ring-2"
+                />
+              </label>
+            </div>
           </div>
         ) : null}
 

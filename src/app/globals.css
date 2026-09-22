@@ -52,7 +52,7 @@
 }
 
 :root {
-  /* Morning mist — cool slate, sage accent, soft gold highlight */
+  /* Morning mist — cool slate, sage accent, soft cream-gold highlight */
   --bg: #e6ebf1;
   --bg-deep: #d5dde8;
   --surface: #f4f7fa;
@@ -60,7 +60,8 @@
   --ink: #1c2430;
   --quiet: #627084;
   --brand: #2f6f6a;
-  --gold: #b8954a;
+  /* Softer, more desaturated "champagne" gold — a quiet warm accent, not a brass wash. */
+  --gold: #cba876;
   --hairline: rgba(28, 36, 48, 0.1);
 
   /* Theme hooks (light default; dark ready later) */
@@ -91,7 +92,7 @@
   --ring: #2f6f6a;
   --chart-1: #2f6f6a;
   --chart-2: #4a5d73;
-  --chart-3: #b8954a;
+  --chart-3: #cba876;
   --chart-4: #6b5b4f;
   --chart-5: #627084;
   --radius: 0.9rem;
@@ -118,8 +119,9 @@
   body {
     color: var(--ink);
     background:
-      radial-gradient(120% 80% at 10% -10%, rgba(184, 149, 74, 0.14), transparent 45%),
-      radial-gradient(90% 70% at 100% 0%, rgba(47, 111, 106, 0.12), transparent 40%),
+      /* Quiet cream-gold glow, contained to the corner — an accent, not a wash. */
+      radial-gradient(60% 46% at 6% -6%, rgba(203, 168, 118, 0.1), transparent 42%),
+      radial-gradient(90% 70% at 100% 0%, rgba(47, 111, 106, 0.11), transparent 40%),
       linear-gradient(165deg, var(--bg) 0%, var(--bg-deep) 100%);
     background-attachment: fixed;
     min-height: 100dvh;

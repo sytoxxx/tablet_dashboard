@@ -8,7 +8,7 @@ import {
 } from "@/lib/bus/select";
 import { seedPersons } from "@/data/seed";
 import { DEFAULT_TRANSIT_PREFS } from "@/lib/data/defaults";
-import { getWorkShiftForDate } from "@/lib/work/schedule";
+import { resolveWorkTimeForDate, type WorkTimeResolution } from "@/lib/work/work-time-resolution";
 import { DAY_CONFIG } from "@/lib/day/config";
 import { getViennaMinutesSinceMidnight } from "@/lib/format";
 import {
@@ -174,6 +174,7 @@ async function respondForPerson(
         next: null,
         upcoming: [],
         workTravel: null,
+        workTimeBasis: null,
         source: "local",
         isTestData: true,
         enabled,
@@ -185,7 +186,23 @@ async function respondForPerson(
 
     const now = new Date();
     const tomorrow = new Date(now.getTime() + 24 * 60 * 60 * 1000);
-    let work = getWorkShiftForDate(person, now);
+
+    // Single shared source of truth (same as the dashboard headline): only a
+    // dated, scanned roster entry for the exact date counts as "confirmed" —
+    // never the legacy recurring weekly pattern. An explicitly configured
+    // "typical work time" may still drive bus planning as orientation, but
+    // is carried separately (workTimeBasis) so the UI never presents it as
+    // a confirmed shift.
+    const workTimesOf = (r: WorkTimeResolution): { start: string; end: string } | null => {
+      if (r.kind === "confirmed" && r.status === "work" && r.shift) {
+        return { start: r.shift.start, end: r.shift.end };
+      }
+      if (r.kind === "typical") return { start: r.start, end: r.end };
+      return null;
+    };
+
+    let resolution = resolveWorkTimeForDate(person, now);
+    let work = workTimesOf(resolution);
     // If today's start already passed (Vienna), plan against tomorrow's shift
     // — and ONLY tomorrow's: if tomorrow is genuinely off (Frei/Urlaub/
     // Krankenstand) or has no data, there is no commute to plan, so `work`
@@ -195,7 +212,8 @@ async function respondForPerson(
       const { resolveCommuteAim } = await import("@/server/bus/trip-travel");
       const aim = resolveCommuteAim(now, work.start);
       if (aim.rolledToNextDay) {
-        work = getWorkShiftForDate(person, tomorrow);
+        resolution = resolveWorkTimeForDate(person, tomorrow);
+        work = workTimesOf(resolution);
       }
     } else if (
       isWorkTravelPerson(person.id) &&
@@ -203,19 +221,28 @@ async function respondForPerson(
       Math.floor(getViennaMinutesSinceMidnight(now) / 60) >=
         DAY_CONFIG.eveningTomorrowHour
     ) {
-      // No shift today (free/vacation/sick/unconfigured) and it's evening —
-      // show tomorrow's commute instead of nothing, same as the rest of the
-      // evening-focus dashboard.
-      work = getWorkShiftForDate(person, tomorrow);
+      // No shift today (free/vacation/sick/unconfigured/unknown) and it's
+      // evening — show tomorrow's commute instead of nothing, same as the
+      // rest of the evening-focus dashboard.
+      resolution = resolveWorkTimeForDate(person, tomorrow);
+      work = workTimesOf(resolution);
     }
 
-    // Birgit/Heidi: a real work day is required before planning any commute —
-    // never fall back to a generic "desired arrival" default for a day off.
+    const workTimeBasis: "confirmed" | "typical" | null =
+      resolution.kind === "confirmed" && resolution.status === "work"
+        ? "confirmed"
+        : resolution.kind === "typical"
+          ? "typical"
+          : null;
+
+    // Birgit/Heidi: real work-time data is required before planning any
+    // commute — never fall back to a generic "desired arrival" default.
     if (
       isWorkTravelPerson(person.id) &&
       person.schedule.type === "work" &&
       !work
     ) {
+      const isConfirmedOff = resolution.kind === "confirmed" && resolution.status !== "work";
       return NextResponse.json({
         ok: true,
         stopName: person.busStop.name,
@@ -223,11 +250,14 @@ async function respondForPerson(
         next: null,
         upcoming: [],
         workTravel: null,
+        workTimeBasis: null,
         source: "local",
         isTestData: true,
         enabled,
-        message: "Kein Arbeitstag laut Plan — kein Bus zur Arbeit nötig.",
-        emptyTitle: "Kein Arbeitstag",
+        message: isConfirmedOff
+          ? "Kein Arbeitstag laut Plan — kein Bus zur Arbeit nötig."
+          : "Arbeitszeit noch nicht bekannt — kein passender Bus.",
+        emptyTitle: isConfirmedOff ? "Kein Arbeitstag" : "Arbeitszeit unbekannt",
         fetchedAt: new Date().toISOString(),
       });
     }
@@ -268,6 +298,7 @@ async function respondForPerson(
           upcoming: upcomingFromConnections(tripResult.connections),
           next,
           workTravel: serializeWorkTravel(plan),
+          workTimeBasis,
           source: tripResult.isTestData ? "local" : "live",
           provider: "verbund-steiermark",
           warning: tripResult.warning ?? null,
@@ -387,6 +418,7 @@ async function respondForPerson(
               Boolean(workTravel.isTestData) || result.source === "local",
           })
         : null,
+      workTimeBasis: workTravel ? workTimeBasis : null,
       source: result.source,
       provider: result.provider,
       warning: [tripFallbackWarning, result.warning].filter(Boolean).join(" · ") || null,

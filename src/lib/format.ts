@@ -12,8 +12,19 @@ const germanTimeFormatter = new Intl.DateTimeFormat("de-DE", {
   second: "2-digit",
 });
 
+const germanCompactDateFormatter = new Intl.DateTimeFormat("de-DE", {
+  weekday: "short",
+  day: "numeric",
+  month: "short",
+});
+
 export function formatGermanDate(date: Date = new Date()): string {
   return germanDateFormatter.format(date);
+}
+
+/** Short secondary-line date next to a large clock, e.g. "Mo., 21. Sept." */
+export function formatCompactDate(date: Date = new Date()): string {
+  return germanCompactDateFormatter.format(date);
 }
 
 export function formatGermanTime(date: Date = new Date()): string {

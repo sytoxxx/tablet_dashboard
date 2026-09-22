@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { resolveWorkBusGlance } from "@/lib/morning/work-bus-glance";
+import { resolveWorkBusGlance, selectUpcomingBusRows } from "@/lib/morning/work-bus-glance";
 
 describe("resolveWorkBusGlance", () => {
   it("hides when not working", () => {
@@ -287,5 +287,101 @@ describe("resolveWorkBusGlance", () => {
     });
     expect(g.visible).toBe(true);
     expect(g.isTestData).toBe(true);
+  });
+});
+
+describe("resolveWorkBusGlance — confirmed vs typical basis", () => {
+  const plan = {
+    mode: "bus",
+    status: "on-time" as const,
+    busDeparture: "05:48",
+    leaveHome: "05:36",
+    bus: { departure: "05:48", line: "1", destination: "Bruck" },
+  };
+
+  it("labels a confirmed shift 'Für deinen Dienst' with no hint", () => {
+    const g = resolveWorkBusGlance({ isWorking: true, plan, basis: "confirmed" });
+    expect(g.title).toBe("Für deinen Dienst");
+    expect(g.hint).toBeNull();
+  });
+
+  it("defaults to 'Für deinen Dienst' when basis is omitted (backward compatible)", () => {
+    const g = resolveWorkBusGlance({ isWorking: true, plan });
+    expect(g.title).toBe("Für deinen Dienst");
+  });
+
+  it("labels a typical-time plan 'Nach üblicher Arbeitszeit' with an honest hint", () => {
+    const g = resolveWorkBusGlance({ isWorking: true, plan, basis: "typical" });
+    expect(g.title).toBe("Nach üblicher Arbeitszeit");
+    expect(g.hint).toBe("Monatsplan noch nicht verfügbar");
+  });
+
+  it("still shows the typical hint even in the quiet no-connection state", () => {
+    const g = resolveWorkBusGlance({
+      isWorking: true,
+      basis: "typical",
+      plan: { mode: "bus", status: "no-connection" },
+    });
+    expect(g.visible).toBe(true);
+    expect(g.hint).toBe("Monatsplan noch nicht verfügbar");
+  });
+});
+
+describe("selectUpcomingBusRows", () => {
+  const NOW = new Date("2026-09-21T05:00:00Z"); // 07:00 Vienna (CEST)
+
+  it("returns the next 3 real departures, dropping anything already gone", () => {
+    const rows = selectUpcomingBusRows(
+      [
+        { time: "06:50", line: "1", destination: "Bruck" }, // already departed
+        { time: "07:00", line: "1", destination: "Bruck" }, // departing right now — still relevant
+        { time: "07:20", line: "2", destination: "Bruck" },
+        { time: "07:40", line: "1", destination: "Bruck" },
+        { time: "08:00", line: "2", destination: "Bruck" },
+      ],
+      NOW,
+    );
+    expect(rows.map((r) => r.time)).toEqual(["07:00", "07:20", "07:40"]);
+  });
+
+  it("returns fewer than 3 rows when fewer real connections exist — never pads", () => {
+    const rows = selectUpcomingBusRows(
+      [{ time: "07:20", line: "2", destination: "Bruck" }],
+      NOW,
+    );
+    expect(rows).toHaveLength(1);
+  });
+
+  it("returns an empty array when nothing is upcoming, never invents a row", () => {
+    expect(selectUpcomingBusRows([{ time: "06:00", line: "1", destination: "Bruck" }], NOW)).toEqual(
+      [],
+    );
+    expect(selectUpcomingBusRows([], NOW)).toEqual([]);
+    expect(selectUpcomingBusRows(null, NOW)).toEqual([]);
+    expect(selectUpcomingBusRows(undefined, NOW)).toEqual([]);
+  });
+
+  it("keeps a cancelled entry in its chronological slot — selection never hides it, only display marks it", () => {
+    const rows = selectUpcomingBusRows(
+      [
+        { time: "07:10", line: "1", destination: "Bruck", cancelled: true, status: "CANCELLED" },
+        { time: "07:20", line: "2", destination: "Bruck" },
+      ],
+      NOW,
+    );
+    expect(rows[0]).toMatchObject({ time: "07:10", cancelled: true });
+  });
+
+  it("respects a custom limit", () => {
+    const rows = selectUpcomingBusRows(
+      [
+        { time: "07:10", line: "1", destination: "Bruck" },
+        { time: "07:20", line: "2", destination: "Bruck" },
+        { time: "07:30", line: "1", destination: "Bruck" },
+      ],
+      NOW,
+      2,
+    );
+    expect(rows).toHaveLength(2);
   });
 });

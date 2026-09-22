@@ -45,6 +45,47 @@ describe("resolveWorkMorningPriority", () => {
       title: "Arzttermin",
     });
   });
+
+  it("defaults isUnavailable to false — existing callers are unaffected", () => {
+    const working = resolveWorkMorningPriority({
+      workShift: { label: "Früh", start: "06:00", end: "14:00", location: "Bruck" },
+      appointments: [],
+    });
+    expect(working.isUnavailable).toBe(false);
+    const free = resolveWorkMorningPriority({ workShift: null, appointments: [] });
+    expect(free.isUnavailable).toBe(false);
+    expect(free.isFree).toBe(true);
+  });
+
+  it("confirmation 'typical'/'unavailable' is never shown as working or free, even with a shift-shaped value present", () => {
+    const typical = resolveWorkMorningPriority({
+      workShift: { label: "x", start: "06:00", end: "12:00", location: "" },
+      appointments: [],
+      confirmation: "typical",
+    });
+    expect(typical.isWorking).toBe(false);
+    expect(typical.isFree).toBe(false);
+    expect(typical.isUnavailable).toBe(true);
+
+    const unavailable = resolveWorkMorningPriority({
+      workShift: null,
+      appointments: [],
+      confirmation: "unavailable",
+    });
+    expect(unavailable.isWorking).toBe(false);
+    expect(unavailable.isFree).toBe(false);
+    expect(unavailable.isUnavailable).toBe(true);
+  });
+
+  it("confirmation 'confirmed' (explicit) behaves exactly like the default", () => {
+    const p = resolveWorkMorningPriority({
+      workShift: { label: "Früh", start: "06:00", end: "14:00", location: "Bruck" },
+      appointments: [],
+      confirmation: "confirmed",
+    });
+    expect(p.isWorking).toBe(true);
+    expect(p.isUnavailable).toBe(false);
+  });
 });
 
 describe("resolveNextUpGlance", () => {

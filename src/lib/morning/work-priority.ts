@@ -7,6 +7,8 @@ import type { CalendarEvent, WorkShift } from "@/lib/types";
 export type WorkMorningPriority = {
   isWorking: boolean;
   isFree: boolean;
+  /** True when there is neither a confirmed shift nor a confirmed day-off — never shown as working or free. */
+  isUnavailable: boolean;
   nextAppointment: CalendarEvent | null;
   nothingImportantCopy: string;
   freeDayCopy: string;
@@ -23,12 +25,24 @@ export function resolveWorkMorningPriority(input: {
   appointments: CalendarEvent[] | null | undefined;
   /** Evening / tomorrow focus — soften free copy. */
   focusIsTomorrow?: boolean;
+  /**
+   * Tri-state confirmation for the day's work-time data. Omitted defaults to
+   * "confirmed" (original behavior: workShift truthy → working, else free) —
+   * existing callers that never pass this are unaffected. "typical"/
+   * "unavailable" mean the day's time is not confirmed at all — never
+   * presented as working or free.
+   */
+  confirmation?: "confirmed" | "typical" | "unavailable";
 }): WorkMorningPriority {
-  const isWorking = Boolean(input.workShift);
+  const confirmation = input.confirmation ?? "confirmed";
+  const isUnavailable = confirmation !== "confirmed";
+  const isWorking = !isUnavailable && Boolean(input.workShift);
+  const isFree = !isUnavailable && !isWorking;
   const nextAppointment = input.appointments?.[0] ?? null;
   return {
     isWorking,
-    isFree: !isWorking,
+    isFree,
+    isUnavailable,
     nextAppointment,
     nothingImportantCopy: "Heute steht nichts Wichtiges an.",
     freeDayCopy: input.focusIsTomorrow

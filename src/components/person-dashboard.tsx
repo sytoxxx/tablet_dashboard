@@ -17,6 +17,8 @@ import { useLeaveReminder } from "@/hooks/use-leave-reminder";
 import { useWardrobe } from "@/hooks/use-wardrobe";
 import { DEFAULT_TRANSIT_PREFS } from "@/lib/data/defaults";
 import { useAppData } from "@/components/providers/data-provider";
+import { resolveWorkTimeForDate } from "@/lib/work/work-time-resolution";
+import { resolveFocusMoment } from "@/lib/day/tomorrow";
 
 /** Routes each person to their morning layout with live bus/weather + Phase-9 overview. */
 export function PersonDashboard({
@@ -39,6 +41,16 @@ export function PersonDashboard({
   const busEnabled =
     (person.transitPrefs?.enabled ?? DEFAULT_TRANSIT_PREFS.enabled) !== false &&
     person.displayPrefs?.showBus !== false;
+  // Single shared source of truth for "is the dashboard's focus day's work
+  // time confirmed" — same resolver the bus API uses server-side, but
+  // against the SAME focus date the rest of the dashboard already uses
+  // (today, or tomorrow once evening focus kicks in), never just "now".
+  // Never falls back to the legacy weekly pattern; a typical/orientation
+  // time is carried separately.
+  const workTimeResolution = useMemo(
+    () => resolveWorkTimeForDate(person, resolveFocusMoment(wallNow).focusDate),
+    [person, wallNow],
+  );
 
   const liveView = useMemo<DayIntelligenceView>(() => {
     return {
@@ -202,6 +214,8 @@ export function PersonDashboard({
         busDataAgeLabel={liveMeta.busDataAgeLabel}
         weatherPlace={liveMeta.weatherPlace}
         workTravel={bus.workTravel}
+        workTimeResolution={workTimeResolution}
+        workTimeBasis={bus.workTimeBasis ?? null}
         workSchedule={
           person.schedule.type === "work" ? person.schedule : null
         }
@@ -223,6 +237,7 @@ export function PersonDashboard({
       busMessage={liveMeta.busMessage}
       busEmptyTitle={liveMeta.busEmptyTitle}
       busUpcoming={liveMeta.busUpcoming}
+      showUpcomingBusList={person.id === "heidi"}
       busMatched={liveMeta.busMatched}
       busEnabled={liveMeta.busEnabled}
       busOffline={liveMeta.busOffline}
@@ -230,6 +245,8 @@ export function PersonDashboard({
       busDataAgeLabel={liveMeta.busDataAgeLabel}
       weatherPlace={liveMeta.weatherPlace}
       workTravel={bus.workTravel}
+      workTimeResolution={workTimeResolution}
+      workTimeBasis={bus.workTimeBasis ?? null}
       workSchedule={
         person.schedule.type === "work" ? person.schedule : null
       }
