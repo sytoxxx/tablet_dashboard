@@ -69,7 +69,9 @@ export const config = {
   matcher: [
     /*
      * Match all paths except static assets Next serves outside middleware need.
+     * The guide images (/coffee-guide/*) are Ninja material for the family tablet
+     * only, so they stay behind the access code.
      */
-    "/((?!_next/static|_next/image|.*\\.(?:svg|png|jpg|jpeg|gif|webp|ico)$).*)",
+    "/((?!_next/static|_next/image|(?!coffee-guide/).*\\.(?:svg|png|jpg|jpeg|gif|webp|ico)$).*)",
   ],
 };

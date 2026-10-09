@@ -90,10 +90,11 @@ export function resolveDayFlow(
 }
 
 export function blocksFromTimetable(
-  entries: { time: string; subject: string; room: string }[],
+  entries: { time: string; end?: string; subject: string; room: string }[],
 ): ScheduleBlock[] {
   return entries.map((e) => ({
     start: e.time,
+    ...(e.end ? { end: e.end } : {}),
     title: e.subject,
     place: e.room,
     kind: "lesson" as const,

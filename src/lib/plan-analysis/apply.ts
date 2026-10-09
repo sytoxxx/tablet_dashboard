@@ -57,6 +57,7 @@ function stripWorkUncertainty(draft: WorkPlanDraft): WorkPlanEntry[] {
         confidence,
         reviewed,
         baseUncertain,
+        evidenceIssue,
         ...entry
       }) => {
         void uncertain;
@@ -67,6 +68,7 @@ function stripWorkUncertainty(draft: WorkPlanDraft): WorkPlanEntry[] {
         void confidence;
         void reviewed;
         void baseUncertain;
+        void evidenceIssue;
         return entry;
       },
     );

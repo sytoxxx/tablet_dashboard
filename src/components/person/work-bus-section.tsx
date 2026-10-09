@@ -1,18 +1,12 @@
-import type { BusUpcomingEntry, WorkBusGlance } from "@/lib/morning/work-bus-glance";
+import {
+  countdownLabel,
+  departureDayHint,
+  type BusUpcomingEntry,
+  type WorkBusGlance,
+} from "@/lib/morning/work-bus-glance";
 import { Section } from "@/components/section";
 import type { ClarityEmphasis } from "@/components/clarity-block";
 import { cn } from "@/lib/utils";
-
-function minutesUntilLabel(time: string, now: Date): string {
-  const [h, m] = time.split(":").map(Number);
-  if (h === undefined || m === undefined) return "";
-  const target = h * 60 + m;
-  const nowMinutes = now.getHours() * 60 + now.getMinutes();
-  const diff = target - nowMinutes;
-  if (diff <= 0) return "jetzt";
-  if (diff === 1) return "in 1 Min.";
-  return `in ${diff} Min.`;
-}
 
 /** One row of the "next 3 buses" list — every real fact shown, nothing invented. */
 function UpcomingBusRow({ entry, now }: { entry: BusUpcomingEntry; now: Date }) {
@@ -21,24 +15,25 @@ function UpcomingBusRow({ entry, now }: { entry: BusUpcomingEntry; now: Date }) 
     !cancelled && typeof entry.delayMinutes === "number" && entry.delayMinutes > 0
       ? entry.delayMinutes
       : null;
+  const dayHint = departureDayHint(entry, now);
 
   return (
     <li
       className={cn(
-        "flex items-center justify-between gap-3 rounded-2xl px-3 py-2.5 sm:px-4",
+        "flex items-center justify-between gap-4 rounded-2xl px-4 py-3.5 sm:px-5",
         cancelled ? "bg-[color:var(--surface)]/60" : "bg-[color:var(--surface)]",
       )}
     >
       <div className="flex min-w-0 items-baseline gap-3">
         <p
           className={cn(
-            "font-display text-2xl tabular-nums tracking-tight sm:text-3xl",
+            "font-display text-3xl tabular-nums tracking-tight sm:text-4xl",
             cancelled && "text-[color:var(--quiet)] line-through decoration-1",
           )}
         >
           {entry.time}
         </p>
-        <p className="min-w-0 truncate text-sm font-medium text-[color:var(--ink)] sm:text-base">
+        <p className="min-w-0 truncate text-lg font-medium text-[color:var(--ink)] sm:text-xl">
           {entry.line && entry.line !== "?" ? `Linie ${entry.line}` : null}
           {entry.line && entry.line !== "?" && entry.destination ? " → " : null}
           {entry.destination || null}
@@ -46,11 +41,17 @@ function UpcomingBusRow({ entry, now }: { entry: BusUpcomingEntry; now: Date }) 
       </div>
       <div className="shrink-0 text-right">
         {cancelled ? (
-          <p className="text-sm font-medium text-[color:var(--destructive)]">⚠️ Fällt aus</p>
-        ) : delay ? (
-          <p className="text-sm font-medium text-[color:var(--destructive)]">+{delay} Min.</p>
+          <p className="text-base font-medium text-[color:var(--destructive)]">⚠️ Fällt aus</p>
         ) : (
-          <p className="text-sm text-[color:var(--quiet)]">{minutesUntilLabel(entry.time, now)}</p>
+          <>
+            <p className="text-base text-[color:var(--quiet)]">
+              {dayHint ? `${dayHint} · ` : ""}
+              {countdownLabel(entry, now)}
+            </p>
+            {delay ? (
+              <p className="text-base font-medium text-[color:var(--destructive)]">+{delay} Min.</p>
+            ) : null}
+          </>
         )}
       </div>
     </li>
@@ -65,12 +66,18 @@ export function WorkBusSection({
   glance,
   emphasis = "hero",
   upcomingList,
+  listNotice,
+  compact = false,
   now,
 }: {
   glance: WorkBusGlance;
   emphasis?: ClarityEmphasis;
   /** When provided (Heidi), renders up to 3 real upcoming departures instead of just one. */
   upcomingList?: BusUpcomingEntry[];
+  /** Shown instead of rows when there are none: "nicht verfügbar", "keine Verbindung", "wird geladen". */
+  listNotice?: string | null;
+  /** One calm line instead of the big hero time — used when a second bus card is on screen. */
+  compact?: boolean;
   now?: Date;
 }) {
   if (!glance.visible) return null;
@@ -89,13 +96,13 @@ export function WorkBusSection({
             ))}
           </ul>
         ) : (
-          <p className="text-lg text-[color:var(--quiet)]">
-            {glance.alertDetail?.trim() || "Keine passende Verbindung gefunden."}
+          <p className="text-xl text-[color:var(--ink)]" data-testid="bus-list-notice">
+            {listNotice ?? glance.alertDetail?.trim() ?? "Keine passende Verbindung gefunden."}
           </p>
         )}
         {glance.isTestData ? (
           <p className="mt-3 text-sm text-[color:var(--quiet)]">
-            Fahrplan-Testdaten — keine Live-Abfahrt
+            Testdaten — keine Live-Abfahrt
           </p>
         ) : null}
         {glance.hint ? (
@@ -123,10 +130,30 @@ export function WorkBusSection({
     );
   }
 
+  if (compact && !isAlert && (glance.time || glance.leaveHome)) {
+    return (
+      <Section title={glance.title} emphasis="secondary">
+        <div className="flex flex-wrap items-baseline gap-x-5 gap-y-1">
+          <p className="font-display text-4xl tabular-nums tracking-tight">
+            {glance.time ?? glance.leaveHome}
+          </p>
+          {glance.lineTarget ? (
+            <p className="text-xl font-medium text-[color:var(--ink)]">{glance.lineTarget}</p>
+          ) : null}
+          {glance.leaveHome && glance.time && glance.leaveHome !== glance.time ? (
+            <p className="text-lg text-[color:var(--quiet)]">
+              Los um <span className="tabular-nums text-[color:var(--ink)]">{glance.leaveHome}</span>
+            </p>
+          ) : null}
+        </div>
+      </Section>
+    );
+  }
+
   return (
     <Section title={glance.title} emphasis={isAlert ? "hero" : emphasis}>
       {isAlert && glance.alertTitle ? (
-        <p className="text-xl font-medium text-[color:var(--ink)] sm:text-2xl">
+        <p className="text-xl font-medium text-[color:var(--ink)] sm:text-2xl landscape-tablet:text-2xl">
           {glance.alertTitle}
         </p>
       ) : null}
@@ -144,11 +171,11 @@ export function WorkBusSection({
               <p className="text-base text-[color:var(--quiet)]">
                 Nächste Verbindung
               </p>
-              <p className="mt-1 font-display text-5xl tabular-nums tracking-tight sm:text-6xl landscape-tablet:text-4xl">
+              <p className="mt-1 font-display text-5xl tabular-nums tracking-tight sm:text-6xl landscape-tablet:text-5xl">
                 {glance.nextTime}
               </p>
               {glance.nextLineTarget ? (
-                <p className="mt-3 text-xl font-medium text-[color:var(--ink)]">
+                <p className="mt-3 text-xl font-medium text-[color:var(--ink)] landscape-tablet:text-2xl">
                   {glance.nextLineTarget}
                 </p>
               ) : null}
@@ -176,20 +203,20 @@ export function WorkBusSection({
           {glance.time ? (
             <p
               className={cn(
-                "font-display tabular-nums tracking-tight text-5xl sm:text-6xl landscape-tablet:text-4xl",
+                "font-display tabular-nums tracking-tight text-5xl sm:text-6xl landscape-tablet:text-5xl",
               )}
             >
               {isDelay ? <span aria-hidden>🚌 </span> : null}
               {glance.time}
             </p>
           ) : glance.leaveHome ? (
-            <p className="font-display text-5xl tabular-nums tracking-tight sm:text-6xl landscape-tablet:text-4xl">
+            <p className="font-display text-5xl tabular-nums tracking-tight sm:text-6xl landscape-tablet:text-5xl">
               {glance.leaveHome}
             </p>
           ) : null}
 
           {isDelay && glance.alertDetail ? (
-            <p className="mt-2 text-xl font-medium text-[color:var(--ink)]">
+            <p className="mt-2 text-xl font-medium text-[color:var(--ink)] landscape-tablet:text-2xl">
               {glance.alertDetail}
             </p>
           ) : null}
@@ -197,7 +224,7 @@ export function WorkBusSection({
           {glance.lineTarget ? (
             <p
               className={cn(
-                "text-xl font-medium text-[color:var(--ink)]",
+                "text-xl font-medium text-[color:var(--ink)] landscape-tablet:text-2xl",
                 glance.time || glance.leaveHome ? "mt-4" : undefined,
               )}
             >
@@ -225,7 +252,7 @@ export function WorkBusSection({
 
           {glance.isTestData ? (
             <p className="mt-3 text-sm text-[color:var(--quiet)]">
-              Fahrplan-Testdaten — keine Live-Abfahrt
+              Testdaten — keine Live-Abfahrt
             </p>
           ) : null}
         </>

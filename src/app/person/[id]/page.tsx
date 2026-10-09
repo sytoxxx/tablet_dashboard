@@ -8,6 +8,9 @@ import { useDevTime } from "@/components/providers/dev-time-provider";
 import { buildDayIntelligence } from "@/lib/day/intelligence";
 import { useSwipe } from "@/hooks/use-swipe";
 import { setActivePersonId } from "@/lib/profile/active-person";
+import { withoutDemoTimetable } from "@/lib/school/demo-timetable";
+import { withUntisSchool } from "@/lib/school/school-day";
+import { useUntis } from "@/components/providers/untis-provider";
 import type { PersonId } from "@/lib/types";
 
 type PersonPageProps = {
@@ -21,6 +24,7 @@ export default function PersonPage({ params }: PersonPageProps) {
   const { id } = use(params);
   const { getPerson } = useAppData();
   const { now } = useDevTime();
+  const untis = useUntis();
   const router = useRouter();
 
   const swipeTo = (delta: 1 | -1) => {
@@ -36,8 +40,14 @@ export default function PersonPage({ params }: PersonPageProps) {
   });
 
   if (!isPersonId(id)) notFound();
-  const person = getPerson(id);
-  if (!person) notFound();
+  const stored = getPerson(id);
+  if (!stored) notFound();
+  // The shipped example timetable is not real data — never show it as Levi's school day.
+  // Real WebUntis days (if connected) are layered over the manual plan; nothing is saved from this copy.
+  const person = useMemo(
+    () => withUntisSchool(withoutDemoTimetable(stored), untis.snapshot, now),
+    [stored, untis.snapshot, now],
+  );
 
   const view = useMemo(() => buildDayIntelligence(person, now), [person, now]);
 

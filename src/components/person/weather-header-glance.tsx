@@ -94,13 +94,13 @@ export function WeatherHeaderGlance({
       )}
       aria-label={useTomorrow ? "Wetter morgen" : "Wetter"}
     >
-      <p className="font-display text-3xl tabular-nums tracking-tight sm:text-4xl landscape-tablet:text-2xl">
+      <p className="font-display text-3xl tabular-nums tracking-tight sm:text-4xl landscape-tablet:text-4xl">
         <span className="mr-1 text-2xl sm:text-3xl" aria-hidden>
           {nowEmoji}
         </span>
         {Math.round(primaryTemp!)}°
         {hasAfternoon ? (
-          <span className="ml-2 text-lg font-normal text-[color:var(--quiet)] sm:text-xl landscape-tablet:text-lg">
+          <span className="ml-2 text-lg font-normal text-[color:var(--quiet)] sm:text-xl landscape-tablet:text-xl">
             <span aria-hidden>{afternoonEmoji}</span>{" "}
             <span className="tabular-nums">{Math.round(afternoonTemp!)}°</span>
             <span className="ml-1 text-sm tracking-normal">
@@ -109,12 +109,12 @@ export function WeatherHeaderGlance({
           </span>
         ) : null}
       </p>
-      <p className="mt-0.5 text-xs text-[color:var(--quiet)] sm:text-sm">
+      <p className="mt-0.5 text-xs text-[color:var(--quiet)] sm:text-sm landscape-tablet:text-sm">
         {useTomorrow ? "Morgen" : "Jetzt"}
         {rainLabel(rainNow) ? ` · ${rainLabel(rainNow)}` : ""}
       </p>
       {shortTip ? (
-        <p className="mt-1 text-sm leading-snug text-[color:var(--ink)] landscape-tablet:text-[0.8125rem]">
+        <p className="mt-1 text-sm leading-snug text-[color:var(--ink)] landscape-tablet:text-sm">
           {shortTip}
         </p>
       ) : null}

@@ -5,8 +5,10 @@
  * a genuinely ambiguous morning falls back to the manual picker.
  */
 import type { PersonId, PersonProfile } from "@/lib/types";
-import { getViennaMinutesSinceMidnight, getWeekdayKey, viennaWallClockDate } from "@/lib/format";
+import { getViennaMinutesSinceMidnight, viennaWallClockDate } from "@/lib/format";
 import { getWorkShiftForDate } from "@/lib/work/schedule";
+import { isDemoSchoolSchedule } from "@/lib/school/demo-timetable";
+import { schoolDayForDate } from "@/lib/school/school-day";
 
 /** Levi auto-selects from 07:00 Vienna when he has real school today. */
 export const LEVI_AUTO_FROM_MINUTES = 7 * 60;
@@ -15,7 +17,9 @@ export const HEIDI_AUTO_FROM_MINUTES = 7 * 60 + 30;
 
 function hasSchoolToday(person: PersonProfile | undefined, viennaNow: Date): boolean {
   if (!person || person.schedule.type !== "school") return false;
-  const day = person.schedule.week[getWeekdayKey(viennaNow)];
+  // Real WebUntis day first (cancelled lessons are already removed there), manual weekday plan otherwise.
+  const { day, source } = schoolDayForDate(person.schedule, viennaNow);
+  if (source === "week" && isDemoSchoolSchedule(person.schedule)) return false; // shipped example, not a real timetable
   return Boolean(day?.lessons?.length);
 }
 

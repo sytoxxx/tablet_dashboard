@@ -7,6 +7,7 @@
  *
  * Pure service — no React. Leave-home and preparation are derived here.
  */
+import { schoolLessonsForDate } from "@/lib/school/school-day";
 import {
   selectRelevantDeparture,
   type LiveDeparture,
@@ -476,11 +477,7 @@ export function planTravelForPerson(
 
   const schoolStart =
     person.schedule.type === "school"
-      ? person.schedule.week[
-          (["sun", "mon", "tue", "wed", "thu", "fri", "sat"] as const)[
-            now.getDay()
-          ]
-        ]?.lessons?.[0]?.time
+      ? (schoolLessonsForDate(person.schedule, now)[0]?.time ?? null)
       : null;
 
   const arrivalTarget =

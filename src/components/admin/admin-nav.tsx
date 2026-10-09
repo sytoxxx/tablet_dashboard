@@ -13,6 +13,7 @@ import {
   Sparkles,
   Users,
   CalendarRange,
+  GraduationCap,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
@@ -25,6 +26,7 @@ const ADMIN_LINKS: Array<{
   { href: "/einstellungen", label: "Übersicht", icon: Settings2, exact: true },
   { href: "/einstellungen/personen", label: "Personen", icon: Users },
   { href: "/einstellungen/plaene", label: "Pläne", icon: CalendarRange },
+  { href: "/einstellungen/webuntis", label: "WebUntis", icon: GraduationCap },
   { href: "/einstellungen/aufgaben", label: "Aufgaben", icon: ListTodo },
   { href: "/einstellungen/bus", label: "Bus", icon: Bus },
   { href: "/einstellungen/wetter", label: "Wetter", icon: CloudSun },

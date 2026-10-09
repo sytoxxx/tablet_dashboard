@@ -37,6 +37,8 @@ export type AnalyzedWorkEntry = WorkPlanEntry & {
   unresolvedCode?: boolean;
   /** True when a start/end time was present but could not be parsed unambiguously — never guessed. */
   timeUnclear?: boolean;
+  /** Why the quoted table evidence (date header / cell text) contradicts this row — blocks silent save. */
+  evidenceIssue?: string;
   /** 0–1 per-entry confidence, when the source supplied one. Low values force `uncertain`. */
   confidence?: number;
   /** Client-only: user has looked at this flagged entry and accepted/corrected it. Stripped before saving. */
@@ -77,7 +79,7 @@ export type PlanPeriod = {
 
 export type PlanAnalysisResult = {
   mode: PlanAnalysisMode;
-  source: "mock" | "ai";
+  source: "mock" | "ai" | "text";
   confidence: number;
   draft: PlanDraft;
   uncertainties: UncertaintyMark[];

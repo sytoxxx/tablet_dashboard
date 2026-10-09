@@ -14,6 +14,10 @@ export type PlanAiInput = {
   images: PlanAiImage[];
   /** Server "now" — used to infer a missing year and to date the mock example. */
   referenceDate: Date;
+  /** Work plans: the roster row the user explicitly identified as theirs — trusted, never overridden. */
+  rowLabel?: string;
+  /** Work plans: a row label remembered from an earlier scan — only a hint, must still be found in the document. */
+  rowHint?: string;
 };
 
 export interface PlanAiProvider {

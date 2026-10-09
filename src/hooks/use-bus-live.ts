@@ -43,6 +43,30 @@ export type WorkTravelLive = Pick<
   alternativeConnection?: TravelConnection | null;
 };
 
+/** Heidi's "Nächste Busse" — see server/bus/next-departures.ts. */
+export type NextDeparturesState = {
+  status: "live" | "unavailable" | "test";
+  rows: BusUpcomingEntry[];
+  message: string | null;
+  fetchedAt: string;
+};
+
+/** Older than this the list is no longer trustworthy as "next buses". */
+export const NEXT_DEPARTURES_MAX_AGE_MS = 10 * 60_000;
+
+const IS_PRODUCTION = process.env.NODE_ENV === "production";
+
+/** Keep a cached list only while it is fresh; after that say plainly that data is unavailable. */
+export function staleSafeNextDepartures(
+  cached: NextDeparturesState | undefined,
+  nowMs: number = Date.now(),
+): NextDeparturesState | undefined {
+  if (!cached) return undefined;
+  const age = nowMs - Date.parse(cached.fetchedAt);
+  if (cached.status === "live" && Number.isFinite(age) && age <= NEXT_DEPARTURES_MAX_AGE_MS) return cached;
+  return { status: "unavailable", rows: [], message: "Busdaten momentan nicht verfügbar", fetchedAt: cached.fetchedAt };
+}
+
 export type BusLiveState = {
   next: BusInfo | null;
   upcoming: BusUpcomingEntry[];
@@ -64,6 +88,8 @@ export type BusLiveState = {
   workTravel?: WorkTravelLive | null;
   /** Whether workTravel is based on a confirmed dated shift or only a typical/orientation time. */
   workTimeBasis?: "confirmed" | "typical" | null;
+  /** Heidi only: the next real departures from now, independent of any work plan. */
+  nextDepartures?: NextDeparturesState;
 };
 
 function isBusEnabled(person: PersonProfile): boolean {
@@ -171,6 +197,7 @@ export function useBusLive(
           ? { ...cached.workTravel, isTestData: true }
           : null,
         workTimeBasis: cached?.workTimeBasis ?? null,
+        nextDepartures: staleSafeNextDepartures(cached?.nextDepartures),
       }));
       return;
     }
@@ -208,11 +235,14 @@ export function useBusLive(
         provider?: string;
         workTravel?: WorkTravelLive | null;
         workTimeBasis?: "confirmed" | "typical" | null;
+        unavailable?: boolean;
+        nextDepartures?: NextDeparturesState;
       };
       if (personIdRef.current !== requestPersonId) return;
 
       if (!res.ok || json.ok === false) {
-        const fallback = getNextBus(person.busStop);
+        // The local sample timetable is development-only: in production an error is shown as an error.
+        const fallback = IS_PRODUCTION ? null : getNextBus(person.busStop);
         const cached = cacheRef.current;
         const age = formatDataAge(cached?.fetchedAt);
         const cachedNext = cached?.next
@@ -248,6 +278,7 @@ export function useBusLive(
             ? { ...cached.workTravel, isTestData: true }
             : null,
           workTimeBasis: cached?.workTimeBasis ?? null,
+          nextDepartures: staleSafeNextDepartures(cached?.nextDepartures),
         });
         return;
       }
@@ -268,11 +299,12 @@ export function useBusLive(
         isTestData: Boolean(json.isTestData),
         enabled: json.enabled !== false,
         offline: false,
-        unavailable: false,
+        unavailable: Boolean(json.unavailable),
         provider: json.provider ?? null,
         dataAgeLabel: null,
         workTravel: json.workTravel ?? null,
         workTimeBasis: json.workTimeBasis ?? null,
+        nextDepartures: json.nextDepartures,
       };
       cacheRef.current = nextState;
       try {
@@ -294,7 +326,7 @@ export function useBusLive(
     } catch (err) {
       if (err instanceof DOMException && err.name === "AbortError") return;
       if (personIdRef.current !== requestPersonId) return;
-      const fallback = getNextBus(person.busStop);
+      const fallback = IS_PRODUCTION ? null : getNextBus(person.busStop);
       const cached = cacheRef.current;
       const cachedNext = cached?.next
         ? {
@@ -324,6 +356,7 @@ export function useBusLive(
           ? { ...cached.workTravel, isTestData: true }
           : null,
         workTimeBasis: cached?.workTimeBasis ?? null,
+        nextDepartures: staleSafeNextDepartures(cached?.nextDepartures),
       });
     }
   }, [person, online, regionPreferredProvider]);

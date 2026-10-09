@@ -1,5 +1,5 @@
 import type { WeekdayKey, WorkDayStatus } from "@/lib/types";
-import { WEEKDAY_ORDER } from "@/lib/format";
+import { getWeekdayKey, WEEKDAY_ORDER } from "@/lib/format";
 import type {
   AnalyzedSchoolLesson,
   AnalyzedWorkEntry,
@@ -12,6 +12,7 @@ import type {
 } from "@/lib/plan-analysis/types";
 import { computePeriod, isIsoDate, resolvePlanDate, weekdayMatches } from "@/lib/plan-analysis/plan-date";
 import { checkPlausibility } from "@/lib/plan-analysis/plausibility";
+import { checkSchoolEvidence, checkWorkEvidence } from "@/lib/plan-analysis/evidence";
 import { normalizeTimeToken, parseTimeRangeToken } from "@/lib/plan-analysis/time";
 
 const MAX_ENTRIES = 62; // ~2 months of daily rows — generous, still bounded
@@ -37,6 +38,8 @@ function parseLesson(
   raw: unknown,
   path: string,
   uncertainties: UncertaintyMark[],
+  day: WeekdayKey,
+  requireEvidence: boolean,
 ): AnalyzedSchoolLesson | null {
   if (!raw || typeof raw !== "object") return null;
   const obj = raw as Record<string, unknown>;
@@ -45,12 +48,13 @@ function parseLesson(
   const room = cleanText(obj.room, 40);
   if (!time || !TIME_RE.test(time) || !subject) return null;
 
+  // A room is optional extra info: many timetables print none, so its absence is not a reading problem.
   const lesson: AnalyzedSchoolLesson = {
     id: cleanText(obj.id, 40) ?? `lesson-${path}`,
     time,
     subject,
-    room: room ?? "?",
-    uncertain: Boolean(obj.uncertain) || !room || room === "?",
+    room: room && room !== "?" ? room : "",
+    uncertain: Boolean(obj.uncertain),
   };
 
   if (Array.isArray(obj.bringItems)) {
@@ -60,16 +64,28 @@ function parseLesson(
     if (items.length) lesson.bringItems = items;
   }
 
-  if (!room || room === "?") {
-    uncertainties.push({ path: `${path}.room`, reason: "Raum unklar oder fehlend" });
-    lesson.uncertain = true;
-  }
   if (obj.uncertain) {
     uncertainties.push({ path, reason: "Vom Modell als unsicher markiert" });
   }
 
+  const evidenceIssue = checkSchoolEvidence({ raw: obj.evidence, day, time, requireEvidence });
+  if (evidenceIssue) {
+    lesson.uncertain = true;
+    uncertainties.push({ path, reason: evidenceIssue });
+  }
+
   return lesson;
 }
+
+export type ValidateOptions = {
+  /**
+   * AI results must quote where each value was read (header + cell). Rows
+   * without such a quote are flagged; mock/manual data is exempt.
+   */
+  requireEvidence?: boolean;
+  /** Month/year the model read from the document's own header — fills in a missing year with certainty. */
+  declaredPeriod?: { month: number | null; year: number | null };
+};
 
 const NON_WORK_STATUSES = new Set<WorkDayStatus>(["free", "vacation", "sick", "other"]);
 
@@ -87,6 +103,13 @@ function statusFromLabel(label: string): Exclude<WorkDayStatus, "work"> | null {
   if (/urlaub/.test(t)) return "vacation";
   if (/krank/.test(t)) return "sick";
   return null;
+}
+
+/** A roster for Dec 2026 can list 1–3 Jan (2027); one for Jan can list 29–31 Dec (previous year). */
+function yearFromDeclared(declared: { month: number; year: number }, rowMonth: number): number {
+  if (declared.month === 12 && rowMonth === 1) return declared.year + 1;
+  if (declared.month === 1 && rowMonth === 12) return declared.year - 1;
+  return declared.year;
 }
 
 function isWeekdayValue(value: unknown): value is WeekdayKey {
@@ -137,6 +160,39 @@ function parseWorkEntry(
   referenceDate: Date,
   legend: Map<string, string>,
   yearInferred: { value: boolean },
+  options: ValidateOptions,
+): AnalyzedWorkEntry | null {
+  const entry = parseWorkEntryCore(raw, path, uncertainties, referenceDate, legend, yearInferred, options);
+  if (!entry) return null;
+  const obj = raw as Record<string, unknown>;
+  const [y, m, d] = entry.date.split("-").map(Number);
+  const isoWeekday = getWeekdayKey(new Date(y!, m! - 1, d));
+  const issue = checkWorkEvidence({
+    raw: obj.evidence,
+    day: d!,
+    isoWeekday,
+    status: entry.status,
+    start: entry.start,
+    end: entry.end,
+    requireEvidence: Boolean(options.requireEvidence),
+  });
+  if (issue) {
+    entry.uncertain = true;
+    entry.baseUncertain = true;
+    entry.evidenceIssue = issue;
+    uncertainties.push({ path, reason: issue });
+  }
+  return entry;
+}
+
+function parseWorkEntryCore(
+  raw: unknown,
+  path: string,
+  uncertainties: UncertaintyMark[],
+  referenceDate: Date,
+  legend: Map<string, string>,
+  yearInferred: { value: boolean },
+  options: ValidateOptions,
 ): AnalyzedWorkEntry | null {
   if (!raw || typeof raw !== "object") return null;
   const obj = raw as Record<string, unknown>;
@@ -145,16 +201,12 @@ function parseWorkEntry(
   if (isIsoDate(obj.date)) {
     iso = obj.date;
   } else if (typeof obj.day === "number" && typeof obj.month === "number") {
-    const hasExplicitYear = typeof obj.year === "number";
-    if (!hasExplicitYear) yearInferred.value = true;
-    iso = resolvePlanDate(
-      {
-        day: obj.day,
-        month: obj.month,
-        year: hasExplicitYear ? (obj.year as number) : undefined,
-      },
-      referenceDate,
-    );
+    const rowYear = typeof obj.year === "number" ? (obj.year as number) : undefined;
+    const declared = options.declaredPeriod;
+    const declaredYear = !rowYear && declared?.year && declared.month ? yearFromDeclared(declared as { month: number; year: number }, obj.month) : undefined;
+    const year = rowYear ?? declaredYear;
+    if (!year) yearInferred.value = true;
+    iso = resolvePlanDate({ day: obj.day, month: obj.month, year }, referenceDate);
   }
   if (!iso) return null;
 
@@ -289,16 +341,18 @@ function parseWorkEntry(
     return entry;
   }
 
+  // A location is optional extra info (many rosters print none): its absence is
+  // not a reading problem and must not force a manual confirmation per row.
   const entry: AnalyzedWorkEntry = {
     date: iso,
     weekday,
     label,
     start,
     end,
-    location: location ?? "?",
+    location: location && location !== "?" ? location : "",
     status: "work",
-    uncertain: Boolean(obj.uncertain) || !location || location === "?" || weekdayMismatch || timeLowConfidence,
-    baseUncertain: Boolean(obj.uncertain) || !location || location === "?" || timeLowConfidence,
+    uncertain: Boolean(obj.uncertain) || weekdayMismatch || timeLowConfidence,
+    baseUncertain: Boolean(obj.uncertain) || timeLowConfidence,
   };
 
   const notes = cleanText(obj.notes, 160);
@@ -311,9 +365,6 @@ function parseWorkEntry(
     if (items.length) entry.bringItems = items;
   }
 
-  if (!location || location === "?") {
-    uncertainties.push({ path: `${path}.location`, reason: "Ort unklar oder fehlend" });
-  }
   if (weekdayMismatch) {
     uncertainties.push({ path: `${path}.date`, reason: "Wochentag passt nicht zum Datum" });
   }
@@ -331,7 +382,9 @@ export function validatePlanAnalysis(
   raw: unknown,
   expectedMode: PlanAnalysisMode,
   referenceDate: Date = new Date(),
+  options: ValidateOptions = {},
 ): { ok: true; result: PlanAnalysisResult } | { ok: false; error: string } {
+  const requireEvidence = Boolean(options.requireEvidence);
   if (!raw || typeof raw !== "object") {
     return { ok: false, error: "Ungültige Analyse-Antwort." };
   }
@@ -376,9 +429,21 @@ export function validatePlanAnalysis(
       if (!day || !Array.isArray(day.lessons)) continue;
       const lessons = day.lessons
         .map((lesson, index) =>
-          parseLesson(lesson, `week.${key}.lessons.${index}`, uncertainties),
+          parseLesson(lesson, `week.${key}.lessons.${index}`, uncertainties, key, requireEvidence),
         )
         .filter((l): l is AnalyzedSchoolLesson => Boolean(l));
+      // Two lessons starting at the same time on one day = one of them was misplaced.
+      const startCount = new Map<string, number>();
+      for (const l of lessons) startCount.set(l.time, (startCount.get(l.time) ?? 0) + 1);
+      lessons.forEach((l, i) => {
+        if ((startCount.get(l.time) ?? 0) > 1) {
+          l.uncertain = true;
+          uncertainties.push({
+            path: `week.${key}.lessons.${i}`,
+            reason: `Mehrere Stunden beginnen um ${l.time} — Zuordnung bitte prüfen`,
+          });
+        }
+      });
       if (lessons.length) week[key] = { lessons };
     }
     if (Object.keys(week).length === 0) {
@@ -405,7 +470,7 @@ export function validatePlanAnalysis(
     let entries = entriesRaw
       .slice(0, MAX_ENTRIES)
       .map((row, index) =>
-        parseWorkEntry(row, `entries.${index}`, uncertainties, referenceDate, legend, yearInferred),
+        parseWorkEntry(row, `entries.${index}`, uncertainties, referenceDate, legend, yearInferred, options),
       )
       .filter((e): e is AnalyzedWorkEntry => Boolean(e))
       // Stable chronological order regardless of the order the plan listed them in.

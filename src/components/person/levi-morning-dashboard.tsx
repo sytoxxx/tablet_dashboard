@@ -21,12 +21,16 @@ import { CalendarSection } from "@/components/person/calendar-section";
 import { TasksSection } from "@/components/person/tasks-section";
 import { NextUpSection } from "@/components/person/next-up-section";
 import { Section } from "@/components/section";
+import { EmptyState } from "@/components/empty-state";
+import Link from "next/link";
 import { resolveNextUpGlance } from "@/lib/morning/work-priority";
 import {
   detailedClothingLayers,
   isValidTempC,
 } from "@/lib/weather/clothing";
 import { WEEKDAY_LABELS } from "@/lib/format";
+import { useUntis } from "@/components/providers/untis-provider";
+import { UntisTimetableSection } from "@/components/person/untis-timetable-section";
 import type { SchoolJarvisDailySummary } from "@/lib/integrations/school-jarvis/types";
 import { cn } from "@/lib/utils";
 
@@ -94,6 +98,9 @@ export function LeviMorningDashboard({
   void busEnabled;
 
   const greetingBucket = useGreetingBucket();
+  // Real WebUntis timetable (if connected) — replaces the weekly pattern as the school view.
+  const untis = useUntis();
+  const untisActive = untis.status === "ready" && untis.fetchedAt != null;
   const dayLabel = overview.focusIsTomorrow ? "Morgen" : "Heute";
   const eveningFocus = overview.focusIsTomorrow;
 
@@ -186,16 +193,16 @@ export function LeviMorningDashboard({
               src={view.avatarImageUrl}
               alt=""
               aria-hidden
-              className="size-12 shrink-0 rounded-full border border-[color:var(--hairline)] object-cover sm:size-14 landscape-tablet:size-11"
+              className="size-12 shrink-0 rounded-full border border-[color:var(--hairline)] object-cover sm:size-14 landscape-tablet:size-16"
             />
           ) : null}
           <div className="min-w-0 flex-1 space-y-0.5">
-            <p className="text-sm tracking-[0.14em] text-[color:var(--quiet)] uppercase landscape-tablet:text-xs">
+            <p className="text-sm tracking-[0.14em] text-[color:var(--quiet)] uppercase landscape-tablet:text-sm">
               {WEEKDAY_LABELS[view.weekdayKey]} · {dayLabel} · Schule
             </p>
             <DaypartGreeting
               name={overview.displayName}
-              className="font-display text-3xl leading-tight tracking-tight sm:text-4xl landscape-tablet:text-[2.35rem]"
+              className="font-display text-3xl leading-tight tracking-tight sm:text-4xl landscape-tablet:text-5xl"
               style={{ color: view.accent }}
             />
           </div>
@@ -244,8 +251,32 @@ export function LeviMorningDashboard({
           </div>
         ) : null}
 
+        {untisActive ? (
+          <div className="landscape-tablet:col-span-2">
+            <UntisTimetableSection untis={untis} now={wallNow} />
+          </div>
+        ) : null}
+
+        {/* No timetable at all — say so honestly instead of "nichts geplant" or invented lessons */}
+        {view.timetableMissing && !untisActive ? (
+          <div className="landscape-tablet:col-span-2">
+            <Section title="Schule" emphasis="hero">
+              <EmptyState
+                title="Noch kein Stundenplan hinterlegt"
+                description="Sobald ein Stundenplan eingetragen ist, siehst du hier deine Stunden."
+              />
+              <Link
+                href="/plan-aktualisieren"
+                className="mt-4 inline-flex h-14 items-center rounded-2xl bg-[color:var(--ink)] px-6 text-lg font-medium text-[color:var(--surface)] active:scale-[0.98]"
+              >
+                Stundenplan eintragen
+              </Link>
+            </Section>
+          </div>
+        ) : null}
+
         {/* Schule / Tagesplan — primary column on landscape */}
-        {showSchoolPlan ? (
+        {showSchoolPlan && !view.timetableMissing && !untisActive ? (
           <div
             className={cn(
               !showMitnehmen && !clothingLine
@@ -266,16 +297,16 @@ export function LeviMorningDashboard({
             {showMitnehmen ? (
               <Section title="Mitnehmen" emphasis="secondary">
                 {mitnehmenEmpty ? (
-                  <p className="text-base text-[color:var(--quiet)] landscape-tablet:text-sm">
+                  <p className="text-base text-[color:var(--quiet)] landscape-tablet:text-base">
                     {overview.itemsToTakeEmptyMessage ||
                       "Heute nichts Besonderes mitnehmen."}
                   </p>
                 ) : (
-                  <ul className="flex flex-wrap gap-x-3 gap-y-2 text-xl font-medium landscape-tablet:gap-y-1.5 landscape-tablet:text-lg">
+                  <ul className="flex flex-wrap gap-x-3 gap-y-2 text-xl font-medium landscape-tablet:gap-y-2 landscape-tablet:text-xl">
                     {overview.itemsToTake.map((item) => (
                       <li
                         key={item}
-                        className="rounded-2xl bg-[color:var(--bg)]/70 px-4 py-2 landscape-tablet:rounded-xl landscape-tablet:px-3 landscape-tablet:py-1.5"
+                        className="rounded-2xl bg-[color:var(--bg)]/70 px-4 py-2 landscape-tablet:rounded-2xl landscape-tablet:px-4 landscape-tablet:py-2"
                       >
                         {item}
                       </li>
@@ -287,7 +318,7 @@ export function LeviMorningDashboard({
 
             {clothingLine ? (
               <Section title="Kleidung" emphasis="tertiary">
-                <p className="text-lg font-medium text-[color:var(--ink)] landscape-tablet:text-base">
+                <p className="text-lg font-medium text-[color:var(--ink)] landscape-tablet:text-lg">
                   {clothingLine}
                 </p>
               </Section>

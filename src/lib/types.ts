@@ -12,9 +12,14 @@ export type TaskItem = {
 
 export type SchoolLesson = {
   id: string;
+  /** Start HH:MM. */
   time: string;
+  /** End HH:MM — only known for lessons that come from WebUntis. */
+  end?: string;
   subject: string;
   room: string;
+  /** Free text delivered by WebUntis for this lesson (shown, never interpreted). */
+  info?: string;
   bringItems?: string[];
 };
 
@@ -68,7 +73,17 @@ export type PersonalDay = {
 };
 
 export type Schedule =
-  | { type: "school"; week: Partial<Record<WeekdayKey, SchoolDay>> }
+  | {
+      type: "school";
+      /** Manual, recurring weekday pattern — the fallback. */
+      week: Partial<Record<WeekdayKey, SchoolDay>>;
+      /**
+       * Real dated days from WebUntis, keyed by ISO date. Runtime overlay only — never saved to
+       * storage. A date present here wins over `week`; a date absent here falls back to `week`.
+       */
+      dated?: Record<string, SchoolDay>;
+      datedInfo?: { fetchedAt: number };
+    }
   | {
       type: "work";
       week: Partial<Record<WeekdayKey, WorkShiftDay>>;
@@ -295,6 +310,8 @@ export type AppData = {
 /** Derived morning view for dashboards (not persisted). */
 export type TimetableEntry = {
   time: string;
+  /** End HH:MM — only when the source (WebUntis) delivers it. */
+  end?: string;
   subject: string;
   room: string;
 };

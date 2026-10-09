@@ -34,10 +34,14 @@ export function PlanPreviewEditor({ result, onChange }: PlanPreviewEditorProps) 
   return (
     <div className="space-y-6">
       <div className="flex flex-wrap items-center gap-3 text-sm text-[color:var(--quiet)]">
-        <span>
-          Quelle: {result.source === "ai" ? "KI" : "Mock"} · Konfidenz{" "}
-          {Math.round(result.confidence * 100)}%
-        </span>
+        {result.source === "text" ? (
+          <span>Quelle: eingefügte Liste (ChatGPT-Textimport)</span>
+        ) : (
+          <span>
+            Quelle: {result.source === "ai" ? "KI" : "Mock"} · Konfidenz{" "}
+            {Math.round(result.confidence * 100)}%
+          </span>
+        )}
         {result.warnings.map((w) => (
           <span key={w} className="rounded-full bg-[color:var(--surface)] px-3 py-1">
             {w}
@@ -76,10 +80,13 @@ export function PlanPreviewEditor({ result, onChange }: PlanPreviewEditorProps) 
         </div>
       ) : null}
 
+      {result.draft.type === "work" ? (
+        <WorkOverview entries={result.draft.entries} uncertainPaths={uncertainPaths} />
+      ) : null}
+
       {result.draft.type === "school" ? (
         <SchoolEditor
           draft={result.draft}
-          uncertainPaths={uncertainPaths}
           onChange={(draft) => updateDraft(draft)}
         />
       ) : (
@@ -95,11 +102,9 @@ export function PlanPreviewEditor({ result, onChange }: PlanPreviewEditorProps) 
 
 function SchoolEditor({
   draft,
-  uncertainPaths,
   onChange,
 }: {
   draft: SchoolPlanDraft;
-  uncertainPaths: Set<string>;
   onChange: (d: SchoolPlanDraft) => void;
 }) {
   const setDayLessons = (day: WeekdayKey, lessons: AnalyzedSchoolLesson[]) => {
@@ -148,15 +153,12 @@ function SchoolEditor({
             ) : (
               <ul className="space-y-3">
                 {lessons.map((lesson, index) => {
-                  const flagged =
-                    lesson.uncertain ||
-                    uncertainPaths.has(`week.${day}.lessons.${index}`) ||
-                    uncertainPaths.has(`week.${day}.lessons.${index}.room`);
+                  const flagged = lesson.uncertain;
                   return (
                     <li
                       key={lesson.id}
                       className={cn(
-                        "grid gap-2 rounded-2xl bg-[color:var(--surface)] p-3 sm:grid-cols-[6rem_1fr_6rem_auto]",
+                        "grid gap-2 rounded-2xl bg-[color:var(--surface)] p-3 sm:grid-cols-[6rem_1fr_6rem_auto_auto]",
                         flagged && "ring-2 ring-amber-400/60",
                       )}
                     >
@@ -164,7 +166,7 @@ function SchoolEditor({
                         value={lesson.time}
                         onChange={(e) => {
                           const next = [...lessons];
-                          next[index] = { ...lesson, time: e.target.value };
+                          next[index] = { ...lesson, time: e.target.value, uncertain: false };
                           setDayLessons(day, next);
                         }}
                         className="h-11 rounded-xl bg-white/70 px-3 tabular-nums outline-none focus:ring-2 focus:ring-[color:var(--brand)]"
@@ -174,7 +176,7 @@ function SchoolEditor({
                         value={lesson.subject}
                         onChange={(e) => {
                           const next = [...lessons];
-                          next[index] = { ...lesson, subject: e.target.value };
+                          next[index] = { ...lesson, subject: e.target.value, uncertain: false };
                           setDayLessons(day, next);
                         }}
                         className="h-11 rounded-xl bg-white/70 px-3 outline-none focus:ring-2 focus:ring-[color:var(--brand)]"
@@ -187,13 +189,28 @@ function SchoolEditor({
                           next[index] = {
                             ...lesson,
                             room: e.target.value,
-                            uncertain: e.target.value.trim() === "" || e.target.value === "?",
+                            uncertain: false,
                           };
                           setDayLessons(day, next);
                         }}
                         className="h-11 rounded-xl bg-white/70 px-3 outline-none focus:ring-2 focus:ring-[color:var(--brand)]"
                         aria-label="Raum"
                       />
+                      {lesson.uncertain ? (
+                        <Button
+                          type="button"
+                          variant="outline"
+                          size="sm"
+                          className="gap-1"
+                          onClick={() => {
+                            const next = [...lessons];
+                            next[index] = { ...lesson, uncertain: false };
+                            setDayLessons(day, next);
+                          }}
+                        >
+                          <Check className="size-4" /> ✓ geprüft
+                        </Button>
+                      ) : null}
                       <Button
                         type="button"
                         variant="ghost"
@@ -212,6 +229,48 @@ function SchoolEditor({
         );
       })}
     </div>
+  );
+}
+
+const SHORT_WEEKDAY: Record<WeekdayKey, string> = { mon: "Mo", tue: "Di", wed: "Mi", thu: "Do", fri: "Fr", sat: "Sa", sun: "So" };
+
+function overviewText(e: AnalyzedWorkEntry): string {
+  if (e.status === "work") return e.start && e.end ? `${e.start}–${e.end}` : "Zeit fehlt";
+  return e.label;
+}
+
+/** One calm line per day — what will be saved, at a glance. Editing happens in the cards below. */
+function WorkOverview({ entries, uncertainPaths }: { entries: AnalyzedWorkEntry[]; uncertainPaths: Set<string> }) {
+  if (entries.length === 0) return null;
+  return (
+    <section aria-label="Übersicht" data-testid="work-overview" className="rounded-[1.5rem] bg-[color:var(--surface)] p-4">
+      <h3 className="mb-3 text-sm font-semibold tracking-[0.14em] text-[color:var(--quiet)] uppercase">
+        Übersicht · {entries.length} {entries.length === 1 ? "Tag" : "Tage"}
+      </h3>
+      <ul className="grid gap-x-6 gap-y-1 sm:grid-cols-2">
+        {entries.map((e, i) => {
+          const flagged = (e.uncertain || uncertainPaths.has(`entries.${i}`)) && !e.reviewed;
+          return (
+            <li
+              key={`${e.date}-${i}`}
+              className={cn(
+                "flex items-baseline justify-between gap-3 border-b border-[color:var(--hairline)] py-1 text-base tabular-nums",
+                flagged && "font-medium text-amber-900",
+              )}
+            >
+              <span>
+                {flagged ? "⚠️ " : ""}
+                {SHORT_WEEKDAY[weekdayKeyOfIso(e.date)]} {formatIsoDisplay(e.date).slice(0, 5)}.
+              </span>
+              <span className={cn(e.status !== "work" && "text-[color:var(--quiet)]", flagged && "text-amber-900")}>
+                {overviewText(e)}
+                {e.status === "work" && e.label && e.label !== "Arbeit" ? ` · ${e.label}` : ""}
+              </span>
+            </li>
+          );
+        })}
+      </ul>
+    </section>
   );
 }
 

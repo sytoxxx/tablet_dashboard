@@ -5,6 +5,7 @@ import Link from "next/link";
 import { AdminShell } from "@/components/admin/admin-shell";
 import { PlanWeekEditor } from "@/components/plan/plan-week-editor";
 import { useAppData } from "@/components/providers/data-provider";
+import { withoutDemoTimetable } from "@/lib/school/demo-timetable";
 import type { PersonId } from "@/lib/types";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
@@ -54,7 +55,7 @@ export default function PlaeneSettingsPage() {
       </p>
 
       <PlanWeekEditor
-        person={person}
+        person={withoutDemoTimetable(person)}
         onChange={(schedule) => {
           updatePerson(person.id, (p) => ({ ...p, schedule }));
           setSaved(true);

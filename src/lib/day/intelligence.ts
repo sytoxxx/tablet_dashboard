@@ -21,6 +21,8 @@ import {
   type DayFlowState,
 } from "@/lib/day/schedule-flow";
 import { getWeatherProvider } from "@/lib/day/weather";
+import { hasAnyLesson } from "@/lib/school/demo-timetable";
+import { schoolLessonsForDate } from "@/lib/school/school-day";
 
 export type MonthHighlight = {
   isoDate: string;
@@ -34,6 +36,8 @@ export type DayIntelligenceView = TodayView & {
   importantTasks: ReturnType<typeof selectMorningTasks>;
   monthHighlights: MonthHighlight[];
   displayPrefs: PersonProfile["displayPrefs"];
+  /** School profile with no lesson on any weekday — show "kein Stundenplan", not "nichts geplant". */
+  timetableMissing: boolean;
 };
 
 export function getAppointmentsForDate(
@@ -56,9 +60,9 @@ function schoolTimetable(
   schedule: Extract<Schedule, { type: "school" }>,
   date: Date,
 ): TimetableEntry[] {
-  const day = schedule.week[getWeekdayKey(date)];
-  return (day?.lessons ?? []).map((l) => ({
+  return schoolLessonsForDate(schedule, date).map((l) => ({
     time: l.time,
+    ...(l.end ? { end: l.end } : {}),
     subject: l.subject,
     room: l.room,
   }));
@@ -173,6 +177,7 @@ export function buildDayIntelligence(
     dayFlow,
     importantTasks: selectMorningTasks(person.tasks),
     monthHighlights: monthHighlightsFor(person, focusDate),
+    timetableMissing: person.schedule.type === "school" && !hasAnyLesson(person.schedule),
     displayPrefs: {
       showBus: person.displayPrefs?.showBus ?? true,
       showWeather: person.displayPrefs?.showWeather ?? true,

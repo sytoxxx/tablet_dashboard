@@ -238,6 +238,7 @@ export function PersonDashboard({
       busEmptyTitle={liveMeta.busEmptyTitle}
       busUpcoming={liveMeta.busUpcoming}
       showUpcomingBusList={person.id === "heidi"}
+      nextDepartures={bus.nextDepartures}
       busMatched={liveMeta.busMatched}
       busEnabled={liveMeta.busEnabled}
       busOffline={liveMeta.busOffline}

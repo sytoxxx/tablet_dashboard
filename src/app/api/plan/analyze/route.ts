@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { unauthorizedIfAnonymous } from "@/lib/auth/guard";
 import { createPlanAiProvider } from "@/server/ai";
 import { seedPersons } from "@/data/seed";
+import { PlanAiError } from "@/server/ai/errors";
 
 export const runtime = "nodejs";
 
@@ -64,6 +65,9 @@ export async function POST(request: Request) {
     const person = seedPersons.find((p) => p.id === personId);
     const personName = personNameRaw || person?.name || personId;
 
+    const cleanLabel = (key: string) =>
+      String(form.get(key) || "").replace(/[<>]/g, "").trim().slice(0, 80) || undefined;
+
     const provider = createPlanAiProvider();
     const result = await provider.analyze({
       planType,
@@ -71,6 +75,8 @@ export async function POST(request: Request) {
       personName,
       images,
       referenceDate: new Date(),
+      rowLabel: cleanLabel("rowLabel"),
+      rowHint: cleanLabel("rowHint"),
     });
 
     return NextResponse.json({
@@ -78,6 +84,12 @@ export async function POST(request: Request) {
       provider: provider.name,
     });
   } catch (error) {
+    if (error instanceof PlanAiError) {
+      return NextResponse.json(
+        { error: error.message, code: error.code, ...error.extra },
+        { status: error.status },
+      );
+    }
     const message = error instanceof Error ? error.message : "Analyse fehlgeschlagen.";
     return NextResponse.json({ error: message }, { status: 500 });
   }

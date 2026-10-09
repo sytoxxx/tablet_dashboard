@@ -1,3 +1,4 @@
+import { schoolLessonsForDate } from "@/lib/school/school-day";
 import { NextResponse } from "next/server";
 import { unauthorizedIfAnonymous } from "@/lib/auth/guard";
 import { createBusProvider } from "@/server/bus";
@@ -19,6 +20,7 @@ import {
 import type { TravelConnection } from "@/lib/work/travel-types";
 import type { PersonId, PersonProfile } from "@/lib/types";
 import { isTriasTripConfigured } from "@/server/bus/trias/trip-service";
+import { fetchNextDepartures, UNAVAILABLE_MESSAGE } from "@/server/bus/next-departures";
 import {
   planBirgitTripTravel,
   planHeidiTripTravel,
@@ -187,6 +189,11 @@ async function respondForPerson(
     const now = new Date();
     const tomorrow = new Date(now.getTime() + 24 * 60 * 60 * 1000);
 
+    // Heidi's "Nächste Busse": the next real departures from NOW on her route —
+    // its own query, never aimed at the shift and never gated by the work plan.
+    const nextDepartures =
+      person.id === "heidi" ? await fetchNextDepartures(person, now) : undefined;
+
     // Single shared source of truth (same as the dashboard headline): only a
     // dated, scanned roster entry for the exact date counts as "confirmed" —
     // never the legacy recurring weekly pattern. An explicitly configured
@@ -235,40 +242,23 @@ async function respondForPerson(
           ? "typical"
           : null;
 
-    // Birgit/Heidi: real work-time data is required before planning any
-    // commute — never fall back to a generic "desired arrival" default.
-    if (
-      isWorkTravelPerson(person.id) &&
-      person.schedule.type === "work" &&
-      !work
-    ) {
-      const isConfirmedOff = resolution.kind === "confirmed" && resolution.status !== "work";
-      return NextResponse.json({
-        ok: true,
-        stopName: person.busStop.name,
-        departures: [],
-        next: null,
-        upcoming: [],
-        workTravel: null,
-        workTimeBasis: null,
-        source: "local",
-        isTestData: true,
-        enabled,
-        message: isConfirmedOff
-          ? "Kein Arbeitstag laut Plan — kein Bus zur Arbeit nötig."
-          : "Arbeitszeit noch nicht bekannt — kein passender Bus.",
-        emptyTitle: isConfirmedOff ? "Kein Arbeitstag" : "Arbeitszeit unbekannt",
-        fetchedAt: new Date().toISOString(),
-      });
-    }
+    // Real, honest note for the "matched to your shift" concept — used only
+    // for that single-value framing (Birgit's card, Heidi's title). Never
+    // blocks fetching real upcoming departures below: a stop's next buses
+    // are real information on their own, independent of whether a work day
+    // is confirmed. (commuteDepArrTimeIso/pickBestWorkConnection/planTravel
+    // already aim at "now" and return the soonest connections when the work
+    // time target is null — this relies on that existing, tested behavior,
+    // not a new code path.)
+    const isConfirmedOff = resolution.kind === "confirmed" && resolution.status !== "work";
+    const noDienstMessage = isConfirmedOff
+      ? "Kein Arbeitstag laut Plan — kein Bus zur Arbeit nötig."
+      : "Arbeitszeit noch nicht bekannt — kein passender Bus.";
+    const noDienstTitle = isConfirmedOff ? "Kein Arbeitstag" : "Arbeitszeit unbekannt";
 
     const schoolStart =
       person.schedule.type === "school"
-        ? person.schedule.week[
-            (["sun", "mon", "tue", "wed", "thu", "fri", "sat"] as const)[
-              now.getDay()
-            ]
-          ]?.lessons?.[0]?.time
+        ? (schoolLessonsForDate(person.schedule, now)[0]?.time ?? null)
         : null;
     const targetStart =
       work?.start || prefs.desiredArrivalHHmm || schoolStart || null;
@@ -296,6 +286,7 @@ async function respondForPerson(
           stopName: person.busStop.name,
           departures: [],
           upcoming: upcomingFromConnections(tripResult.connections),
+          nextDepartures,
           next,
           workTravel: serializeWorkTravel(plan),
           workTimeBasis,
@@ -333,6 +324,30 @@ async function respondForPerson(
     };
     const provider = createBusProvider(preferredProvider, query);
     const result = await provider.getDepartures(query);
+
+    // Production never presents the local/sample timetable as connections:
+    // if no live data could be obtained, say so plainly.
+    if (process.env.NODE_ENV === "production" && (result.source === "local" || result.isTestData)) {
+      return NextResponse.json({
+        ok: true,
+        stopName: result.stopName,
+        departures: [],
+        upcoming: [],
+        next: null,
+        workTravel: null,
+        workTimeBasis: null,
+        nextDepartures,
+        source: "local",
+        provider: result.provider,
+        warning: [tripFallbackWarning, result.warning].filter(Boolean).join(" · ") || null,
+        isTestData: true,
+        unavailable: true,
+        enabled: true,
+        fetchedAt: result.fetchedAt ?? new Date().toISOString(),
+        message: UNAVAILABLE_MESSAGE,
+        emptyTitle: "Busdaten nicht verfügbar",
+      });
+    }
 
     const workTravelEligible = isWorkTravelPerson(person.id);
 
@@ -419,6 +434,7 @@ async function respondForPerson(
           })
         : null,
       workTimeBasis: workTravel ? workTimeBasis : null,
+      nextDepartures,
       source: result.source,
       provider: result.provider,
       warning: [tripFallbackWarning, result.warning].filter(Boolean).join(" · ") || null,
@@ -434,14 +450,18 @@ async function respondForPerson(
       realtimeAt: result.realtimeAt ?? null,
       message: nextWithMeta
         ? null
-        : noConnection
-          ? "Bitte prüfe die nächste Verbindung."
-          : (empty?.description ?? "Heute keine passende Verbindung gefunden."),
+        : !work && workTravelEligible
+          ? noDienstMessage
+          : noConnection
+            ? "Bitte prüfe die nächste Verbindung."
+            : (empty?.description ?? "Heute keine passende Verbindung gefunden."),
       emptyTitle: nextWithMeta
         ? null
-        : noConnection
-          ? "Kein passender Bus"
-          : (empty?.title ?? null),
+        : !work && workTravelEligible
+          ? noDienstTitle
+          : noConnection
+            ? "Kein passender Bus"
+            : (empty?.title ?? null),
     });
   } catch {
     return NextResponse.json(

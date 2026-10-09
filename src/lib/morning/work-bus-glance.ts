@@ -11,19 +11,64 @@ export type WorkBusAlertKind = "none" | "delay" | "cancelled" | "deviation";
 
 /** One real upcoming departure — from live TRIAS/StopEvent data only, never invented. */
 export type BusUpcomingEntry = {
+  /** Vienna wall-clock HH:MM (display). */
   time: string;
   line: string;
   destination: string;
   status?: string | null;
   delayMinutes?: number | null;
   cancelled?: boolean | null;
+  /**
+   * Absolute departure instant (ISO-8601). When present, past/upcoming and the
+   * countdown are decided on the real date+time — correct across midnight and
+   * for tomorrow's first bus. Without it only the clock time is known.
+   */
+  iso?: string | null;
 };
 
+/** A bus that left less than this long ago still counts as "now" (clock skew / just boarding). */
+const DEPARTED_GRACE_MS = 30_000;
+
+function entryMs(e: BusUpcomingEntry): number | null {
+  if (!e.iso) return null;
+  const ms = Date.parse(e.iso);
+  return Number.isFinite(ms) ? ms : null;
+}
+
+/** Minutes until the departure (rounded down), or null when only an unreliable clock time is known. */
+export function minutesUntilEntry(e: BusUpcomingEntry, now: Date): number | null {
+  const ms = entryMs(e);
+  if (ms !== null) return Math.floor((ms - now.getTime()) / 60_000);
+  if (!e.time) return null;
+  return parseTimeToMinutes(e.time) - getViennaMinutesSinceMidnight(now);
+}
+
+/** "jetzt" · "in 7 Min." · "in 1 Std. 8 Min." — from the real instant when known. */
+export function countdownLabel(e: BusUpcomingEntry, now: Date): string {
+  const m = minutesUntilEntry(e, now);
+  if (m === null) return "";
+  if (m <= 0) return "jetzt";
+  if (m < 60) return m === 1 ? "in 1 Min." : `in ${m} Min.`;
+  const h = Math.floor(m / 60);
+  const r = m % 60;
+  return r === 0 ? `in ${h} Std.` : `in ${h} Std. ${r} Min.`;
+}
+
+const viennaDate = new Intl.DateTimeFormat("en-CA", { timeZone: "Europe/Vienna" });
+
+/** "morgen" when the bus leaves on a later Vienna calendar day than `now` (needs the absolute instant). */
+export function departureDayHint(e: BusUpcomingEntry, now: Date): "morgen" | null {
+  const ms = entryMs(e);
+  if (ms === null) return null;
+  return viennaDate.format(new Date(ms)) > viennaDate.format(now) ? "morgen" : null;
+}
+
 /**
- * The next up-to-`limit` real departures, relative to `now` — drops anything
- * already departed (so a bus that just left is replaced by the next one on
- * the very next render) instead of showing stale entries from the last poll.
- * Never pads with invented rows: fewer than `limit` real ones just means fewer rows.
+ * The next real departures, relative to `now`: up to `limit` buses that still
+ * run, plus any cancelled departure that would have left before the last of
+ * them (shown as cancelled, never as a normal bus). Anything already departed
+ * is dropped, duplicates collapse, and the list is never padded — fewer real
+ * connections simply means fewer rows.
  */
 export function selectUpcomingBusRows(
   upcoming: BusUpcomingEntry[] | null | undefined,
@@ -32,9 +77,38 @@ export function selectUpcomingBusRows(
 ): BusUpcomingEntry[] {
   if (!upcoming?.length) return [];
   const nowMinutes = getViennaMinutesSinceMidnight(now);
-  return upcoming
-    .filter((e) => e.time && parseTimeToMinutes(e.time) >= nowMinutes)
-    .slice(0, limit);
+
+  const future = upcoming.filter((e) => {
+    if (!e.time) return false;
+    const ms = entryMs(e);
+    if (ms !== null) return ms >= now.getTime() - DEPARTED_GRACE_MS;
+    return parseTimeToMinutes(e.time) >= nowMinutes;
+  });
+
+  const sortKey = (e: BusUpcomingEntry) =>
+    entryMs(e) ?? now.getTime() + (parseTimeToMinutes(e.time) - nowMinutes) * 60_000;
+  const sorted = [...future].sort((a, b) => sortKey(a) - sortKey(b));
+
+  const seen = new Set<string>();
+  const unique = sorted.filter((e) => {
+    const key = `${e.iso ?? e.time}|${e.line}|${e.destination}`;
+    if (seen.has(key)) return false;
+    seen.add(key);
+    return true;
+  });
+
+  let running = 0;
+  let cut = unique.length;
+  for (let i = 0; i < unique.length; i++) {
+    const cancelled = Boolean(unique[i]!.cancelled) || unique[i]!.status === "CANCELLED";
+    if (cancelled) continue;
+    running += 1;
+    if (running === limit) {
+      cut = i + 1;
+      break;
+    }
+  }
+  return unique.slice(0, cut);
 }
 
 export type WorkBusGlance = {

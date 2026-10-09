@@ -13,11 +13,9 @@ import type { AnalyzedWorkEntry, UncertaintyMark } from "@/lib/plan-analysis/typ
  * date and must be recomputed after a year correction).
  */
 export function baseContentUncertain(
-  entry: Pick<AnalyzedWorkEntry, "status" | "location" | "timeUnclear" | "unresolvedCode">,
+  entry: Pick<AnalyzedWorkEntry, "timeUnclear" | "unresolvedCode" | "evidenceIssue">,
 ): boolean {
-  if (entry.unresolvedCode || entry.timeUnclear) return true;
-  if (entry.status === "work" && (!entry.location || entry.location === "?")) return true;
-  return false;
+  return Boolean(entry.unresolvedCode || entry.timeUnclear || entry.evidenceIssue);
 }
 
 /** Human-readable notes for the content-only uncertainty above — regenerated, never stored redundantly. */
@@ -28,8 +26,6 @@ export function contentUncertaintyNotes(entry: AnalyzedWorkEntry, path: string):
   } else if (entry.timeUnclear) {
     notes.push({ path: `${path}.start`, reason: "Zeit nicht eindeutig erkannt oder nicht angegeben" });
   }
-  if (entry.status === "work" && (!entry.location || entry.location === "?")) {
-    notes.push({ path: `${path}.location`, reason: "Ort unklar oder fehlend" });
-  }
+  if (entry.evidenceIssue) notes.push({ path: `${path}.date`, reason: entry.evidenceIssue });
   return notes;
 }

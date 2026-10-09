@@ -90,7 +90,7 @@ export function WeatherWeekList({
           <li
             key={d.dateIso}
             className={cn(
-              "grid grid-cols-[2.25rem_1.75rem_minmax(0,1fr)_3.25rem] items-center gap-x-2 border-b border-[color:var(--hairline)]/70 py-1.5 text-base last:border-b-0 landscape-tablet:py-1 landscape-tablet:text-[0.9375rem]",
+              "grid grid-cols-[2.25rem_1.75rem_minmax(0,1fr)_3.25rem] items-center gap-x-2 border-b border-[color:var(--hairline)]/70 py-1.5 text-base last:border-b-0 landscape-tablet:py-1.5 landscape-tablet:text-base",
               active && "font-medium text-[color:var(--ink)]",
               !active && "text-[color:var(--ink)]",
             )}

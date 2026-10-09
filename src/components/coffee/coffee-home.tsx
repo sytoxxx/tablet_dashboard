@@ -116,10 +116,14 @@ export function CoffeeHome() {
             </p>
             <p className="mt-2 text-lg text-[color:var(--quiet)]">
               {COFFEE_METHOD_LABELS[latest.method]}
-              {" · "}
-              <span className="tabular-nums">
-                {formatTimer(latest.durationSeconds)}
-              </span>
+              {latest.durationSeconds > 0 ? (
+                <>
+                  {" · "}
+                  <span className="tabular-nums">
+                    {formatTimer(latest.durationSeconds)}
+                  </span>
+                </>
+              ) : null}
             </p>
           </div>
         ) : (

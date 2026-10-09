@@ -5,6 +5,7 @@ import {
   dedupeBringItems,
 } from "@/lib/morning/bring-rules";
 import { resolveWorkDayForDate } from "@/lib/work/schedule";
+import { schoolLessonsForDate } from "@/lib/school/school-day";
 
 /**
  * Bring list for a person/day:
@@ -22,7 +23,7 @@ export function buildBringItems(
   const schedule = person.schedule;
 
   if (schedule.type === "school") {
-    const lessons = schedule.week[key]?.lessons ?? [];
+    const lessons = schoolLessonsForDate(schedule, date);
     hasSchoolDay = lessons.length > 0;
     for (const lesson of lessons) {
       titles.push(lesson.subject);

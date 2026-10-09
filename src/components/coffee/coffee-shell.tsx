@@ -31,10 +31,13 @@ export function CoffeeShell({
   children,
   title,
   subtitle,
+  compact = false,
 }: {
   children: React.ReactNode;
   title: string;
   subtitle?: string;
+  /** Guide mode: only the top navigation, so the content gets the full tablet height. */
+  compact?: boolean;
 }) {
   const pathname = usePathname();
 
@@ -43,40 +46,44 @@ export function CoffeeShell({
       <div className="morning-shell mx-auto flex w-full max-w-5xl flex-col gap-6 px-5 py-6 sm:gap-8 sm:px-8 sm:py-8 landscape-tablet:gap-5 landscape-tablet:py-5">
         <MorningNav showCoffee={false} showPrimary />
 
-        <header className="animate-rise space-y-2">
-          <p className="text-sm tracking-[0.16em] text-[color:var(--quiet)] uppercase">
-            Kaffee
-          </p>
-          <h1 className="font-display text-4xl tracking-tight sm:text-5xl landscape-tablet:text-4xl">
-            {title}
-          </h1>
-          {subtitle ? (
-            <p className="max-w-2xl text-lg text-[color:var(--quiet)]">{subtitle}</p>
-          ) : null}
-        </header>
+        {compact ? null : (
+          <>
+            <header className="animate-rise space-y-2">
+              <p className="text-sm tracking-[0.16em] text-[color:var(--quiet)] uppercase">
+                Kaffee
+              </p>
+              <h1 className="font-display text-4xl tracking-tight sm:text-5xl landscape-tablet:text-4xl">
+                {title}
+              </h1>
+              {subtitle ? (
+                <p className="max-w-2xl text-lg text-[color:var(--quiet)]">{subtitle}</p>
+              ) : null}
+            </header>
 
-        <nav
-          className="animate-soft-in flex flex-wrap gap-2"
-          aria-label="Kaffee-Bereiche"
-        >
-          {LINKS.map((link) => {
-            const active = link.match(pathname);
-            return (
-              <Link
-                key={link.href}
-                href={link.href}
-                className={cn(
-                  "inline-flex min-h-12 items-center rounded-2xl px-4 text-base font-medium transition-[transform,background-color,color] duration-150 active:scale-[0.97]",
-                  active
-                    ? "bg-[color:var(--ink)] text-[color:var(--surface)]"
-                    : "bg-[color:var(--surface)] text-[color:var(--ink)] hover:bg-[color:var(--surface-strong)]",
-                )}
-              >
-                {link.label}
-              </Link>
-            );
-          })}
-        </nav>
+            <nav
+              className="animate-soft-in flex flex-wrap gap-2"
+              aria-label="Kaffee-Bereiche"
+            >
+              {LINKS.map((link) => {
+                const active = link.match(pathname);
+                return (
+                  <Link
+                    key={link.href}
+                    href={link.href}
+                    className={cn(
+                      "inline-flex min-h-12 items-center rounded-2xl px-4 text-base font-medium transition-[transform,background-color,color] duration-150 active:scale-[0.97]",
+                      active
+                        ? "bg-[color:var(--ink)] text-[color:var(--surface)]"
+                        : "bg-[color:var(--surface)] text-[color:var(--ink)] hover:bg-[color:var(--surface-strong)]",
+                    )}
+                  >
+                    {link.label}
+                  </Link>
+                );
+              })}
+            </nav>
+          </>
+        )}
 
         <div className="animate-rise" style={{ animationDelay: "60ms" }}>
           {children}

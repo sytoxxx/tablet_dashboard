@@ -11,6 +11,8 @@ import { useDevTime } from "@/components/providers/dev-time-provider";
 import { OfflineBanner } from "@/components/admin/offline-banner";
 import { Skeleton } from "@/components/shared/skeleton";
 import { resolveAutoProfile } from "@/lib/profile/auto-select";
+import { withUntisForPersons } from "@/lib/school/school-day";
+import { useUntis } from "@/components/providers/untis-provider";
 import { hasManualOverrideToday } from "@/lib/profile/active-person";
 import { isAppHydrated } from "@/data/app-store";
 
@@ -27,6 +29,7 @@ export default function HomePage() {
   const { data } = useAppData();
   const router = useRouter();
   const { now } = useDevTime();
+  const untis = useUntis();
   const holdTimer = useRef<number | null>(null);
   const [adminHint, setAdminHint] = useState(false);
 
@@ -45,11 +48,11 @@ export default function HomePage() {
       if (!isAppHydrated()) return;
       if (!data.persons.length) return;
       if (hasManualOverrideToday(now)) return;
-      const target = resolveAutoProfile(data.persons, now);
+      const target = resolveAutoProfile(withUntisForPersons(data.persons, untis.snapshot, now), now);
       if (target) router.replace(`/person/${target}`);
     }, 0);
     return () => window.clearTimeout(id);
-  }, [data.persons, now, router]);
+  }, [data.persons, untis.snapshot, now, router]);
 
   const clearHold = useCallback(() => {
     if (holdTimer.current !== null) {

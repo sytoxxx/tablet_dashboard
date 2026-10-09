@@ -7,6 +7,7 @@ import { addDays, toIsoDate } from "@/lib/day/tomorrow";
 import { DAY_CONFIG } from "@/lib/day/config";
 import { buildDayIntelligence } from "@/lib/day/intelligence";
 import { getWeekdayKey } from "@/lib/format";
+import { schoolDayEnd, schoolLessonsForDate } from "@/lib/school/school-day";
 import { getWorkShiftForDate } from "@/lib/work/schedule";
 import {
   buildEveningChecklist,
@@ -114,13 +115,16 @@ function resolveDayContext(
 ): EveningDayContext {
   const key = getWeekdayKey(tomorrow);
   if (person.schedule.type === "school" && signals.schoolDay) {
-    const lessons = person.schedule.week[key]?.lessons ?? [];
+    const lessons = schoolLessonsForDate(person.schedule, tomorrow);
+    // Lessons only carry a START time — the last lesson's start is not the end of
+    // the school day, so only the first start is shown.
     const start = lessons[0]?.time ?? null;
-    const end = lessons[lessons.length - 1]?.time ?? null;
+    // Real WebUntis lessons know their end too — then the whole school day is shown.
+    const end = schoolDayEnd(lessons);
     return {
       kind: "school",
       label: signals.workshopDay ? "Werkstatt · HTL" : "Schule · HTL",
-      timeRange: start && end ? `${start}–${end}` : start,
+      timeRange: start ? (end ? `${start}–${end}` : `ab ${start}`) : null,
     };
   }
   if (person.schedule.type === "work" && signals.workDay) {

@@ -73,18 +73,18 @@ export function DayFlowHero({
         className={cn(
           "font-display tracking-tight animate-soft-in",
           dominant
-            ? "text-5xl leading-[1.05] sm:text-6xl lg:text-7xl landscape-tablet:text-4xl landscape-tablet:leading-tight"
-            : "text-4xl sm:text-5xl landscape-tablet:text-3xl",
+            ? "text-5xl leading-[1.05] sm:text-6xl lg:text-7xl landscape-tablet:text-6xl landscape-tablet:leading-tight"
+            : "text-4xl sm:text-5xl landscape-tablet:text-4xl",
         )}
       >
         {block.title}
       </p>
       <p
         className={cn(
-          "mt-3 text-[color:var(--quiet)] landscape-tablet:mt-1.5",
+          "mt-3 text-[color:var(--quiet)] landscape-tablet:mt-2",
           dominant
-            ? "text-2xl landscape-tablet:text-lg"
-            : "text-xl landscape-tablet:text-base",
+            ? "text-2xl landscape-tablet:text-xl"
+            : "text-xl landscape-tablet:text-lg",
         )}
       >
         <span className="tabular-nums text-[color:var(--ink)]">{block.start}</span>

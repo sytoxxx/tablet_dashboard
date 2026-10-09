@@ -1,7 +1,8 @@
 import type { AppData, CoffeeDrink, PersonProfile } from "@/lib/types";
 import { DEFAULT_REGION, KAPFENBERG_WEATHER_LOCATION } from "@/lib/data/defaults";
 
-function leviWeek() {
+/** DEMO timetable shipped with a fresh install — invented lessons, never a real plan. */
+export function leviWeek() {
   const mon = {
     lessons: [
       { id: "lm1", time: "08:15", subject: "Mathematik", room: "B204", bringItems: ["Taschenrechner"] },

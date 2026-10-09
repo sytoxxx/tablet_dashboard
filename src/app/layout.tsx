@@ -5,6 +5,7 @@ import {
   DevTimePanel,
   DevTimeProvider,
 } from "@/components/providers/dev-time-provider";
+import { UntisProvider } from "@/components/providers/untis-provider";
 import { MusicCommandProvider } from "@/components/music/music-command-provider";
 import { MusicMiniPlayer } from "@/components/music/music-mini-player";
 import "./globals.css";
@@ -44,7 +45,7 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
         <DataProvider>
           <DevTimeProvider>
             <MusicCommandProvider>
-              {children}
+              <UntisProvider>{children}</UntisProvider>
               <MusicMiniPlayer />
               <DevTimePanel />
             </MusicCommandProvider>

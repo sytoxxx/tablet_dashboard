@@ -7,7 +7,8 @@ import type { Schedule } from "@/lib/types";
 import type { WorkTimeResolution } from "@/lib/work/work-time-resolution";
 
 type WorkSchedule = Extract<Schedule, { type: "work" }>;
-import type { WorkTravelLive } from "@/hooks/use-bus-live";
+import type { NextDeparturesState, WorkTravelLive } from "@/hooks/use-bus-live";
+import { NEXT_DEPARTURES_MAX_AGE_MS } from "@/hooks/use-bus-live";
 import { MorningNav } from "@/components/shared/morning-nav";
 import { LiveClock } from "@/components/shared/live-clock";
 import {
@@ -27,7 +28,12 @@ import {
   resolveNextUpGlance,
   resolveWorkMorningPriority,
 } from "@/lib/morning/work-priority";
-import { resolveWorkBusGlance, selectUpcomingBusRows, type BusUpcomingEntry } from "@/lib/morning/work-bus-glance";
+import {
+  resolveWorkBusGlance,
+  selectUpcomingBusRows,
+  type BusUpcomingEntry,
+  type WorkBusGlance,
+} from "@/lib/morning/work-bus-glance";
 import { formatGermanDate, WEEKDAY_LABELS } from "@/lib/format";
 import { cn } from "@/lib/utils";
 
@@ -46,8 +52,9 @@ export function SimpleMorningDashboard({
   simple = false,
   busMessage: _busMessage,
   busEmptyTitle: _busEmptyTitle,
-  busUpcoming,
+  busUpcoming: _busUpcoming,
   showUpcomingBusList = false,
+  nextDepartures,
   busMatched: _busMatched,
   busEnabled = true,
   busOffline: _busOffline,
@@ -74,6 +81,8 @@ export function SimpleMorningDashboard({
   busUpcoming?: BusUpcomingEntry[];
   /** Heidi only: show the next 3 real departures instead of just the next one. */
   showUpcomingBusList?: boolean;
+  /** Heidi only: the from-now departure list (its own query — never tied to the work plan). */
+  nextDepartures?: NextDeparturesState;
   busMatched?: boolean;
   busEnabled?: boolean;
   busOffline?: boolean;
@@ -97,6 +106,7 @@ export function SimpleMorningDashboard({
   void _onWardrobeChange;
   void _weatherPlace;
   void _busEmptyTitle;
+  void _busUpcoming;
   void _busMessage;
   void _busMatched;
   void _busOffline;
@@ -162,6 +172,62 @@ export function SimpleMorningDashboard({
     basis: workTimeBasis,
   });
 
+  // Heidi: the "next 3 real departures" list is a DIFFERENT concept from the
+  // "bus matched to your confirmed/typical shift" card above — it must never
+  // depend on work status, daypart, or confirmation state. Always mounted
+  // (with an honest empty state) whenever bus is enabled at all; content
+  // comes from the same shared busUpcoming feed, never a second data source.
+  const showBusBlock = busPlannable;
+  const showHeidiBusList =
+    showUpcomingBusList && busEnabled && view.displayPrefs.showBus !== false;
+
+  // Rows come ONLY from the dedicated from-now query. A stale list is never
+  // shown as "next buses": past ~10 minutes without a refresh it becomes an
+  // honest "nicht verfügbar".
+  const listAgeMs = nextDepartures ? wallNow.getTime() - Date.parse(nextDepartures.fetchedAt) : null;
+  const listStale =
+    listAgeMs !== null && Number.isFinite(listAgeMs) && listAgeMs > NEXT_DEPARTURES_MAX_AGE_MS;
+  const listUnavailable = nextDepartures?.status === "unavailable" || listStale;
+  const heidiUpcoming =
+    showHeidiBusList && nextDepartures && !listUnavailable
+      ? selectUpcomingBusRows(nextDepartures.rows, wallNow)
+      : showHeidiBusList
+        ? []
+        : undefined;
+  const heidiListNotice = !showHeidiBusList
+    ? null
+    : !nextDepartures
+      ? "Verbindungen werden geladen …"
+      : listUnavailable
+        ? "Busdaten momentan nicht verfügbar"
+        : heidiUpcoming && heidiUpcoming.length === 0
+          ? "In nächster Zeit keine Verbindung gefunden."
+          : null;
+  // "Passender Bus für deinen Dienst" is its own card, shown IN ADDITION to the list —
+  // only when a real connection matched to a confirmed/typical shift exists.
+  const heidiShiftBus =
+    showHeidiBusList &&
+    showBusBlock &&
+    busGlance.visible &&
+    Boolean(busGlance.time || busGlance.leaveHome || busGlance.kind !== "none");
+  const heidiListGlance: WorkBusGlance = {
+    visible: true,
+    title: "Nächste Busse",
+    kind: "none",
+    time: null,
+    lineTarget: null,
+    arrival: null,
+    leaveHome: null,
+    delayMinutes: null,
+    alertTitle: null,
+    alertDetail: null,
+    nextTime: null,
+    nextLineTarget: null,
+    nextArrival: null,
+    isTestData: nextDepartures?.status === "test",
+    hint: null,
+  };
+
   const nextUp = resolveNextUpGlance({
     isWorking: priority.isWorking,
     isFree: priority.isFree,
@@ -183,7 +249,6 @@ export function SimpleMorningDashboard({
     overview.visibility.appointments &&
     overview.appointments.length > 0;
 
-  const showBusBlock = busPlannable;
   const heuteTitle = overview.focusIsTomorrow ? "Morgen" : "Heute";
 
   return (
@@ -206,17 +271,17 @@ export function SimpleMorningDashboard({
               src={view.avatarImageUrl}
               alt=""
               aria-hidden
-              className="size-12 shrink-0 rounded-full border border-[color:var(--hairline)] object-cover sm:size-14 landscape-tablet:size-11"
+              className="size-12 shrink-0 rounded-full border border-[color:var(--hairline)] object-cover sm:size-14 landscape-tablet:size-16"
             />
           ) : null}
           <div className="min-w-0 flex-1 space-y-0.5">
-            <p className="text-sm tracking-[0.14em] text-[color:var(--quiet)] uppercase landscape-tablet:text-xs">
+            <p className="text-sm tracking-[0.14em] text-[color:var(--quiet)] uppercase landscape-tablet:text-sm">
               {WEEKDAY_LABELS[view.weekdayKey]}
               {overview.focusIsTomorrow ? " · Morgen" : " · Heute"}
             </p>
             <DaypartGreeting
               name={overview.displayName}
-              className="font-display text-4xl leading-tight tracking-tight sm:text-5xl landscape-tablet:text-[2.5rem]"
+              className="font-display text-4xl leading-tight tracking-tight sm:text-5xl landscape-tablet:text-6xl"
               style={{ color: view.accent }}
             />
             <p
@@ -266,41 +331,58 @@ export function SimpleMorningDashboard({
           </div>
         ) : null}
 
-        {priority.isFree ? (
-          <div className={showBusBlock ? undefined : "landscape-tablet:col-span-2"}>
-            <Section title={heuteTitle} emphasis="hero">
-              <p className="font-display text-4xl tracking-tight sm:text-5xl landscape-tablet:text-4xl">
-                {priority.freeDayCopy}
-              </p>
-            </Section>
-          </div>
-        ) : (
-          <WorkShiftSection
-            shift={confirmedShift}
-            simple
-            emphasis="hero"
-            focusTomorrow={eveningFocus || overview.focusIsTomorrow}
-            confirmation={workTimeResolution?.kind ?? "confirmed"}
-          />
-        )}
+        {(() => {
+          const shiftOrFree = priority.isFree ? (
+            <div
+              className={
+                showBusBlock || showHeidiBusList ? undefined : "landscape-tablet:col-span-2"
+              }
+            >
+              <Section title={heuteTitle} emphasis="hero">
+                <p className="font-display text-4xl tracking-tight sm:text-5xl landscape-tablet:text-5xl">
+                  {priority.freeDayCopy}
+                </p>
+              </Section>
+            </div>
+          ) : (
+            <WorkShiftSection
+              shift={confirmedShift}
+              simple
+              emphasis="hero"
+              focusTomorrow={eveningFocus || overview.focusIsTomorrow}
+              confirmation={workTimeResolution?.kind ?? "confirmed"}
+            />
+          );
+          return heidiShiftBus ? (
+            <div className="flex flex-col gap-2.5">
+              {shiftOrFree}
+              <WorkBusSection glance={busGlance} emphasis="secondary" compact now={wallNow} />
+            </div>
+          ) : (
+            shiftOrFree
+          );
+        })()}
 
-        {showBusBlock ? (
+        {showHeidiBusList ? (
+          <WorkBusSection
+            glance={heidiListGlance}
+            emphasis="secondary"
+            upcomingList={heidiUpcoming}
+            listNotice={heidiListNotice}
+            now={wallNow}
+          />
+        ) : showBusBlock ? (
           <WorkBusSection
             glance={busGlance}
             emphasis={
               busGlance.kind === "none" && !eveningFocus ? "hero" : "secondary"
-            }
-            upcomingList={
-              showUpcomingBusList && !hideTodayBus
-                ? selectUpcomingBusRows(busUpcoming, wallNow)
-                : undefined
             }
             now={wallNow}
           />
         ) : null}
 
         {leaveReminderActive && leaveKnown && !eveningFocus ? (
-          <p className="px-1 text-base text-[color:var(--quiet)] landscape-tablet:col-span-2 landscape-tablet:text-sm">
+          <p className="px-1 text-base text-[color:var(--quiet)] landscape-tablet:col-span-2 landscape-tablet:text-base">
             Erinnerung: {leaveReminderLabel?.trim() || "Bald losfahren"}
           </p>
         ) : null}

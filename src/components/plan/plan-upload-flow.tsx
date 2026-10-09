@@ -10,8 +10,14 @@ import { PlanPreviewEditor } from "@/components/plan/plan-preview-editor";
 import {
   PlanConflictResolver,
 } from "@/components/plan/plan-conflict-resolver";
-import type { ConflictResolution } from "@/lib/data/conflict-resolution";
-import { detectDraftConflicts } from "@/lib/data/conflicts";
+import { conflictKey, type ConflictResolution } from "@/lib/data/conflict-resolution";
+import {
+  compareWorkEntries,
+  detectDraftConflicts,
+  detectWorkEntryConflicts,
+} from "@/lib/data/conflicts";
+import { PlanTextImport } from "@/components/plan/plan-text-import";
+import { isUnclearEntry } from "@/lib/plan-analysis/text-import";
 import { useOnlineStatus } from "@/components/admin/offline-banner";
 import { pdfAllPagesToImageFiles } from "@/lib/plan-analysis/pdf-to-image";
 import type { PersonId } from "@/lib/types";
@@ -24,14 +30,31 @@ import {
 } from "@/lib/plan-analysis/apply";
 import { revalidateWorkDraftForYear } from "@/lib/plan-analysis/revalidate";
 import { assessReliability } from "@/lib/plan-analysis/reliability";
+import { checkPhotoFile } from "@/lib/plan-analysis/photo-quality-client";
+import { withoutDemoTimetable } from "@/lib/school/demo-timetable";
+import {
+  PHOTO_PROBLEM_TEXT,
+  PHOTO_TIPS,
+  type PhotoProblem,
+} from "@/lib/plan-analysis/photo-quality";
 import { cn } from "@/lib/utils";
 
 const MAX_BYTES = 8 * 1024 * 1024;
 const ACCEPT = "image/jpeg,image/png,image/webp,image/heic,image/heif,application/pdf";
-/** A photo below this on its long edge almost never OCRs reliably — ask for a retake instead of guessing. */
-const MIN_PHOTO_LONG_EDGE = 700;
+type Step = "upload" | "converting" | "analyzing" | "choose-row" | "clarify" | "preview" | "editor" | "saved";
 
-type Step = "upload" | "converting" | "analyzing" | "clarify" | "preview" | "editor" | "saved";
+/** Why the photo cannot be used + what to do — shown instead of a plan, never a guess. */
+type Retake = { headline: string; problems: string[]; tips: string[] };
+
+const ROW_LABEL_KEY = (personId: string) => `coffee-morning-plan-row-label:${personId}`;
+
+function readRememberedRow(personId: string): string | undefined {
+  try {
+    return window.localStorage.getItem(ROW_LABEL_KEY(personId)) || undefined;
+  } catch {
+    return undefined;
+  }
+}
 
 function validateImageFile(file: File): string | null {
   if (file.size <= 0) return "Datei ist leer.";
@@ -41,23 +64,6 @@ function validateImageFile(file: File): string | null {
     return "Nur Bilddateien oder PDF sind erlaubt.";
   }
   return null;
-}
-
-/** Loads an image file just to read its pixel dimensions — a genuine too-small photo can't be read reliably. */
-function readImageLongEdge(file: File): Promise<number> {
-  return new Promise((resolve, reject) => {
-    const url = URL.createObjectURL(file);
-    const img = new Image();
-    img.onload = () => {
-      URL.revokeObjectURL(url);
-      resolve(Math.max(img.naturalWidth, img.naturalHeight));
-    };
-    img.onerror = () => {
-      URL.revokeObjectURL(url);
-      reject(new Error("Bild konnte nicht gelesen werden."));
-    };
-    img.src = url;
-  });
 }
 
 const STATUS_CHOICE_LABEL: Record<AnalyzedWorkEntry["status"], string> = {
@@ -87,7 +93,9 @@ export function PlanUploadFlow({
   const cameraRef = useRef<HTMLInputElement>(null);
 
   const [personId, setPersonId] = useState<PersonId>(initialPersonId ?? "levi");
-  const person = data.persons.find((p) => p.id === personId) ?? data.persons[0];
+  // The shipped example timetable is not "existing data" — a scan must not be merged into it.
+  const storedPerson = data.persons.find((p) => p.id === personId) ?? data.persons[0];
+  const person = storedPerson ? withoutDemoTimetable(storedPerson) : storedPerson;
 
   const [planType, setPlanType] = useState<PlanAnalysisMode>(() =>
     person ? defaultPlanTypeForPerson(person) : "school",
@@ -95,8 +103,15 @@ export function PlanUploadFlow({
 
   const [files, setFiles] = useState<File[]>([]);
   const [previewUrls, setPreviewUrls] = useState<string[]>([]);
+  /** Work plans can be imported from a ChatGPT list (default) or read from a photo/PDF. */
+  const [importSource, setImportSource] = useState<"text" | "photo">("text");
+  const [pastedText, setPastedText] = useState("");
+  /** Text import needs an explicit person — the default "levi" must never be taken for granted. */
+  const [personChosen, setPersonChosen] = useState(Boolean(initialPersonId));
   const [step, setStep] = useState<Step>("upload");
   const [error, setError] = useState<string | null>(null);
+  const [retake, setRetake] = useState<Retake | null>(null);
+  const [rowChoices, setRowChoices] = useState<string[]>([]);
   const [analysis, setAnalysis] = useState<PlanAnalysisResult | null>(null);
   const [applyMode, setApplyMode] = useState<ApplyMode>("replace");
   const [resolutions, setResolutions] = useState<Record<string, ConflictResolution>>({});
@@ -116,10 +131,25 @@ export function PlanUploadFlow({
     [person, planType],
   );
 
+  const isTextResult = analysis?.source === "text";
+
+  /** Text import: compare date by date — only days whose content really differs need a decision. */
+  const textComparison = useMemo(() => {
+    if (!analysis || !person || analysis.source !== "text" || analysis.draft.type !== "work") return null;
+    const existing = person.schedule.type === "work" ? (person.schedule.entries ?? []) : [];
+    const { added, unchanged, changed } = compareWorkEntries(existing, analysis.draft.entries);
+    return { added, unchanged, changed, conflicts: detectWorkEntryConflicts(existing, changed) };
+  }, [analysis, person]);
+
   const conflicts = useMemo(() => {
+    if (textComparison) return textComparison.conflicts;
     if (!analysis || !person || applyMode === "replace") return [];
     return detectDraftConflicts(person.schedule, analysis.draft);
-  }, [analysis, person, applyMode]);
+  }, [analysis, person, applyMode, textComparison]);
+
+  const undecidedConflicts = isTextResult
+    ? conflicts.filter((c) => !(conflictKey(c) in resolutions)).length
+    : 0;
 
   const yearNeedsConfirm =
     analysis?.mode === "work" &&
@@ -135,17 +165,33 @@ export function PlanUploadFlow({
   const needsClarification = Boolean(yearNeedsConfirm) || unknownCodes.length > 0;
 
   const unresolvedReviewCount = useMemo(() => {
-    if (!analysis || analysis.draft.type !== "work") return 0;
+    if (!analysis) return 0;
+    if (analysis.draft.type === "school") {
+      return Object.values(analysis.draft.week).reduce(
+        (sum, day) => sum + (day?.lessons.filter((l) => l.uncertain).length ?? 0),
+        0,
+      );
+    }
     return analysis.draft.entries.filter((e) => e.uncertain && !e.reviewed).length;
   }, [analysis]);
 
   const onSelectPerson = (id: PersonId) => {
     setPersonId(id);
+    setPersonChosen(true);
     const next = data.persons.find((p) => p.id === id);
     if (next) setPlanType(defaultPlanTypeForPerson(next));
   };
 
+  const resetFiles = () => {
+    setFiles([]);
+    setPreviewUrls([]);
+    if (fileRef.current) fileRef.current.value = "";
+    if (cameraRef.current) cameraRef.current.value = "";
+  };
+
   const clearFile = () => {
+    setRetake(null);
+    setRowChoices([]);
     setPreviewUrls([]);
     setFiles([]);
     setAnalysis(null);
@@ -173,6 +219,7 @@ export function PlanUploadFlow({
     setYearConfirmed(false);
     setCodeAnswers({});
     setError(null);
+    setRetake(null);
 
     const isPdf = (f: File) => f.type === "application/pdf" || /\.pdf$/i.test(f.name);
 
@@ -201,20 +248,25 @@ export function PlanUploadFlow({
       return;
     }
 
-    // Quality gate: a photo too small on its long edge can't be read reliably — ask for a retake now.
-    try {
-      for (const f of selected) {
-        const longEdge = await readImageLongEdge(f);
-        if (longEdge < MIN_PHOTO_LONG_EDGE) {
-          setError(
-            "Das Bild ist nicht eindeutig genug. Bitte fotografiere den Dienstplan noch einmal vollständig und möglichst gerade, mit gutem Licht.",
-          );
-          return;
-        }
-      }
-    } catch {
-      // If dimension probing itself fails, fall through — the AI's own
-      // legibility warnings still apply; we never block on this alone.
+    // Quality gate: measure resolution, sharpness, light and reflections BEFORE
+    // any upload. A bad scan is rejected here — it is better to retake the
+    // photo than to save a wrong plan.
+    const problems = new Set<PhotoProblem>();
+    for (const f of selected) {
+      const check = await checkPhotoFile(f);
+      if (check.status === "rejected") check.problems.forEach((p) => problems.add(p));
+    }
+    if (problems.size > 0) {
+      setFiles([]);
+      setPreviewUrls([]);
+      if (fileRef.current) fileRef.current.value = "";
+      if (cameraRef.current) cameraRef.current.value = "";
+      setRetake({
+        headline: "Das Foto ist leider nicht gut genug lesbar.",
+        problems: [...problems].map((p) => PHOTO_PROBLEM_TEXT[p]),
+        tips: PHOTO_TIPS,
+      });
+      return;
     }
 
     setFiles(selected);
@@ -222,13 +274,14 @@ export function PlanUploadFlow({
     setStep("upload");
   };
 
-  const analyze = async () => {
+  const analyze = async (chosenRow?: string) => {
     if (files.length === 0 || !person) return;
     if (!online) {
       setError("Offline – KI-Analyse ist nicht verfügbar. Gespeicherte Pläne bleiben nutzbar.");
       return;
     }
     setError(null);
+    setRetake(null);
     setStep("analyzing");
     try {
       const body = new FormData();
@@ -236,9 +289,35 @@ export function PlanUploadFlow({
       body.append("personId", person.id);
       body.append("planType", planType);
       body.append("personName", person.name);
+      if (chosenRow) body.append("rowLabel", chosenRow);
+      else {
+        const remembered = readRememberedRow(person.id);
+        if (remembered) body.append("rowHint", remembered);
+      }
       const res = await fetch("/api/plan/analyze", { method: "POST", body });
-      const json = (await res.json()) as PlanAnalysisResult & { error?: string };
+      const json = (await res.json()) as PlanAnalysisResult & {
+        error?: string;
+        code?: string;
+        tips?: string[];
+        rows?: string[];
+        issues?: string[];
+      };
       if (!res.ok) {
+        if (json.code === "photo_unreadable") {
+          resetFiles();
+          setRetake({
+            headline: json.error || "Das Foto ist leider nicht gut genug lesbar.",
+            problems: [],
+            tips: json.tips?.length ? json.tips : PHOTO_TIPS,
+          });
+          setStep("upload");
+          return;
+        }
+        if (json.code === "needs_row_choice" && json.rows?.length) {
+          setRowChoices(json.rows);
+          setStep("choose-row");
+          return;
+        }
         throw new Error(json.error || "Analyse fehlgeschlagen.");
       }
 
@@ -248,16 +327,24 @@ export function PlanUploadFlow({
         // instead of showing a preview built on guesses. This looks at the
         // overall pattern of unreadable entries, never a single low
         // confidence number alone.
-        setFiles([]);
-        setPreviewUrls([]);
-        if (fileRef.current) fileRef.current.value = "";
-        if (cameraRef.current) cameraRef.current.value = "";
+        resetFiles();
         setAnalysis(null);
-        setError(reliability.reason);
+        setRetake({
+          headline: "Das Foto ist leider nicht gut genug lesbar.",
+          problems: [reliability.reason],
+          tips: PHOTO_TIPS,
+        });
         setStep("upload");
         return;
       }
 
+      if (chosenRow) {
+        try {
+          window.localStorage.setItem(ROW_LABEL_KEY(person.id), chosenRow);
+        } catch {
+          /* remembering the row is only a convenience */
+        }
+      }
       setAnalysis(json);
       setApplyMode(hasExisting ? "merge" : "replace");
       setResolutions({});
@@ -350,9 +437,37 @@ export function PlanUploadFlow({
       setError("Bitte fehlende Zeiten ergänzen, bevor der Plan übernommen wird.");
       return;
     }
+    if (analysis.draft.type === "work") {
+      const seen = new Set<string>();
+      for (const e of analysis.draft.entries) {
+        if (seen.has(e.date)) {
+          setError(
+            `Der ${e.date.slice(8, 10)}.${e.date.slice(5, 7)}.${e.date.slice(0, 4)} kommt mehrfach vor — bitte einen der Einträge entfernen.`,
+          );
+          return;
+        }
+        seen.add(e.date);
+      }
+      const unclear = analysis.draft.entries.filter(isUnclearEntry);
+      if (unclear.length > 0) {
+        setError(
+          `${unclear.length === 1 ? "Ein Tag ist" : `${unclear.length} Tage sind`} noch „Unklar“ — bitte Status wählen (Arbeit, Frei, Urlaub, Krankenstand) oder den Tag entfernen.`,
+        );
+        return;
+      }
+    }
+    if (undecidedConflicts > 0) {
+      setError(
+        `Für ${undecidedConflicts} ${undecidedConflicts === 1 ? "Tag gibt es" : "Tage gibt es"} schon einen anderen Eintrag — bitte jeweils „Behalten“ oder „Übernehmen“ wählen.`,
+      );
+      return;
+    }
     setError(null);
     updatePerson(person.id, (p) =>
-      applyPlanDraft(p, analysis.draft, applyMode, { conflicts, resolutions }),
+      applyPlanDraft(withoutDemoTimetable(p), analysis.draft, isTextResult ? "merge" : applyMode, {
+        conflicts,
+        resolutions,
+      }),
     );
     setStep("saved");
   };
@@ -445,6 +560,67 @@ export function PlanUploadFlow({
 
       {step === "upload" || step === "analyzing" || step === "converting" ? (
         <>
+          {planType === "work" ? (
+            <section className="space-y-3">
+              <h2 className="text-sm font-semibold tracking-[0.14em] text-[color:var(--quiet)] uppercase">
+                Wie möchtest du den Plan eingeben?
+              </h2>
+              <div className="grid gap-3 sm:grid-cols-2">
+                {(
+                  [
+                    ["text", "Mit ChatGPT importieren", "Empfohlen — ChatGPT liest den Plan, du fügst die Liste ein."],
+                    ["photo", "Foto oder PDF", "Die Website versucht, den Plan selbst zu lesen."],
+                  ] as const
+                ).map(([id, title, hint]) => (
+                  <button
+                    key={id}
+                    type="button"
+                    onClick={() => setImportSource(id)}
+                    aria-pressed={importSource === id}
+                    className={cn(
+                      "flex min-h-20 flex-col items-start justify-center gap-1 rounded-2xl px-5 py-4 text-left transition-transform active:scale-[0.98]",
+                      importSource === id
+                        ? "bg-[color:var(--ink)] text-[color:var(--surface)]"
+                        : "bg-[color:var(--surface)]",
+                    )}
+                  >
+                    <span className="text-lg font-medium">{title}</span>
+                    <span className={cn("text-sm", importSource === id ? "opacity-80" : "text-[color:var(--quiet)]")}>{hint}</span>
+                  </button>
+                ))}
+              </div>
+            </section>
+          ) : null}
+
+          {planType === "work" && importSource === "text" ? (
+            personChosen && person && person.id !== "levi" ? (
+              <PlanTextImport
+                persons={data.persons.filter((p) => p.id !== "levi").map((p) => ({ id: p.id, name: p.name }))}
+                chosenPersonId={personId}
+                text={pastedText}
+                onTextChange={setPastedText}
+                onReady={(result, id) => {
+                  setPersonId(id);
+                  setPersonChosen(true);
+                  setAnalysis(result);
+                  setApplyMode("merge");
+                  setResolutions({});
+                  setYearConfirmed(false);
+                  setCodeAnswers({});
+                  setError(null);
+                  const needsAsk =
+                    (result.period?.year != null && !result.period.yearCertain) ||
+                    (result.unknownCodes?.length ?? 0) > 0;
+                  setStep(needsAsk ? "clarify" : "preview");
+                }}
+              />
+            ) : (
+              <p className="rounded-2xl bg-[color:var(--surface)] px-5 py-5 text-lg">
+                Für wen ist der Arbeitsplan? Oben <strong>Birgit</strong> oder <strong>Heidi</strong> wählen.
+              </p>
+            )
+          ) : (
+            <>
           <div className="flex flex-wrap gap-3">
             <Button
               type="button"
@@ -536,6 +712,43 @@ export function PlanUploadFlow({
             </div>
           )}
 
+          {retake ? (
+            <div
+              role="alert"
+              data-testid="photo-retake"
+              className="space-y-4 rounded-[1.5rem] border border-amber-500/30 bg-amber-50/60 px-5 py-5 text-amber-950"
+            >
+              <p className="font-display text-2xl tracking-tight">{retake.headline}</p>
+              {retake.problems.length > 0 ? (
+                <ul className="list-disc space-y-1 pl-5 text-base">
+                  {retake.problems.map((p) => (
+                    <li key={p}>{p}</li>
+                  ))}
+                </ul>
+              ) : null}
+              <div className="space-y-2">
+                <p className="text-sm font-semibold tracking-[0.14em] uppercase">So klappt es</p>
+                <ul className="list-disc space-y-1 pl-5 text-base">
+                  {retake.tips.map((tip) => (
+                    <li key={tip}>{tip}</li>
+                  ))}
+                </ul>
+              </div>
+              <Button
+                type="button"
+                size="lg"
+                className="h-14 gap-2 rounded-2xl px-6 active:scale-[0.97]"
+                onClick={() => {
+                  setRetake(null);
+                  cameraRef.current?.click();
+                }}
+              >
+                <Camera className="size-5" aria-hidden />
+                Neu fotografieren
+              </Button>
+            </div>
+          ) : null}
+
           {error ? (
             <p role="alert" className="rounded-2xl bg-red-50 px-4 py-3 text-red-800">
               {error}
@@ -547,11 +760,46 @@ export function PlanUploadFlow({
             size="lg"
             className="h-14 rounded-2xl text-base active:scale-[0.97]"
             disabled={files.length === 0 || step === "analyzing" || step === "converting" || !online}
-            onClick={analyze}
+            onClick={() => analyze()}
           >
             {step === "analyzing" ? "Plan wird analysiert …" : "Plan analysieren"}
           </Button>
+            </>
+          )}
         </>
+      ) : null}
+
+      {step === "choose-row" ? (
+        <div className="space-y-5" data-testid="choose-row">
+          <h2 className="font-display text-3xl tracking-tight">Welche Zeile ist deine?</h2>
+          <p className="text-lg text-[color:var(--quiet)]">
+            Auf dem Plan stehen mehrere Personen. Ich bin nicht sicher, welche Zeile zu{" "}
+            {person?.name} gehört — bitte wähle sie aus. Ohne deine Wahl lese ich nichts aus.
+          </p>
+          <div className="flex flex-wrap gap-3">
+            {rowChoices.map((label) => (
+              <Button
+                key={label}
+                type="button"
+                variant="outline"
+                size="lg"
+                className="h-14 rounded-2xl px-6 text-base active:scale-[0.97]"
+                onClick={() => analyze(label)}
+              >
+                {label}
+              </Button>
+            ))}
+          </div>
+          <Button
+            type="button"
+            variant="ghost"
+            size="lg"
+            className="h-12 rounded-2xl"
+            onClick={clearFile}
+          >
+            Anderes Foto wählen
+          </Button>
+        </div>
       ) : null}
 
       {step === "clarify" && analysis ? (
@@ -622,7 +870,25 @@ export function PlanUploadFlow({
         <div className="space-y-8">
           <PlanPreviewEditor result={analysis} onChange={setAnalysis} />
 
-          {hasExisting ? (
+          {isTextResult && textComparison ? (
+            <section className="space-y-3" data-testid="text-compare">
+              <h2 className="text-sm font-semibold tracking-[0.14em] text-[color:var(--quiet)] uppercase">
+                Vergleich mit dem gespeicherten Plan von {person?.name}
+              </h2>
+              <p className="rounded-2xl bg-[color:var(--surface)] px-4 py-3 text-base">
+                <strong>{textComparison.added.length}</strong> {textComparison.added.length === 1 ? "Tag ist" : "Tage sind"} neu
+                {textComparison.unchanged.length > 0 ? (
+                  <> · <strong>{textComparison.unchanged.length}</strong> unverändert</>
+                ) : null}
+                {textComparison.changed.length > 0 ? (
+                  <> · <strong>{textComparison.changed.length}</strong> {textComparison.changed.length === 1 ? "Tag ändert" : "Tage ändern"} einen bestehenden Eintrag</>
+                ) : null}
+                . Andere Monate und Tage, die nicht in der Liste stehen, bleiben unberührt.
+              </p>
+            </section>
+          ) : null}
+
+          {hasExisting && !isTextResult ? (
             <section className="space-y-3">
               <h2 className="text-sm font-semibold tracking-[0.14em] text-[color:var(--quiet)] uppercase">
                 Speichern
@@ -664,10 +930,14 @@ export function PlanUploadFlow({
             </section>
           ) : null}
 
-          {applyMode === "merge" ? (
+          {applyMode === "merge" || isTextResult ? (
             <PlanConflictResolver
               conflicts={conflicts}
               resolutions={resolutions}
+              requireChoice={isTextResult}
+              onChangeAll={(value) =>
+                setResolutions(Object.fromEntries(conflicts.map((c) => [conflictKey(c), value])))
+              }
               onChange={(key, value) =>
                 setResolutions((prev) => ({ ...prev, [key]: value }))
               }
@@ -693,11 +963,29 @@ export function PlanUploadFlow({
               type="button"
               size="lg"
               className="h-14 rounded-2xl px-6 active:scale-[0.97]"
-              disabled={unresolvedReviewCount > 0}
+              disabled={unresolvedReviewCount > 0 || undecidedConflicts > 0}
               onClick={confirmSave}
             >
-              ✓ Plan übernehmen
+              ✓ {analysis.mode === "work" ? "Arbeitsplan" : "Stundenplan"} speichern
             </Button>
+            {isTextResult ? (
+              <Button
+                type="button"
+                variant="secondary"
+                size="lg"
+                className="h-14 rounded-2xl bg-[color:var(--surface)] px-6"
+                onClick={() => {
+                  setAnalysis(null);
+                  setResolutions({});
+                  setYearConfirmed(false);
+                  setCodeAnswers({});
+                  setError(null);
+                  setStep("upload");
+                }}
+              >
+                Zurück zur Liste
+              </Button>
+            ) : null}
             <Button
               type="button"
               variant="secondary"

@@ -1,5 +1,11 @@
 import { describe, expect, it } from "vitest";
-import { resolveWorkBusGlance, selectUpcomingBusRows } from "@/lib/morning/work-bus-glance";
+import {
+  countdownLabel,
+  departureDayHint,
+  minutesUntilEntry,
+  resolveWorkBusGlance,
+  selectUpcomingBusRows,
+} from "@/lib/morning/work-bus-glance";
 
 describe("resolveWorkBusGlance", () => {
   it("hides when not working", () => {
@@ -383,5 +389,117 @@ describe("selectUpcomingBusRows", () => {
       2,
     );
     expect(rows).toHaveLength(2);
+  });
+});
+
+describe("selectUpcomingBusRows — real instants (iso)", () => {
+  const NOW = new Date("2026-10-06T04:00:00Z"); // 06:00 Vienna
+  const e = (iso: string, time: string, extra: object = {}) => ({ iso, time, line: "1", destination: "Apfelmoar", ...extra });
+
+  it("shows the next 3 running buses and drops the ones that left", () => {
+    const rows = selectUpcomingBusRows(
+      [
+        e("2026-10-06T03:40:00Z", "05:40"),
+        e("2026-10-06T04:02:00Z", "06:02"),
+        e("2026-10-06T04:17:00Z", "06:17"),
+        e("2026-10-06T04:32:00Z", "06:32"),
+        e("2026-10-06T04:47:00Z", "06:47"),
+      ],
+      NOW,
+    );
+    expect(rows.map((r) => r.time)).toEqual(["06:02", "06:17", "06:32"]);
+  });
+
+  it("rolls up: one minute later the 06:02 bus is gone and 06:47 joins", () => {
+    const list = [
+      e("2026-10-06T04:02:00Z", "06:02"),
+      e("2026-10-06T04:17:00Z", "06:17"),
+      e("2026-10-06T04:32:00Z", "06:32"),
+      e("2026-10-06T04:47:00Z", "06:47"),
+    ];
+    expect(selectUpcomingBusRows(list, new Date("2026-10-06T04:03:00Z")).map((r) => r.time)).toEqual([
+      "06:17",
+      "06:32",
+      "06:47",
+    ]);
+  });
+
+  it("a cancelled bus is shown as such and does not use up one of the 3 running slots", () => {
+    const rows = selectUpcomingBusRows(
+      [
+        e("2026-10-06T04:02:00Z", "06:02", { cancelled: true }),
+        e("2026-10-06T04:17:00Z", "06:17"),
+        e("2026-10-06T04:32:00Z", "06:32"),
+        e("2026-10-06T04:47:00Z", "06:47"),
+        e("2026-10-06T05:02:00Z", "07:02"),
+      ],
+      NOW,
+    );
+    expect(rows.map((r) => [r.time, Boolean(r.cancelled)])).toEqual([
+      ["06:02", true],
+      ["06:17", false],
+      ["06:32", false],
+      ["06:47", false],
+    ]);
+  });
+
+  it("a cancelled bus AFTER the third running one is not shown", () => {
+    const rows = selectUpcomingBusRows(
+      [
+        e("2026-10-06T04:02:00Z", "06:02"),
+        e("2026-10-06T04:17:00Z", "06:17"),
+        e("2026-10-06T04:32:00Z", "06:32"),
+        e("2026-10-06T04:47:00Z", "06:47", { cancelled: true }),
+      ],
+      NOW,
+    );
+    expect(rows.map((r) => r.time)).toEqual(["06:02", "06:17", "06:32"]);
+  });
+
+  it("keeps a delayed bus (with its delay) in its slot", () => {
+    const rows = selectUpcomingBusRows([e("2026-10-06T04:08:00Z", "06:08", { delayMinutes: 6 })], NOW);
+    expect(rows[0]).toMatchObject({ time: "06:08", delayMinutes: 6 });
+  });
+
+  it("is correct across midnight: tomorrow's 06:02 is NOT 'already departed' at 23:50", () => {
+    const late = new Date("2026-10-06T21:50:00Z"); // 23:50
+    const rows = selectUpcomingBusRows(
+      [e("2026-10-07T04:02:00Z", "06:02"), e("2026-10-07T04:17:00Z", "06:17")],
+      late,
+    );
+    expect(rows.map((r) => r.time)).toEqual(["06:02", "06:17"]);
+  });
+
+  it("sorts by real time and removes duplicates", () => {
+    const rows = selectUpcomingBusRows(
+      [e("2026-10-06T04:32:00Z", "06:32"), e("2026-10-06T04:02:00Z", "06:02"), e("2026-10-06T04:02:00Z", "06:02")],
+      NOW,
+    );
+    expect(rows.map((r) => r.time)).toEqual(["06:02", "06:32"]);
+  });
+});
+
+describe("countdown label and day hint", () => {
+  const NOW = new Date("2026-10-06T04:00:00Z"); // 06:00 Vienna
+  const at = (iso: string) => ({ iso, time: "x", line: "1", destination: "A" });
+
+  it("counts real minutes from now", () => {
+    expect(countdownLabel(at("2026-10-06T04:08:00Z"), NOW)).toBe("in 8 Min.");
+    expect(countdownLabel(at("2026-10-06T04:01:00Z"), NOW)).toBe("in 1 Min.");
+    expect(countdownLabel(at("2026-10-06T04:00:10Z"), NOW)).toBe("jetzt");
+    expect(minutesUntilEntry(at("2026-10-06T04:38:00Z"), NOW)).toBe(38);
+  });
+
+  it("switches to hours for far-away departures (e.g. first bus tomorrow)", () => {
+    expect(countdownLabel(at("2026-10-06T05:08:00Z"), NOW)).toBe("in 1 Std. 8 Min.");
+    expect(countdownLabel(at("2026-10-06T06:00:00Z"), NOW)).toBe("in 2 Std.");
+  });
+
+  it("marks buses that leave on a later Vienna day", () => {
+    const late = new Date("2026-10-06T21:50:00Z"); // 23:50 Vienna
+    expect(departureDayHint(at("2026-10-07T04:02:00Z"), late)).toBe("morgen");
+    expect(departureDayHint(at("2026-10-06T21:55:00Z"), late)).toBeNull(); // 23:55 — still today
+    expect(departureDayHint(at("2026-10-06T22:05:00Z"), late)).toBe("morgen"); // 00:05 — after Vienna midnight
+    expect(departureDayHint({ time: "06:02", line: "1", destination: "A" }, late)).toBeNull();
   });
 });

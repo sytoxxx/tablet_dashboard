@@ -61,6 +61,17 @@ function weekdayOfIso(iso: string): WeekdayKey {
   return WEEKDAY_ORDER[(date.getDay() + 6) % 7]!;
 }
 
+/** Same status, times, label and place — nothing would change if the incoming entry replaced the existing one. */
+export function isSameWorkEntry(a: WorkPlanEntry, b: WorkPlanEntry): boolean {
+  return (
+    a.status === b.status &&
+    a.start === b.start &&
+    a.end === b.end &&
+    a.label.trim().toLowerCase() === b.label.trim().toLowerCase() &&
+    (a.location ?? "").trim().toLowerCase() === (b.location ?? "").trim().toLowerCase()
+  );
+}
+
 /** A real calendar date present in both existing and incoming entries is a conflict — regardless of status. */
 export function detectWorkEntryConflicts(
   existing: WorkPlanEntry[],
@@ -100,4 +111,25 @@ export function detectDraftConflicts(
     return detectWorkEntryConflicts(existingSchedule.entries ?? [], draft.entries);
   }
   return [];
+}
+
+/**
+ * Compares an incoming month with what is already saved, date by date.
+ * `changed` needs an explicit decision, `unchanged` needs none, `added` is simply new.
+ */
+export function compareWorkEntries(
+  existing: WorkPlanEntry[],
+  incoming: WorkPlanEntry[],
+): { added: WorkPlanEntry[]; unchanged: WorkPlanEntry[]; changed: WorkPlanEntry[] } {
+  const byDate = new Map(existing.map((e) => [e.date, e]));
+  const added: WorkPlanEntry[] = [];
+  const unchanged: WorkPlanEntry[] = [];
+  const changed: WorkPlanEntry[] = [];
+  for (const add of incoming) {
+    const prev = byDate.get(add.date);
+    if (!prev) added.push(add);
+    else if (isSameWorkEntry(prev, add)) unchanged.push(add);
+    else changed.push(add);
+  }
+  return { added, unchanged, changed };
 }

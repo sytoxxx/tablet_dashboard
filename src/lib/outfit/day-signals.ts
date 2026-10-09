@@ -6,6 +6,7 @@
 import type { PersonProfile } from "@/lib/types";
 import { getWeekdayKey } from "@/lib/format";
 import { getWorkShiftForDate } from "@/lib/work/schedule";
+import { schoolLessonsForDate } from "@/lib/school/school-day";
 import type { DayOutfitSignals } from "@/lib/outfit/types";
 
 const WORKSHOP_RE =
@@ -32,7 +33,7 @@ export function collectDayTexts(
 
   const schedule = person.schedule;
   if (schedule.type === "school") {
-    for (const lesson of schedule.week[key]?.lessons ?? []) {
+    for (const lesson of schoolLessonsForDate(schedule, date)) {
       subjects.push(lesson.subject);
       if (lesson.room) subjects.push(lesson.room);
     }

@@ -41,8 +41,8 @@ export function CoffeeHistory() {
             {formatWhen(brew.brewedAt)}
           </p>
           <p className="text-lg">
-            {personName(brew.personId)} · {COFFEE_METHOD_LABELS[brew.method]} ·{" "}
-            {formatTimer(brew.durationSeconds)}
+            {personName(brew.personId)} · {COFFEE_METHOD_LABELS[brew.method]}
+            {brew.durationSeconds > 0 ? ` · ${formatTimer(brew.durationSeconds)}` : ""}
           </p>
           <p className="text-[color:var(--quiet)]">
             {beanLabel(data.beans, brew.beanId)}
